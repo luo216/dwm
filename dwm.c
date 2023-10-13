@@ -967,10 +967,9 @@ void drawbar(Monitor *m) {
   }
 
   x = 280;
-  w = TEXTW(" >");
-  drw_setscheme(drw, scheme[SchemeNorm]);
-  drw_text(drw, x, 0, w, bh, lrpad / 2, " >", 0);
-  x = x + w;
+  drw_setscheme(drw, scheme[SchemeSel]);
+  drw_rect(drw, x, 0, 2, bh, 1, 1);
+  x += 2;
   for (i = 0; i < LENGTH(tags); i++) {
     /* Do not draw vacant tags */
     if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
@@ -2288,7 +2287,7 @@ void updatesystray(void) {
   XWindowChanges wc;
   Client *i;
   Monitor *m = systraytomon(NULL);
-  unsigned int x = m->mx + m->mw - 500;
+  unsigned int x = m->mx + m->mw - 550;
   unsigned int sw = TEXTW(stext) - lrpad + systrayspacing;
   unsigned int w = 1;
 
