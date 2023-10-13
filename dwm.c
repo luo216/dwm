@@ -936,6 +936,9 @@ void drawbar(Monitor *m) {
   if (showsystray && m == systraytomon(m) && !systrayonleft)
     stw = getsystraywidth();
 
+  drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_rect(drw, 0, 0, m->ww, bh, 1, 1);
+
   /* draw status first so it can be overdrawn by tags later */
   if (m == selmon) { /* status is only drawn on selected monitor */
     drawstatusbar(m, bh, stext);
@@ -957,7 +960,7 @@ void drawbar(Monitor *m) {
 
   if ((w = 280 - w) > bh) {
     if (m->sel) {
-      drw_setscheme(drw, scheme[m == selmon ? SchemeSel : SchemeNorm]);
+      drw_setscheme(drw, scheme[SchemeNorm]);
       drw_text(drw, x, 0, w, bh, lrpad / 2, m->sel->name, 0);
       if (m->sel->isfloating)
         drw_rect(drw, x + boxs, boxs, boxw, boxw, m->sel->isfixed, 0);
@@ -968,6 +971,10 @@ void drawbar(Monitor *m) {
   }
 
   x = 280;
+  w = TEXTW(" >");
+  drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_text(drw, x, 0, w, bh, lrpad / 2, " >", 0);
+  x = x + w;
   for (i = 0; i < LENGTH(tags); i++) {
     /* Do not draw vacant tags */
     if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
@@ -979,7 +986,7 @@ void drawbar(Monitor *m) {
     x += w;
   }
   w = TEXTW(m->ltsymbol);
-  drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_setscheme(drw, scheme[SchemeSel]);
   x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 
   drw_map(drw, m->barwin, 0, 0, m->ww - stw, bh);
@@ -2311,7 +2318,7 @@ void updatesystray(void) {
     if (!(systray = (Systray *)calloc(1, sizeof(Systray))))
       die("fatal: could not malloc() %u bytes\n", sizeof(Systray));
     systray->win = XCreateSimpleWindow(dpy, root, x, m->by, w, bh, 0, 0,
-                                       scheme[SchemeSel][ColBg].pixel);
+                                       scheme[SchemeNorm][ColBg].pixel);
     wa.event_mask = ButtonPressMask | ExposureMask;
     wa.override_redirect = True;
     wa.background_pixel = scheme[SchemeNorm][ColBg].pixel;
@@ -2341,7 +2348,7 @@ void updatesystray(void) {
     XMapRaised(dpy, i->win);
     w += systrayspacing;
     i->x = w;
-    XMoveResizeWindow(dpy, i->win, i->x, 4, i->w, i->h);
+    XMoveResizeWindow(dpy, i->win, i->x, 7, i->w, i->h);
     w += i->w;
     if (i->mon != m)
       i->mon = m;
