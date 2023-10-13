@@ -224,7 +224,6 @@ static void focusstack(const Arg *arg);
 static Atom getatomprop(Client *c, Atom prop);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
-static unsigned int getsystraywidth();
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
@@ -502,7 +501,7 @@ void buttonpress(XEvent *e) {
       arg.ui = 1 << i;
     } else if (ev->x < x + TEXTW(selmon->ltsymbol))
       click = ClkLtSymbol;
-    else if (ev->x > selmon->ww - (int)TEXTW(stext) - getsystraywidth())
+    else if (ev->x > selmon->ww - (int)TEXTW(stext))
       click = ClkStatusText;
     else
       click = ClkWinTitle;
@@ -851,7 +850,7 @@ int drawstatusbar(Monitor *m, int bh, char *stext) {
 
   w += 2; /* 1px padding on both sides */
   ret = m->ww - w;
-  x = m->ww - w - getsystraywidth();
+  x = m->ww - w;
 
   drw_setscheme(drw, scheme[LENGTH(colors)]);
   drw->scheme[ColFg] = scheme[SchemeNorm][ColFg];
@@ -924,7 +923,7 @@ int drawstatusbar(Monitor *m, int bh, char *stext) {
 }
 
 void drawbar(Monitor *m) {
-  int x, w = 0, stw = 0;
+  int x, w = 0;
   int boxs = drw->fonts->h / 9;
   int boxw = drw->fonts->h / 6 + 2;
   unsigned int i, occ = 0, urg = 0;
@@ -932,9 +931,6 @@ void drawbar(Monitor *m) {
 
   if (!m->showbar)
     return;
-
-  if (showsystray && m == systraytomon(m) && !systrayonleft)
-    stw = getsystraywidth();
 
   drw_setscheme(drw, scheme[SchemeNorm]);
   drw_rect(drw, 0, 0, m->ww, bh, 1, 1);
@@ -989,7 +985,7 @@ void drawbar(Monitor *m) {
   drw_setscheme(drw, scheme[SchemeSel]);
   x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 
-  drw_map(drw, m->barwin, 0, 0, m->ww - stw, bh);
+  drw_map(drw, m->barwin, 0, 0, m->ww, bh);
 }
 
 void drawbars(void) {
@@ -1144,15 +1140,6 @@ long getstate(Window w) {
     result = *p;
   XFree(p);
   return result;
-}
-
-unsigned int getsystraywidth() {
-  unsigned int w = 0;
-  Client *i;
-  if (showsystray)
-    for (i = systray->icons; i; w += i->w + systrayspacing, i = i->next)
-      ;
-  return w ? w + systrayspacing : 1;
 }
 
 int gettextprop(Window w, Atom atom, char *text, unsigned int size) {
@@ -1523,8 +1510,6 @@ void resize(Client *c, int x, int y, int w, int h, int interact) {
 
 void resizebarwin(Monitor *m) {
   unsigned int w = m->ww;
-  if (showsystray && m == systraytomon(m) && !systrayonleft)
-    w -= getsystraywidth();
   XMoveResizeWindow(dpy, m->barwin, m->wx, m->by, w, bh);
 }
 
@@ -2079,8 +2064,6 @@ void updatebars(void) {
     if (m->barwin)
       continue;
     w = m->ww;
-    if (showsystray && m == systraytomon(m))
-      w -= getsystraywidth();
     m->barwin = XCreateWindow(
         dpy, root, m->wx, m->by, w, bh, 0, DefaultDepth(dpy, screen),
         CopyFromParent, DefaultVisual(dpy, screen),
