@@ -501,16 +501,16 @@ void buttonpress(XEvent *e) {
       if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
         continue;
       x += TEXTW(tags[i]);
-    } while (ev->x >= x && ++i < LENGTH(tags));
-    if (i < LENGTH(tags)) {
+    } while (ev->x >= x + 282 && ++i < LENGTH(tags));
+    if (ev->x <= 282) {
+      click = ClkWinTitle;
+    } else if (i < LENGTH(tags)) {
       click = ClkTagBar;
       arg.ui = 1 << i;
-    } else if (ev->x < x + TEXTW(selmon->ltsymbol))
+    } else if (ev->x < x + 282 + TEXTW(selmon->ltsymbol))
       click = ClkLtSymbol;
     else if (ev->x > selmon->ww - (int)TEXTW(stext))
       click = ClkStatusText;
-    else
-      click = ClkWinTitle;
   } else if ((c = wintoclient(ev->window))) {
     focus(c);
     restack(selmon);
@@ -2368,7 +2368,7 @@ void updatesystray(void) {
   XWindowChanges wc;
   Client *i;
   Monitor *m = systraytomon(NULL);
-  unsigned int x = m->mx + m->mw - 550;
+  unsigned int x = m->mx + m->mw - 620;
   unsigned int sw = TEXTW(stext) - lrpad + systrayspacing;
   unsigned int w = 1;
 
