@@ -27,6 +27,7 @@
 #include <X11/cursorfont.h>
 #include <X11/keysym.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <locale.h>
 #include <signal.h>
 #include <stdarg.h>
@@ -218,6 +219,7 @@ static void drawbars(void);
 static int drawstatusbar(Monitor *m, int bh, char *text);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
+static void fifostatusbar(const Arg *arg);
 static void focus(Client *c);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
@@ -299,6 +301,9 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
 /* variables */
+static int statusx;
+static int statusw;
+static const char *myfifo = "/tmp/statusbarfifo";
 static Systray *systray = NULL;
 static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
@@ -509,8 +514,11 @@ void buttonpress(XEvent *e) {
       arg.ui = 1 << i;
     } else if (ev->x < x + 282 + TEXTW(selmon->ltsymbol))
       click = ClkLtSymbol;
-    else if (ev->x > selmon->ww - (int)TEXTW(stext))
+    else if (ev->x > selmon->ww - (int)TEXTW(stext)) {
       click = ClkStatusText;
+      statusx = ev->x - selmon->ww + TEXTW(stext);
+      statusw = TEXTW(stext);
+    }
   } else if ((c = wintoclient(ev->window))) {
     focus(c);
     restack(selmon);
@@ -1028,6 +1036,23 @@ void expose(XEvent *e) {
     if (m == selmon)
       updatesystray();
   }
+}
+
+void fifostatusbar(const Arg *arg) {
+  int fd;
+  // Use access to check whether the fifo file exists
+  if (access(myfifo, F_OK) != 0) {
+    // Create fifo file
+    mkfifo(myfifo, 0666);
+  }
+  fd = open(myfifo, O_WRONLY);
+  if (fd >= 1) {
+    char buffer[80];
+    sprintf(buffer, "from:dwm,button:%d,statusx:%d,statusw:%d\n", arg->i,
+            statusx, statusw);
+    write(fd, buffer, strlen(buffer) + 1);
+  }
+  close(fd);
 }
 
 void focus(Client *c) {
