@@ -302,7 +302,6 @@ static void zoom(const Arg *arg);
 
 /* variables */
 static int statusx;
-static int statusw;
 static const char *myfifo = "/tmp/statusbarfifo";
 static Systray *systray = NULL;
 static const char autostartblocksh[] = "autostart_blocking.sh";
@@ -516,8 +515,7 @@ void buttonpress(XEvent *e) {
       click = ClkLtSymbol;
     else if (ev->x > selmon->ww - (int)TEXTW(stext)) {
       click = ClkStatusText;
-      statusx = ev->x - selmon->ww + TEXTW(stext);
-      statusw = TEXTW(stext);
+      statusx = TEXTW(stext) - ev->x + selmon->ww - TEXTW(stext);
     }
   } else if ((c = wintoclient(ev->window))) {
     focus(c);
@@ -1048,8 +1046,7 @@ void fifostatusbar(const Arg *arg) {
   fd = open(myfifo, O_WRONLY);
   if (fd >= 1) {
     char buffer[80];
-    sprintf(buffer, "{from:dwm,button:%d,statusx:%d,statusw:%d}\n", arg->i,
-            statusx, statusw);
+    sprintf(buffer, "{from:dwm,button:%d,statusx:%d}\n", arg->i, statusx);
     write(fd, buffer, strlen(buffer) + 1);
   }
   close(fd);
