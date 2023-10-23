@@ -1048,7 +1048,7 @@ void fifostatusbar(const Arg *arg) {
   fd = open(myfifo, O_WRONLY);
   if (fd >= 1) {
     char buffer[80];
-    sprintf(buffer, "from:dwm,button:%d,statusx:%d,statusw:%d\n", arg->i,
+    sprintf(buffer, "{from:dwm,button:%d,statusx:%d,statusw:%d}\n", arg->i,
             statusx, statusw);
     write(fd, buffer, strlen(buffer) + 1);
   }
