@@ -84,9 +84,9 @@ static const Key keys[] = {
     /* modifier                     key        function        argument */
     {MODKEY, XK_F5, spawn, {.v = dec_light}},
     {MODKEY, XK_F6, spawn, {.v = inc_light}},
-    {MODKEY, XK_F7, spawn, {.v = dec_volume}},
-    {MODKEY, XK_F8, spawn, {.v = inc_volume}},
-    {MODKEY, XK_F9, spawn, {.v = tog_volume}},
+    {MODKEY, XK_F8, spawn, {.v = tog_volume}},
+    {MODKEY, XK_F9, spawn, {.v = dec_volume}},
+    {MODKEY, XK_F10, spawn, {.v = inc_volume}},
     {MODKEY, XK_Print, spawn, {.v = flameshot}},
     {MODKEY, XK_p, spawn, {.v = roficmd}},
     {MODKEY | ShiftMask, XK_Return, spawn, {.v = termcmd}},
