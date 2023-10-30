@@ -70,9 +70,24 @@ static const Layout layouts[] = {
 /* commands */
 static const char *roficmd[] = {"rofi", "-show", NULL};
 static const char *termcmd[] = {"st", NULL};
+static const char *inc_light[] = {"light", "-A", "5", NULL};
+static const char *dec_light[] = {"light", "-U", "5", NULL};
+static const char *inc_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@",
+                                   "+5%", NULL};
+static const char *dec_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@",
+                                   "-5%", NULL};
+static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@",
+                                   "toggle", NULL};
+static const char *flameshot[] = {"flameshot", "gui", NULL};
 
 static const Key keys[] = {
     /* modifier                     key        function        argument */
+    {MODKEY, XK_F5, spawn, {.v = dec_light}},
+    {MODKEY, XK_F6, spawn, {.v = inc_light}},
+    {MODKEY, XK_F7, spawn, {.v = dec_volume}},
+    {MODKEY, XK_F8, spawn, {.v = inc_volume}},
+    {MODKEY, XK_F9, spawn, {.v = tog_volume}},
+    {MODKEY, XK_Print, spawn, {.v = flameshot}},
     {MODKEY, XK_p, spawn, {.v = roficmd}},
     {MODKEY | ShiftMask, XK_Return, spawn, {.v = termcmd}},
     {MODKEY, XK_b, togglebar, {0}},
