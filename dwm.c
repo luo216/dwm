@@ -219,7 +219,6 @@ static void drawbars(void);
 static int drawstatusbar(Monitor *m, int bh, char *text);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
-static void fifostatusbar(const Arg *arg);
 static void focus(Client *c);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
@@ -301,8 +300,6 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
 /* variables */
-static int statusx;
-static const char *myfifo = "/tmp/statusbarfifo";
 static Systray *systray = NULL;
 static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
@@ -515,7 +512,6 @@ void buttonpress(XEvent *e) {
       click = ClkLtSymbol;
     else if (ev->x > selmon->ww - (int)TEXTW(stext)) {
       click = ClkStatusText;
-      statusx = TEXTW(stext) - ev->x + selmon->ww - TEXTW(stext);
     }
   } else if ((c = wintoclient(ev->window))) {
     focus(c);
@@ -1031,25 +1027,7 @@ void expose(XEvent *e) {
 
   if (ev->count == 0 && (m = wintomon(ev->window))) {
     drawbar(m);
-    if (m == selmon)
-      updatesystray();
   }
-}
-
-void fifostatusbar(const Arg *arg) {
-  int fd;
-  // Use access to check whether the fifo file exists
-  if (access(myfifo, F_OK) != 0) {
-    // Create fifo file
-    mkfifo(myfifo, 0666);
-  }
-  fd = open(myfifo, O_WRONLY);
-  if (fd >= 1) {
-    char buffer[80];
-    sprintf(buffer, "{from:dwm,button:%d,statusx:%d}\n", arg->i, statusx);
-    write(fd, buffer, strlen(buffer) + 1);
-  }
-  close(fd);
 }
 
 void focus(Client *c) {
@@ -2338,7 +2316,6 @@ void updatestatus(void) {
   if (!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
     strcpy(stext, "dwm-" VERSION);
   drawbar(selmon);
-  updatesystray();
 }
 
 void updatesystrayicongeom(Client *i, int w, int h) {
