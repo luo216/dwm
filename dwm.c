@@ -2369,13 +2369,10 @@ void updatesystray(void) {
   Client *i;
   Monitor *m = systraytomon(NULL);
   unsigned int x = m->mx + m->mw - 620;
-  unsigned int sw = TEXTW(stext) - lrpad + systrayspacing;
   unsigned int w = 1;
 
   if (!showsystray)
     return;
-  if (systrayonleft)
-    x -= sw + lrpad / 2;
   if (!systray) {
     /* init systray */
     if (!(systray = (Systray *)calloc(1, sizeof(Systray))))
