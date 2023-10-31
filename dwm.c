@@ -510,7 +510,7 @@ void buttonpress(XEvent *e) {
       arg.ui = 1 << i;
     } else if (ev->x < x + 282 + TEXTW(selmon->ltsymbol))
       click = ClkLtSymbol;
-    else if (ev->x > selmon->ww - (int)TEXTW(stext)) {
+    else if (ev->x > selmon->ww - systrayrpad) {
       click = ClkStatusText;
     }
   } else if ((c = wintoclient(ev->window))) {
@@ -2368,7 +2368,7 @@ void updatesystray(void) {
   XWindowChanges wc;
   Client *i;
   Monitor *m = systraytomon(NULL);
-  unsigned int x = m->mx + m->mw - 620;
+  unsigned int x = m->mx + m->mw - systrayrpad;
   unsigned int w = 1;
 
   if (!showsystray)
