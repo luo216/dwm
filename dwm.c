@@ -111,7 +111,8 @@ enum {
   ClkClientWin,
   ClkRootWin,
   ClkLast
-}; /* clicks */
+};                              /* clicks */
+enum { normalfont, smallfont }; /* font indicies */
 
 typedef union {
   int i;
@@ -334,8 +335,10 @@ static Cur *cursor[CurLast];
 static Clr **scheme;
 static Display *dpy;
 static Drw *drw;
+static Drw *sdrw;
 static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
+static Fnt *font_sizes[] = {[normalfont] = NULL, [smallfont] = NULL};
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -829,22 +832,17 @@ void drawbar(Monitor *m) {
     return;
 
   drw_setscheme(drw, scheme[SchemeNorm]);
-  drw_rect(drw, 0, 0, m->ww, bh, 1, 1);
+  drw_rect(drw, 0, 0, m->ww - systrayrpad, bh, 1, 1);
 
   /* draw status first so it can be overdrawn by tags later */
   if (m == selmon) { /* status is only drawn on selected monitor */
     updatesystray();
 
-    if (!drw_fontset_create(drw, small_fonts, LENGTH(small_fonts)))
-      die("no fonts could be loaded.");
-
+    drw_setscheme(sdrw, scheme[SchemeSel]);
     int sw = TEXTW(stext);
-
-    drw_text(drw, m->ww - sw, 4, systrayrpad, bh / 2, lrpad, stext, 0);
-    drw_text(drw, m->ww - sw, bh / 2, systrayrpad, bh / 2, lrpad, stext, 0);
-
-    if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
-      die("no fonts could be loaded.");
+    drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
+    drw_text(sdrw, m->ww - sw, 0, systrayrpad, bh, lrpad, stext, 0);
+    drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
   }
 
   resizebarwin(m);
@@ -891,7 +889,7 @@ void drawbar(Monitor *m) {
   drw_setscheme(drw, scheme[SchemeSel]);
   x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 
-  drw_map(drw, m->barwin, 0, 0, m->ww, bh);
+  drw_map(drw, m->barwin, 0, 0, m->ww - systrayrpad, bh);
 }
 
 void drawbars(void) {
@@ -1772,6 +1770,11 @@ void setup(void) {
   drw = drw_create(dpy, screen, root, sw, sh);
   if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
     die("no fonts could be loaded.");
+  /* init status bar font sizes */
+  sdrw = drw_create(dpy, screen, root, sw, sh);
+  font_sizes[normalfont] = drw->fonts;
+  font_sizes[smallfont] = drw->fonts->next;
+  sdrw->fonts = font_sizes[smallfont];
   lrpad = drw->fonts->h;
   bh = drw->fonts->h + 10;
   updategeom();

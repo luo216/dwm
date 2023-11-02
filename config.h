@@ -16,8 +16,8 @@ static const int showsystray = 1;   /* 0 means no systray */
 static const int systrayrpad = 620; /* right padding for systray */
 static const int showbar = 1;       /* 0 means no bar */
 static const int topbar = 1;        /* 0 means bottom bar */
-static const char *fonts[] = {"Hack Nerd Font:size=14"};
-static const char *small_fonts[] = {"Hack Nerd Font:size=10"};
+static const char *fonts[] = {"Hack Nerd Font:size=14",
+                              "Hack Nerd Font:size=10"};
 static const char col_white[] = "#eeeeee";
 static const char col_blue1[] = "#325d9b";
 static const char col_blue2[] = "#1c3a5e";
