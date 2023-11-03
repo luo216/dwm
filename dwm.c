@@ -284,7 +284,7 @@ static void updateclientlist(void);
 static int updategeom(void);
 static void updatenumlockmask(void);
 static void updatesizehints(Client *c);
-static void *updatestatus();
+static void *drawstatusbar();
 static void updatesystray(void);
 static void updatesystrayicongeom(Client *i, int w, int h);
 static void updatesystrayiconstate(Client *i, XPropertyEvent *ev);
@@ -1803,8 +1803,8 @@ void setup(void) {
   updatesystray();
   /* init bars */
   updatebars();
-  pthread_t status_thread;
-  pthread_create(&status_thread, NULL, *updatestatus, NULL);
+  pthread_t draw_status_thread;
+  pthread_create(&draw_status_thread, NULL, *drawstatusbar, NULL);
   /* supporting window for NetWMCheck */
   wmcheckwin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
   XChangeProperty(dpy, wmcheckwin, netatom[NetWMCheck], XA_WINDOW, 32,
@@ -2200,7 +2200,7 @@ void updatesizehints(Client *c) {
   c->hintsvalid = 1;
 }
 
-void *updatestatus() {
+void *drawstatusbar() {
   // TODO: status bar
   /* init screen */
   sdrw = drw_create(dpy, screen, root, sw, sh);
