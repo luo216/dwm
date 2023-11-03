@@ -42,6 +42,7 @@
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
 #include <X11/Xft/Xft.h>
+#include <pthread.h>
 
 #include "drw.h"
 #include "util.h"
@@ -1340,9 +1341,7 @@ void propertynotify(XEvent *e) {
     updatesystray();
   }
 
-  if ((ev->window == root) && (ev->atom == XA_WM_NAME))
-    updatestatus();
-  else if (ev->state == PropertyDelete)
+  if (ev->state == PropertyDelete)
     return; /* ignore */
   else if ((c = wintoclient(ev->window))) {
     switch (ev->atom) {
@@ -2200,11 +2199,7 @@ void updatesizehints(Client *c) {
   c->hintsvalid = 1;
 }
 
-void updatestatus(void) {
-  if (!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
-    strcpy(stext, "dwm-" VERSION);
-  drawbar(selmon);
-}
+void updatestatus(void) { strcpy(stext, "dwm-"); }
 
 void updatesystrayicongeom(Client *i, int w, int h) {
   if (i) {
