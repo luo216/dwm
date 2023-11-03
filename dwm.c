@@ -2229,6 +2229,10 @@ void *drawstatusbar() {
           drw_text(sdrw, x, bh / 2, STEXTW(stext), bh / 2 - 3, lrpad, stext, 0);
 
           drw_setfontset(sdrw, normalfont);
+          strcpy(stext, "hello");
+          x -= STEXTW(stext);
+          drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
         } else {
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
