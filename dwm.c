@@ -284,7 +284,7 @@ static void updateclientlist(void);
 static int updategeom(void);
 static void updatenumlockmask(void);
 static void updatesizehints(Client *c);
-static void updatestatus(void);
+static void *updatestatus();
 static void updatesystray(void);
 static void updatesystrayicongeom(Client *i, int w, int h);
 static void updatesystrayiconstate(Client *i, XPropertyEvent *ev);
@@ -336,6 +336,7 @@ static Cur *cursor[CurLast];
 static Clr **scheme;
 static Display *dpy;
 static Drw *drw;
+static Drw *sdrw;
 static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
 
@@ -1803,7 +1804,8 @@ void setup(void) {
   updatesystray();
   /* init bars */
   updatebars();
-  updatestatus();
+  pthread_t status_thread;
+  pthread_create(&status_thread, NULL, *updatestatus, NULL);
   /* supporting window for NetWMCheck */
   wmcheckwin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
   XChangeProperty(dpy, wmcheckwin, netatom[NetWMCheck], XA_WINDOW, 32,
@@ -2199,7 +2201,26 @@ void updatesizehints(Client *c) {
   c->hintsvalid = 1;
 }
 
-void updatestatus(void) { strcpy(stext, "dwm-"); }
+void *updatestatus() {
+  // TODO: status bar
+  /* init screen */
+  sdrw = drw_create(dpy, screen, root, sw, sh);
+  if (!drw_fontset_create(sdrw, fonts, LENGTH(fonts)))
+    die("no fonts could be loaded.");
+  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  while (1) {
+    // 遍历mons,在selmon上绘制
+    for (Monitor *m = mons; m; m = m->next)
+      if (m == selmon) {
+        drw_text(sdrw, 0, 0, systrayrpad, bh, lrpad, "hello world", 0);
+        drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+      } else {
+        drw_rect(sdrw, 0, 0, systrayrpad, bh, 1, 1);
+        drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+      }
+    sleep(1);
+  }
+}
 
 void updatesystrayicongeom(Client *i, int w, int h) {
   if (i) {
