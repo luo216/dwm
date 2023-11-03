@@ -2219,6 +2219,7 @@ void *updatestatus() {
       }
     sleep(1);
   }
+  return 0;
 }
 
 void updatesystrayicongeom(Client *i, int w, int h) {
