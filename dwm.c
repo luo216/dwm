@@ -1804,7 +1804,8 @@ void setup(void) {
   /* init bars */
   updatebars();
   pthread_t draw_status_thread;
-  pthread_create(&draw_status_thread, NULL, *drawstatusbar, NULL);
+  if (pthread_create(&draw_status_thread, NULL, *drawstatusbar, NULL) != 0)
+    die("pthread_create error");
   /* supporting window for NetWMCheck */
   wmcheckwin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
   XChangeProperty(dpy, wmcheckwin, netatom[NetWMCheck], XA_WINDOW, 32,
@@ -2210,29 +2211,33 @@ void *drawstatusbar() {
   Fnt *smallfont = sdrw->fonts->next;
   drw_setscheme(sdrw, scheme[SchemeSel]);
   while (1) {
-    // 遍历mons,在selmon上绘制
-    for (Monitor *m = mons; m; m = m->next)
-      if (m == selmon) {
-        int x = m->ww;
+    if (running == 1) {
+      // 遍历mons,在selmon上绘制
+      for (Monitor *m = mons; m; m = m->next)
+        if (m == selmon) {
+          int x = m->ww;
 
-        char stext[10] = "5:20 PM";
-        drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
-        x -= STEXTW(stext);
-        drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+          char stext[10] = "5:20 PM";
+          drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
+          x -= STEXTW(stext);
+          drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
 
-        drw_setfontset(sdrw, smallfont);
-        strcpy(stext, "12.5kb/s");
-        x -= STEXTW(stext);
-        drw_text(sdrw, x, 3, STEXTW(stext), bh / 2, lrpad, stext, 0);
-        drw_text(sdrw, x, bh / 2, STEXTW(stext), bh / 2 - 3, lrpad, stext, 0);
+          drw_setfontset(sdrw, smallfont);
+          strcpy(stext, "12.5kb/s");
+          x -= STEXTW(stext);
+          drw_text(sdrw, x, 3, STEXTW(stext), bh / 2, lrpad, stext, 0);
+          drw_text(sdrw, x, bh / 2, STEXTW(stext), bh / 2 - 3, lrpad, stext, 0);
 
-        drw_setfontset(sdrw, normalfont);
-        drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
-      } else {
-        drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
-        drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
-      }
-    sleep(1);
+          drw_setfontset(sdrw, normalfont);
+          drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+        } else {
+          drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
+          drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+        }
+      sleep(1);
+    } else {
+      return 0;
+    }
   }
   return 0;
 }
