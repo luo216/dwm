@@ -63,6 +63,7 @@
 #define HEIGHT(X) ((X)->h + 2 * (X)->bw)
 #define TAGMASK ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
+#define STEXTW(X) (drw_fontset_getwidth(sdrw, (X)) + lrpad)
 
 #define SYSTEM_TRAY_REQUEST_DOCK 0
 /* XEMBED messages */
@@ -112,8 +113,7 @@ enum {
   ClkClientWin,
   ClkRootWin,
   ClkLast
-};                              /* clicks */
-enum { normalfont, smallfont }; /* font indicies */
+}; /* clicks */
 
 typedef union {
   int i;
@@ -2206,15 +2206,27 @@ void *drawstatusbar() {
   sdrw = drw_create(dpy, screen, root, sw, sh);
   if (!drw_fontset_create(sdrw, fonts, LENGTH(fonts)))
     die("no fonts could be loaded.");
+  Fnt *normalfont = sdrw->fonts;
+  Fnt *smallfont = sdrw->fonts->next;
   drw_setscheme(sdrw, scheme[SchemeSel]);
   while (1) {
     // 遍历mons,在selmon上绘制
     for (Monitor *m = mons; m; m = m->next)
       if (m == selmon) {
-        char stext[] = "hello world";
+        int x = m->ww;
+
+        char stext[10] = "5:20 PM";
         drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
-        drw_text(sdrw, m->ww - TEXTW(stext), 0, TEXTW(stext), bh, lrpad, stext,
-                 0);
+        x -= STEXTW(stext);
+        drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+
+        drw_setfontset(sdrw, smallfont);
+        strcpy(stext, "12.5kb/s");
+        x -= STEXTW(stext);
+        drw_text(sdrw, x, 3, STEXTW(stext), bh / 2, lrpad, stext, 0);
+        drw_text(sdrw, x, bh / 2, STEXTW(stext), bh / 2 - 3, lrpad, stext, 0);
+
+        drw_setfontset(sdrw, normalfont);
         drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
       } else {
         drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
