@@ -2211,8 +2211,10 @@ void *updatestatus() {
     // 遍历mons,在selmon上绘制
     for (Monitor *m = mons; m; m = m->next)
       if (m == selmon) {
-        drw_text(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, lrpad,
-                 "hello world", 0);
+        char stext[] = "hello world";
+        drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
+        drw_text(sdrw, m->ww - TEXTW(stext), 0, TEXTW(stext), bh, lrpad, stext,
+                 0);
         drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
       } else {
         drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
