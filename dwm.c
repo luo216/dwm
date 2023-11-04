@@ -2209,7 +2209,7 @@ void *drawstatusbar() {
     die("no fonts could be loaded.");
   Fnt *normalfont = sdrw->fonts;
   Fnt *smallfont = sdrw->fonts->next;
-  drw_setscheme(sdrw, scheme[SchemeSel]);
+  drw_setscheme(sdrw, scheme[SchemeNorm]);
   while (1) {
     if (running == 1) {
       // 遍历mons,在selmon上绘制
@@ -2238,7 +2238,7 @@ void *drawstatusbar() {
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
         }
-      sleep(1);
+      usleep(100000);
     } else {
       return 0;
     }
