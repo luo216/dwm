@@ -268,6 +268,8 @@ static void showhide(Client *c);
 static void sigchld(int unused);
 static void spawn(const Arg *arg);
 static Monitor *systraytomon(Monitor *m);
+static int status_time(int x);
+static int status_net(int x);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
@@ -338,6 +340,8 @@ static Drw *drw;
 static Drw *sdrw;
 static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
+static Fnt *normalfont;
+static Fnt *smallfont;
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -2201,14 +2205,83 @@ void updatesizehints(Client *c) {
   c->hintsvalid = 1;
 }
 
+int status_net(int x) {
+  char rx[20], tx[20];
+  char interface_name[] = "wlp0s20f3";
+  char txpath[50];
+  char rxpath[50];
+  sprintf(txpath, "/sys/class/net/%s/statistics/tx_bytes", interface_name);
+  sprintf(rxpath, "/sys/class/net/%s/statistics/rx_bytes", interface_name);
+
+  // read tx and rx
+  FILE *fp = fopen(txpath, "r");
+  fscanf(fp, "%s", tx);
+  fclose(fp);
+  fp = fopen(rxpath, "r");
+  fscanf(fp, "%s", rx);
+  fclose(fp);
+
+  int txi = atoi(tx);
+  int rxi = atoi(rx);
+
+  // Format the values
+  if (txi < 1024) {
+    sprintf(tx, "%d B/s", txi);
+  } else if (txi < 1024 * 1024) {
+    sprintf(tx, "%d KB/s", txi / 1024);
+  } else if (txi < 1024 * 1024 * 1024) {
+    sprintf(tx, "%d MB/s", txi / 1024 / 1024);
+  } else {
+    sprintf(tx, "%d GB/s", txi / 1024 / 1024 / 1024);
+  }
+
+  if (rxi < 1024) {
+    sprintf(rx, "%d B/s", rxi);
+  } else if (rxi < 1024 * 1024) {
+    sprintf(rx, "%d KB/s", rxi / 1024);
+  } else if (rxi < 1024 * 1024 * 1024) {
+    sprintf(rx, "%d MB/s", rxi / 1024 / 1024);
+  } else {
+    sprintf(rx, "%d GB/s", rxi / 1024 / 1024 / 1024);
+  }
+
+  drw_setfontset(sdrw, smallfont);
+  x -= STEXTW(rx);
+  drw_text(sdrw, x, 3, STEXTW(tx), bh / 2, lrpad, tx, 0);
+  drw_text(sdrw, x, bh / 2, STEXTW(rx), bh / 2 - 3, lrpad, rx, 0);
+  drw_setfontset(sdrw, normalfont);
+
+  return x;
+}
+
+int status_time(int x) {
+  time_t currentTime = time(NULL);
+  struct tm *tm = localtime(&currentTime);
+  int hour = tm->tm_hour;
+  int minute = tm->tm_min;
+  char *meridiem = (hour < 12) ? "AM" : "PM";
+  char stext[20];
+
+  if (hour == 0) {
+    hour = 12;
+  } else if (hour > 12) {
+    hour -= 12;
+  }
+
+  sprintf(stext, "%02d:%02d %s ", hour, minute, meridiem);
+  x -= STEXTW(stext);
+  drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+  return x;
+}
+
 void *drawstatusbar() {
   // TODO: status bar
   /* init screen */
   sdrw = drw_create(dpy, screen, root, sw, sh);
   if (!drw_fontset_create(sdrw, fonts, LENGTH(fonts)))
     die("no fonts could be loaded.");
-  Fnt *normalfont = sdrw->fonts;
-  Fnt *smallfont = sdrw->fonts->next;
+  normalfont = sdrw->fonts;
+  smallfont = sdrw->fonts->next;
   drw_setscheme(sdrw, scheme[SchemeNorm]);
   while (1) {
     if (running == 1) {
@@ -2216,22 +2289,10 @@ void *drawstatusbar() {
       for (Monitor *m = mons; m; m = m->next)
         if (m == selmon) {
           int x = m->ww;
-
-          char stext[10] = "5:20 PM";
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
-          x -= STEXTW(stext);
-          drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
 
-          drw_setfontset(sdrw, smallfont);
-          strcpy(stext, "12.5kb/s");
-          x -= STEXTW(stext);
-          drw_text(sdrw, x, 3, STEXTW(stext), bh / 2, lrpad, stext, 0);
-          drw_text(sdrw, x, bh / 2, STEXTW(stext), bh / 2 - 3, lrpad, stext, 0);
-
-          drw_setfontset(sdrw, normalfont);
-          strcpy(stext, "hello");
-          x -= STEXTW(stext);
-          drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+          x = status_time(x);
+          x = status_net(x);
 
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
         } else {
