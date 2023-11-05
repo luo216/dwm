@@ -1765,7 +1765,7 @@ void setup(void) {
   drw = drw_create(dpy, screen, root, sw, sh);
   if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
     die("no fonts could be loaded.");
-  lrpad = drw->fonts->h;
+  lrpad = TEXTW(" ");
   bh = drw->fonts->h + 10;
   updategeom();
   /* init atoms */
@@ -2246,9 +2246,18 @@ int status_net(int x) {
   }
 
   drw_setfontset(sdrw, smallfont);
-  x -= STEXTW(rx);
-  drw_text(sdrw, x, 3, STEXTW(tx), bh / 2, lrpad, tx, 0);
-  drw_text(sdrw, x, bh / 2, STEXTW(rx), bh / 2 - 3, lrpad, rx, 0);
+
+  int const diff = STEXTW(tx) - STEXTW(rx);
+
+  if (diff > 0) {
+    x -= STEXTW(tx);
+    drw_text(sdrw, x, 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
+    drw_text(sdrw, x + diff, bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
+  } else {
+    x -= STEXTW(rx);
+    drw_text(sdrw, x - diff, 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
+    drw_text(sdrw, x, bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
+  }
   drw_setfontset(sdrw, normalfont);
 
   return x;
@@ -2268,7 +2277,7 @@ int status_time(int x) {
     hour -= 12;
   }
 
-  sprintf(stext, "%02d:%02d %s ", hour, minute, meridiem);
+  sprintf(stext, "%02d:%02d-%s ", hour, minute, meridiem);
   x -= STEXTW(stext);
   drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
   return x;
