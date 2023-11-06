@@ -268,8 +268,8 @@ static void showhide(Client *c);
 static void sigchld(int unused);
 static void spawn(const Arg *arg);
 static Monitor *systraytomon(Monitor *m);
-static int status_time(int x);
-static int status_net(int x);
+static int draw_time(int x);
+static int draw_net(int x);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
@@ -342,6 +342,8 @@ static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
 static Fnt *normalfont;
 static Fnt *smallfont;
+static int status_timer = 0;
+static float storage_net[2] = {0, 0};
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -2202,7 +2204,7 @@ void updatesizehints(Client *c) {
   c->hintsvalid = 1;
 }
 
-int status_net(int x) {
+int draw_net(int x) {
   char rx[20], tx[20];
   char interface_name[] = "wlp0s20f3";
   char txpath[50];
@@ -2218,49 +2220,50 @@ int status_net(int x) {
   fscanf(fp, "%s", rx);
   fclose(fp);
 
-  int txi = atoi(tx);
-  int rxi = atoi(rx);
+  float txi = atof(tx);
+  float rxi = atof(rx);
+  float txi_tmp = txi;
+  float rxi_tmp = rxi;
+
+  txi = txi - storage_net[0];
+  rxi = rxi - storage_net[1];
+
+  storage_net[0] = txi_tmp;
+  storage_net[1] = rxi_tmp;
 
   // Format the values
   if (txi < 1024) {
-    sprintf(tx, "%d B/s", txi);
+    sprintf(tx, "%.2f B/s", txi);
   } else if (txi < 1024 * 1024) {
-    sprintf(tx, "%d KB/s", txi / 1024);
+    sprintf(tx, "%.2f KB/s", txi / 1024);
   } else if (txi < 1024 * 1024 * 1024) {
-    sprintf(tx, "%d MB/s", txi / 1024 / 1024);
+    sprintf(tx, "%.2f MB/s", txi / 1024 / 1024);
   } else {
-    sprintf(tx, "%d GB/s", txi / 1024 / 1024 / 1024);
+    sprintf(tx, "%.2f GB/s", txi / 1024 / 1024 / 1024);
   }
 
   if (rxi < 1024) {
-    sprintf(rx, "%d B/s", rxi);
+    sprintf(rx, "%.2f B/s", rxi);
   } else if (rxi < 1024 * 1024) {
-    sprintf(rx, "%d KB/s", rxi / 1024);
+    sprintf(rx, "%.2f KB/s", rxi / 1024);
   } else if (rxi < 1024 * 1024 * 1024) {
-    sprintf(rx, "%d MB/s", rxi / 1024 / 1024);
+    sprintf(rx, "%.2f MB/s", rxi / 1024 / 1024);
   } else {
-    sprintf(rx, "%d GB/s", rxi / 1024 / 1024 / 1024);
+    sprintf(rx, "%.2f GB/s", rxi / 1024 / 1024 / 1024);
   }
 
   drw_setfontset(sdrw, smallfont);
 
-  int const diff = STEXTW(tx) - STEXTW(rx);
+  drw_text(sdrw, x - STEXTW(tx), 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
+  drw_text(sdrw, x - STEXTW(rx), bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
+  x -= STEXTW("999.99 KB/s");
 
-  if (diff > 0) {
-    x -= STEXTW(tx);
-    drw_text(sdrw, x, 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
-    drw_text(sdrw, x + diff, bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
-  } else {
-    x -= STEXTW(rx);
-    drw_text(sdrw, x - diff, 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
-    drw_text(sdrw, x, bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
-  }
   drw_setfontset(sdrw, normalfont);
 
   return x;
 }
 
-int status_time(int x) {
+int draw_time(int x) {
   time_t currentTime = time(NULL);
   struct tm *tm = localtime(&currentTime);
   int hour = tm->tm_hour;
@@ -2297,15 +2300,18 @@ void *drawstatusbar() {
           int x = m->ww;
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
 
-          x = status_time(x);
-          x = status_net(x);
+          if (status_timer % 1 == 0) {
+            x = draw_time(x);
+            x = draw_net(x);
+          }
 
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
         } else {
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
         }
-      usleep(100000);
+      sleep(1);
+      status_timer++;
     } else {
       return 0;
     }
