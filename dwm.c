@@ -120,6 +120,13 @@ enum {
   ClkRootWin,
   ClkLast
 }; /* clicks */
+enum {
+  Notify,
+  Battery,
+  Clock,
+  Net,
+  Cpu,
+}; /*status bar blocks*/
 
 typedef union {
   int i;
@@ -199,6 +206,14 @@ typedef struct Systray Systray;
 struct Systray {
   Window win;
   Client *icons;
+};
+
+/* status bar block struct*/
+typedef struct Block Block;
+struct Block {
+  int bw;
+  void *storage;
+  void (*draw)(Block *block);
 };
 
 /* function declarations */
@@ -351,8 +366,8 @@ static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
 static Fnt *normalfont;
 static Fnt *smallfont;
-static int status_timer = 0;
 static float storage_net[2] = {0, 0};
+static Block Blocks[] = {};
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -2378,13 +2393,11 @@ void *drawstatusbar() {
           int x = m->ww;
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
 
-          if (status_timer % 1 == 0) {
-            x = draw_notify(x);
-            x = draw_battery(x);
-            x = draw_time(x);
-            x = draw_net(x);
-            x = draw_cpu(x);
-          }
+          x = draw_notify(x);
+          x = draw_battery(x);
+          x = draw_time(x);
+          x = draw_net(x);
+          x = draw_cpu(x);
 
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
         } else {
@@ -2392,7 +2405,6 @@ void *drawstatusbar() {
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
         }
       sleep(1);
-      status_timer++;
     } else {
       return 0;
     }
