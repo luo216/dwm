@@ -218,6 +218,9 @@ static void detachstack(Client *c);
 static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
+static int draw_time(int x);
+static int draw_net(int x);
+static int draw_battery(int x);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -268,8 +271,6 @@ static void showhide(Client *c);
 static void sigchld(int unused);
 static void spawn(const Arg *arg);
 static Monitor *systraytomon(Monitor *m);
-static int draw_time(int x);
-static int draw_net(int x);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
@@ -2206,7 +2207,6 @@ void updatesizehints(Client *c) {
 
 int draw_net(int x) {
   char rx[20], tx[20];
-  char interface_name[] = "wlp0s20f3";
   char txpath[50];
   char rxpath[50];
   sprintf(txpath, "/sys/class/net/%s/statistics/tx_bytes", interface_name);
@@ -2214,9 +2214,17 @@ int draw_net(int x) {
 
   // read tx and rx
   FILE *fp = fopen(txpath, "r");
+  if (fp == NULL) {
+    x -= STEXTW("999.99 KB/s");
+    return x;
+  }
   fscanf(fp, "%s", tx);
   fclose(fp);
   fp = fopen(rxpath, "r");
+  if (fp == NULL) {
+    x -= STEXTW("999.99 KB/s");
+    return x;
+  }
   fscanf(fp, "%s", rx);
   fclose(fp);
 
