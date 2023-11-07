@@ -80,7 +80,13 @@
 
 /* enums */
 enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
-enum { SchemeNorm, SchemeSel };                  /* color schemes */
+enum {
+  SchemeNorm,
+  SchemeSel,
+  SchemeGreen,
+  SchemeOrange,
+  SchemeRed
+}; /* color schemes */
 enum {
   NetSupported,
   NetWMName,
@@ -2207,6 +2213,7 @@ void updatesizehints(Client *c) {
 
 int draw_battery(int x) {
   char capacity[3];
+  int int_cap;
   char status[20];
   char capacitypatch[] = "/sys/class/power_supply/BAT0/capacity";
   char statuspatch[] = "/sys/class/power_supply/BAT0/status";
@@ -2214,21 +2221,29 @@ int draw_battery(int x) {
   // read capacity and status
   FILE *fp = fopen(capacitypatch, "r");
   if (fp == NULL) {
-    x -= STEXTW("  99%");
     return x;
   }
   fscanf(fp, "%s", capacity);
   fclose(fp);
   fp = fopen(statuspatch, "r");
   if (fp == NULL) {
-    x -= STEXTW("  99%");
     return x;
   }
   fscanf(fp, "%s", status);
   fclose(fp);
+  int_cap = atoi(capacity);
+
+  if (status[0] == 'C') {
+    drw_setscheme(sdrw, scheme[SchemeGreen]);
+  } else if (int_cap < 45 && int_cap > 20) {
+    drw_setscheme(sdrw, scheme[SchemeOrange]);
+  } else if (int_cap <= 20) {
+    drw_setscheme(sdrw, scheme[SchemeRed]);
+  }
 
   x -= STEXTW(capacity);
   drw_text(sdrw, x, 0, STEXTW(capacity), bh, lrpad, capacity, 0);
+  drw_setscheme(sdrw, scheme[SchemeNorm]);
   x -= STEXTW(status);
   drw_text(sdrw, x, 0, STEXTW(status), bh, lrpad, status, 0);
   return x;
