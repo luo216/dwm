@@ -213,7 +213,7 @@ typedef struct Block Block;
 struct Block {
   int bw;
   void *storage;
-  void (*draw)(Block *block);
+  int (*draw)(int x, Block *block);
 };
 
 /* function declarations */
@@ -240,11 +240,11 @@ static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
 static void *drawstatusbar();
-static int draw_time(int x);
-static int draw_net(int x);
-static int draw_battery(int x);
-static int draw_notify(int x);
-static int draw_cpu(int x);
+static int draw_clock(int x, Block *block);
+static int draw_net(int x, Block *block);
+static int draw_battery(int x, Block *block);
+static int draw_notify(int x, Block *block);
+static int draw_cpu(int x, Block *block);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -367,7 +367,11 @@ static Window root, wmcheckwin;
 static Fnt *normalfont;
 static Fnt *smallfont;
 static float storage_net[2] = {0, 0};
-static Block Blocks[] = {};
+static Block Blocks[] = {
+    [Notify] = {0, NULL, draw_notify}, [Battery] = {0, NULL, draw_battery},
+    [Clock] = {0, NULL, draw_clock},   [Net] = {0, storage_net, draw_net},
+    [Cpu] = {0, NULL, draw_cpu},
+};
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -2228,7 +2232,7 @@ void updatesizehints(Client *c) {
   c->hintsvalid = 1;
 }
 
-int draw_cpu(int x) {
+int draw_cpu(int x, Block *block) {
   const int w = 70;
   const int y = 2;
   const int h = bh - 2 * y;
@@ -2241,19 +2245,21 @@ int draw_cpu(int x) {
   drw_rect(sdrw, x, y, w, h, 1, 1);
   drw_setscheme(sdrw, scheme[SchemeNorm]);
 
+  block->bw = 2 * w + 5;
   return x;
 }
 
-int draw_notify(int x) {
+int draw_notify(int x, Block *block) {
   char tag[] = " ";
-  x -= STEXTW(tag);
-  drw_text(sdrw, x, 0, STEXTW(tag), bh, lrpad, tag, 0);
+  block->bw = STEXTW(tag);
+  x -= block->bw;
+  drw_text(sdrw, x, 0, block->bw, bh, lrpad, tag, 0);
 
   return x;
 }
 
-int draw_battery(int x) {
-  char capacity[3];
+int draw_battery(int x, Block *block) {
+  char capacity[4];
   int int_cap;
   char status[20];
   char capacitypatch[] = "/sys/class/power_supply/BAT0/capacity";
@@ -2282,15 +2288,17 @@ int draw_battery(int x) {
     drw_setscheme(sdrw, scheme[SchemeRed]);
   }
 
-  x -= STEXTW(capacity);
-  drw_text(sdrw, x, 0, STEXTW(capacity), bh, lrpad, capacity, 0);
+  block->bw = STEXTW(capacity);
+  x -= block->bw;
+  drw_text(sdrw, x, 0, block->bw, bh, lrpad, capacity, 0);
   drw_setscheme(sdrw, scheme[SchemeNorm]);
+  block->bw += STEXTW(status);
   x -= STEXTW(status);
   drw_text(sdrw, x, 0, STEXTW(status), bh, lrpad, status, 0);
   return x;
 }
 
-int draw_net(int x) {
+int draw_net(int x, Block *block) {
   char rx[20], tx[20];
   char txpath[50];
   char rxpath[50];
@@ -2300,14 +2308,12 @@ int draw_net(int x) {
   // read tx and rx
   FILE *fp = fopen(txpath, "r");
   if (fp == NULL) {
-    x -= STEXTW("999.99 KB/s");
     return x;
   }
   fscanf(fp, "%s", tx);
   fclose(fp);
   fp = fopen(rxpath, "r");
   if (fp == NULL) {
-    x -= STEXTW("999.99 KB/s");
     return x;
   }
   fscanf(fp, "%s", rx);
@@ -2317,12 +2323,13 @@ int draw_net(int x) {
   float rxi = atof(rx);
   float txi_tmp = txi;
   float rxi_tmp = rxi;
+  float *f_arr = block->storage;
 
-  txi = txi - storage_net[0];
-  rxi = rxi - storage_net[1];
+  txi = txi - f_arr[0];
+  rxi = rxi - f_arr[1];
 
-  storage_net[0] = txi_tmp;
-  storage_net[1] = rxi_tmp;
+  f_arr[0] = txi_tmp;
+  f_arr[1] = rxi_tmp;
 
   // Format the values
   if (txi < 1024) {
@@ -2350,13 +2357,14 @@ int draw_net(int x) {
   drw_text(sdrw, x - STEXTW(tx), 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
   drw_text(sdrw, x - STEXTW(rx), bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
   x -= STEXTW("999.99 KB/s");
+  block->bw = STEXTW("999.99 KB/s");
 
   drw_setfontset(sdrw, normalfont);
 
   return x;
 }
 
-int draw_time(int x) {
+int draw_clock(int x, Block *block) {
   time_t currentTime = time(NULL);
   struct tm *tm = localtime(&currentTime);
   int hour = tm->tm_hour;
@@ -2371,8 +2379,9 @@ int draw_time(int x) {
   }
 
   sprintf(stext, "%02d:%02d-%s", hour, minute, meridiem);
-  x -= STEXTW(stext);
-  drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+  block->bw = STEXTW(stext);
+  x -= block->bw;
+  drw_text(sdrw, x, 0, block->bw, bh, lrpad, stext, 0);
   return x;
 }
 
@@ -2393,11 +2402,9 @@ void *drawstatusbar() {
           int x = m->ww;
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
 
-          x = draw_notify(x);
-          x = draw_battery(x);
-          x = draw_time(x);
-          x = draw_net(x);
-          x = draw_cpu(x);
+          for (int i = Notify; i <= Cpu; i++) {
+            x = Blocks[i].draw(x, &Blocks[i]);
+          }
 
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
         } else {
