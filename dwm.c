@@ -2205,6 +2205,35 @@ void updatesizehints(Client *c) {
   c->hintsvalid = 1;
 }
 
+int draw_battery(int x) {
+  char capacity[3];
+  char status[20];
+  char capacitypatch[] = "/sys/class/power_supply/BAT0/capacity";
+  char statuspatch[] = "/sys/class/power_supply/BAT0/status";
+
+  // read capacity and status
+  FILE *fp = fopen(capacitypatch, "r");
+  if (fp == NULL) {
+    x -= STEXTW("  99%");
+    return x;
+  }
+  fscanf(fp, "%s", capacity);
+  fclose(fp);
+  fp = fopen(statuspatch, "r");
+  if (fp == NULL) {
+    x -= STEXTW("  99%");
+    return x;
+  }
+  fscanf(fp, "%s", status);
+  fclose(fp);
+
+  x -= STEXTW(capacity);
+  drw_text(sdrw, x, 0, STEXTW(capacity), bh, lrpad, capacity, 0);
+  x -= STEXTW(status);
+  drw_text(sdrw, x, 0, STEXTW(status), bh, lrpad, status, 0);
+  return x;
+}
+
 int draw_net(int x) {
   char rx[20], tx[20];
   char txpath[50];
@@ -2285,7 +2314,7 @@ int draw_time(int x) {
     hour -= 12;
   }
 
-  sprintf(stext, "%02d:%02d-%s ", hour, minute, meridiem);
+  sprintf(stext, "%02d:%02d-%s", hour, minute, meridiem);
   x -= STEXTW(stext);
   drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
   return x;
@@ -2309,6 +2338,7 @@ void *drawstatusbar() {
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
 
           if (status_timer % 1 == 0) {
+            x = draw_battery(x);
             x = draw_time(x);
             x = draw_net(x);
           }
