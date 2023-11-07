@@ -228,6 +228,8 @@ static void *drawstatusbar();
 static int draw_time(int x);
 static int draw_net(int x);
 static int draw_battery(int x);
+static int draw_notify(int x);
+static int draw_cpu(int x);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -2211,6 +2213,30 @@ void updatesizehints(Client *c) {
   c->hintsvalid = 1;
 }
 
+int draw_cpu(int x) {
+  const int w = 70;
+  const int y = 2;
+  const int h = bh - 2 * y;
+
+  x -= w;
+  drw_setscheme(sdrw, scheme[SchemeSel]);
+  drw_rect(sdrw, x, y, w, h, 1, 1);
+  x -= 5;
+  x -= w;
+  drw_rect(sdrw, x, y, w, h, 1, 1);
+  drw_setscheme(sdrw, scheme[SchemeNorm]);
+
+  return x;
+}
+
+int draw_notify(int x) {
+  char tag[] = " ";
+  x -= STEXTW(tag);
+  drw_text(sdrw, x, 0, STEXTW(tag), bh, lrpad, tag, 0);
+
+  return x;
+}
+
 int draw_battery(int x) {
   char capacity[3];
   int int_cap;
@@ -2353,9 +2379,11 @@ void *drawstatusbar() {
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
 
           if (status_timer % 1 == 0) {
+            x = draw_notify(x);
             x = draw_battery(x);
             x = draw_time(x);
             x = draw_net(x);
+            x = draw_cpu(x);
           }
 
           drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
