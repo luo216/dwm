@@ -127,6 +127,12 @@ enum {
   Net,
   Cpu,
 }; /*status bar blocks*/
+enum {
+  User,
+  Nice,
+  System,
+  Idle,
+}; /*cpu blocks*/
 
 typedef union {
   int i;
@@ -216,6 +222,12 @@ struct Block {
   int (*draw)(int x, Block *block);
   void (*click)(const Arg *arg);
 };
+
+/*status cpu block struct */
+typedef struct {
+  double prev[4];
+  double curr[4];
+} CpuBlock;
 
 /* function declarations */
 static void applyrules(Client *c);
@@ -330,6 +342,7 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
 /* variables */
+static CpuBlock storage_cpu;
 static int static_click_x;
 static Systray *systray = NULL;
 static const char autostartblocksh[] = "autostart_blocking.sh";
@@ -375,8 +388,8 @@ static Block Blocks[] = {
     [Notify] = {0, NULL, draw_notify, click_notify},
     [Battery] = {0, NULL, draw_battery, NULL},
     [Clock] = {0, NULL, draw_clock, NULL},
-    [Net] = {0, storage_net, draw_net, NULL},
-    [Cpu] = {0, NULL, draw_cpu, NULL},
+    [Net] = {0, &storage_net, draw_net, NULL},
+    [Cpu] = {0, &storage_cpu, draw_cpu, NULL},
 };
 
 /* configuration, allows nested code to access above variables */
@@ -2296,16 +2309,42 @@ void click_notify(const Arg *arg) {
 }
 
 int draw_cpu(int x, Block *block) {
-  const int w = 62;
-  const int y = 2;
-  const int h = bh - 2 * y;
+  char stext[20];
+  FILE *fp;
+  CpuBlock *storage = block->storage;
+  fp = fopen("/proc/stat", "r");
+  if (fp == NULL) {
+    printf("Failed to open /proc/stat\n");
+    return 1;
+  }
 
-  x -= w;
-  drw_setscheme(sdrw, scheme[SchemeSel]);
-  drw_rect(sdrw, x, y, w, h, 1, 1);
-  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  // 读取 CPU 使用信息
+  fscanf(fp, "cpu %lf %lf %lf %lf", &storage->curr[User], &storage->curr[Nice],
+         &storage->curr[System], &storage->curr[Idle]);
+  fclose(fp);
 
-  block->bw = w;
+  // 计算 CPU 使用时间差值
+  double user_diff = storage->curr[User] - storage->prev[User];
+  double nice_diff = storage->curr[Nice] - storage->prev[Nice];
+  double system_diff = storage->curr[System] - storage->prev[System];
+  double idle_diff = storage->curr[Idle] - storage->prev[Idle];
+  double total_diff = user_diff + nice_diff + system_diff + idle_diff;
+
+  // 计算 CPU 使用率（以百分比表示）
+  double user_usage = user_diff / total_diff * 100;
+  double system_usage = system_diff / total_diff * 100;
+
+  sprintf(stext, "ua:%.2f%% sy:%.2f%%", user_usage, system_usage);
+  block->bw = STEXTW(stext);
+  x -= block->bw;
+  drw_text(sdrw, x, 0, block->bw, bh, lrpad, stext, 0);
+
+  // 更新前一秒的 CPU 使用时间
+  storage->prev[User] = storage->curr[User];
+  storage->prev[Nice] = storage->curr[Nice];
+  storage->prev[System] = storage->curr[System];
+  storage->prev[Idle] = storage->curr[Idle];
+
   return x;
 }
 
