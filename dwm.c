@@ -2233,19 +2233,16 @@ void updatesizehints(Client *c) {
 }
 
 int draw_cpu(int x, Block *block) {
-  const int w = 70;
+  const int w = 62;
   const int y = 2;
   const int h = bh - 2 * y;
 
   x -= w;
   drw_setscheme(sdrw, scheme[SchemeSel]);
   drw_rect(sdrw, x, y, w, h, 1, 1);
-  x -= 5;
-  x -= w;
-  drw_rect(sdrw, x, y, w, h, 1, 1);
   drw_setscheme(sdrw, scheme[SchemeNorm]);
 
-  block->bw = 2 * w + 5;
+  block->bw = w;
   return x;
 }
 
