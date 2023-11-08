@@ -1,6 +1,6 @@
 /* See LICENSE file for copyright and license details. */
 /* status bar */
-static const char interface_name[] = "wlp1s0";
+static const char interface_name[] = "wlp0s20f3";
 /* appearance */
 static const unsigned int borderpx = 1; /* border pixel of windows */
 static const unsigned int snap = 32;    /* snap pixel */
@@ -133,11 +133,11 @@ static const Button buttons[] = {
     {ClkLtSymbol, 0, Button1, setlayout, {0}},
     {ClkLtSymbol, 0, Button3, setlayout, {.v = &layouts[2]}},
     {ClkWinTitle, 0, Button2, zoom, {0}},
-    {ClkStatusText, 0, Button1, handel_status_clk, {.i = 1}},
-    {ClkStatusText, 0, Button2, handel_status_clk, {.i = 2}},
-    {ClkStatusText, 0, Button3, handel_status_clk, {.i = 3}},
-    {ClkStatusText, 0, Button4, handel_status_clk, {.i = 4}},
-    {ClkStatusText, 0, Button5, handel_status_clk, {.i = 5}},
+    {ClkStatusText, 0, Button1, handle_status_clk, {.i = 1}},
+    {ClkStatusText, 0, Button2, handle_status_clk, {.i = 2}},
+    {ClkStatusText, 0, Button3, handle_status_clk, {.i = 3}},
+    {ClkStatusText, 0, Button4, handle_status_clk, {.i = 4}},
+    {ClkStatusText, 0, Button5, handle_status_clk, {.i = 5}},
     {ClkWinTitle, 0, Button1, spawn, {.v = roficmd}},
     {ClkWinTitle, 0, Button3, spawn, {.v = termcmd}},
     {ClkClientWin, MODKEY, Button1, movemouse, {0}},

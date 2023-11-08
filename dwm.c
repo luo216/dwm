@@ -272,7 +272,7 @@ static long getstate(Window w);
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
-static void handel_status_clk(const Arg *arg);
+static void handle_status_clk(const Arg *arg);
 static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
 static void killclient(const Arg *arg);
@@ -2485,7 +2485,7 @@ int draw_clock(int x, Block *block) {
   return x;
 }
 
-void handel_status_clk(const Arg *arg) {
+void handle_status_clk(const Arg *arg) {
   int x = 0;
   for (int i = 0; i < LENGTH(Blocks); i++) {
     x += Blocks[i].bw;
