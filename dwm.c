@@ -41,6 +41,7 @@
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
+#include <X11/XKBlib.h>
 #include <X11/Xft/Xft.h>
 #include <pthread.h>
 
@@ -1171,7 +1172,7 @@ void keypress(XEvent *e) {
   XKeyEvent *ev;
 
   ev = &e->xkey;
-  keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
+  keysym = XkbKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0, 0);
   for (i = 0; i < LENGTH(keys); i++)
     if (keysym == keys[i].keysym &&
         CLEANMASK(keys[i].mod) == CLEANMASK(ev->state) && keys[i].func)
