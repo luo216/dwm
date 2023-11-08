@@ -224,10 +224,18 @@ struct Block {
   void (*click)(const Arg *arg);
 };
 
+typedef struct Node Node;
+struct Node {
+  Node *prev;
+  Node *next;
+  void *data;
+};
+
 /*status cpu block struct */
 typedef struct {
-  double prev[4];
-  double curr[4];
+  int prev[4];
+  int curr[4];
+  void *pointer;
 } CpuBlock;
 
 /* function declarations */
@@ -2320,22 +2328,22 @@ int draw_cpu(int x, Block *block) {
   }
 
   // 读取 CPU 使用信息
-  fscanf(fp, "cpu %lf %lf %lf %lf", &storage->curr[User], &storage->curr[Nice],
+  fscanf(fp, "cpu %d %d %d %d", &storage->curr[User], &storage->curr[Nice],
          &storage->curr[System], &storage->curr[Idle]);
   fclose(fp);
 
   // 计算 CPU 使用时间差值
-  double user_diff = storage->curr[User] - storage->prev[User];
-  double nice_diff = storage->curr[Nice] - storage->prev[Nice];
-  double system_diff = storage->curr[System] - storage->prev[System];
-  double idle_diff = storage->curr[Idle] - storage->prev[Idle];
-  double total_diff = user_diff + nice_diff + system_diff + idle_diff;
+  int user_diff = storage->curr[User] - storage->prev[User];
+  int nice_diff = storage->curr[Nice] - storage->prev[Nice];
+  int system_diff = storage->curr[System] - storage->prev[System];
+  int idle_diff = storage->curr[Idle] - storage->prev[Idle];
+  int total_diff = user_diff + nice_diff + system_diff + idle_diff;
 
   // 计算 CPU 使用率（以百分比表示）
-  double user_usage = user_diff / total_diff * 100;
-  double system_usage = system_diff / total_diff * 100;
+  int user_usage = (user_diff * 100) / total_diff;
+  int system_usage = (system_diff * 100) / total_diff;
 
-  sprintf(stext, "ua:%.2f%% sy:%.2f%%", user_usage, system_usage);
+  sprintf(stext, "ua:%d%% sy:%d%%", user_usage, system_usage);
   block->bw = STEXTW(stext);
   x -= block->bw;
   drw_text(sdrw, x, 0, block->bw, bh, lrpad, stext, 0);
