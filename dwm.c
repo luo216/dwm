@@ -2459,7 +2459,7 @@ void *drawstatusbar() {
           int x = m->ww;
           drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
 
-          for (int i = Notify; i <= Cpu; i++) {
+          for (int i = 0; i < LENGTH(Blocks); i++) {
             x = Blocks[i].draw(x, &Blocks[i]);
           }
 
