@@ -214,6 +214,7 @@ struct Block {
   int bw;
   void *storage;
   int (*draw)(int x, Block *block);
+  void (*click)(const Arg *arg);
 };
 
 /* function declarations */
@@ -325,6 +326,7 @@ static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
+static void click_notify(const Arg *arg);
 
 /* variables */
 static Systray *systray = NULL;
@@ -368,9 +370,11 @@ static Fnt *normalfont;
 static Fnt *smallfont;
 static float storage_net[2] = {0, 0};
 static Block Blocks[] = {
-    [Notify] = {0, NULL, draw_notify}, [Battery] = {0, NULL, draw_battery},
-    [Clock] = {0, NULL, draw_clock},   [Net] = {0, storage_net, draw_net},
-    [Cpu] = {0, NULL, draw_cpu},
+    [Notify] = {0, NULL, draw_notify, click_notify},
+    [Battery] = {0, NULL, draw_battery, NULL},
+    [Clock] = {0, NULL, draw_clock, NULL},
+    [Net] = {0, storage_net, draw_net, NULL},
+    [Cpu] = {0, NULL, draw_cpu, NULL},
 };
 
 /* configuration, allows nested code to access above variables */
@@ -2230,6 +2234,30 @@ void updatesizehints(Client *c) {
     c->maxa = c->mina = 0.0;
   c->isfixed = (c->maxw && c->maxh && c->maxw == c->minw && c->maxh == c->minh);
   c->hintsvalid = 1;
+}
+
+void click_notify(const Arg *arg) {
+  if (arg->i == 1) {
+    const char *history_pop[] = {"dunstctl", "history-pop", NULL};
+
+    if (fork() == 0) {
+      if (dpy)
+        close(ConnectionNumber(dpy));
+      setsid();
+      execvp(((char **)history_pop)[0], (char **)history_pop);
+      die("dwm: execvp '%s' failed:", ((char **)history_pop)[0]);
+    }
+  } else if (arg->i == 3) {
+    const char *history_close[] = {"dunstctl", "close-all", NULL};
+
+    if (fork() == 0) {
+      if (dpy)
+        close(ConnectionNumber(dpy));
+      setsid();
+      execvp(((char **)history_close)[0], (char **)history_close);
+      die("dwm: execvp '%s' failed:", ((char **)history_close)[0]);
+    }
+  }
 }
 
 int draw_cpu(int x, Block *block) {
