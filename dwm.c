@@ -84,6 +84,7 @@ enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
 enum {
   SchemeNorm,
   SchemeSel,
+  SchemeBlue,
   SchemeGreen,
   SchemeOrange,
   SchemeRed
@@ -2365,13 +2366,13 @@ int draw_cpu(int x, Block *block) {
   drw_rect(sdrw, x - w, y, w, h, 1, 1);
 
   // 绘制 user CPU 使用率
-  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  drw_setscheme(sdrw, scheme[SchemeBlue]);
   x -= 1;
   for (int i = 0; i < 10; i++) {
     x -= cw;
     const int ch1 = ch * storage->pointer->data[0] / 100;
     const int cy = ch - ch1 + y + 1;
-    drw_rect(sdrw, x, cy, cw, ch1, 1, 1);
+    drw_rect(sdrw, x, cy, cw, ch1, 1, 0);
     storage->pointer = storage->pointer->next;
   }
   // 绘制 system CPU 使用率

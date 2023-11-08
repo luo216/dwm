@@ -22,6 +22,7 @@ static const char *fonts[] = {"Hack Nerd Font:size=14",
 static const char col_white[] = "#eeeeee";
 static const char col_blue1[] = "#325d9b";
 static const char col_blue2[] = "#1c3a5e";
+static const char col_blue3[] = "#0078d7";
 static const char col_Green[] = "Green";
 static const char col_Orange[] = "Orange";
 static const char col_Red[] = "Red";
@@ -29,6 +30,7 @@ static const char *colors[][3] = {
     /*               fg         bg         border   */
     [SchemeNorm] = {col_white, col_blue1, col_blue1},
     [SchemeSel] = {col_white, col_blue2, col_blue1},
+    [SchemeBlue] = {col_blue3, col_blue1, col_blue1},
     [SchemeGreen] = {col_Green, col_blue1, col_blue1},
     [SchemeOrange] = {col_Orange, col_blue1, col_blue1},
     [SchemeRed] = {col_Red, col_blue1, col_blue1},
