@@ -2240,6 +2240,38 @@ void click_notify(const Arg *arg) {
   if (arg->i == 1) {
     const char *history_pop[] = {"dunstctl", "history-pop", NULL};
 
+    for (int i = 0; i < 5; i++) {
+      if (fork() == 0) {
+        if (dpy)
+          close(ConnectionNumber(dpy));
+        setsid();
+        execvp(((char **)history_pop)[0], (char **)history_pop);
+        die("dwm: execvp '%s' failed:", ((char **)history_pop)[0]);
+      }
+    }
+  } else if (arg->i == 2) {
+    const char *history_clear[] = {"dunstctl", "history-clear", NULL};
+
+    if (fork() == 0) {
+      if (dpy)
+        close(ConnectionNumber(dpy));
+      setsid();
+      execvp(((char **)history_clear)[0], (char **)history_clear);
+      die("dwm: execvp '%s' failed:", ((char **)history_clear)[0]);
+    }
+  } else if (arg->i == 3) {
+    const char *history_close[] = {"dunstctl", "close-all", NULL};
+
+    if (fork() == 0) {
+      if (dpy)
+        close(ConnectionNumber(dpy));
+      setsid();
+      execvp(((char **)history_close)[0], (char **)history_close);
+      die("dwm: execvp '%s' failed:", ((char **)history_close)[0]);
+    }
+  } else if (arg->i == 4) {
+    const char *history_pop[] = {"dunstctl", "history-pop", NULL};
+
     if (fork() == 0) {
       if (dpy)
         close(ConnectionNumber(dpy));
@@ -2247,8 +2279,8 @@ void click_notify(const Arg *arg) {
       execvp(((char **)history_pop)[0], (char **)history_pop);
       die("dwm: execvp '%s' failed:", ((char **)history_pop)[0]);
     }
-  } else if (arg->i == 3) {
-    const char *history_close[] = {"dunstctl", "close-all", NULL};
+  } else if (arg->i == 5) {
+    const char *history_close[] = {"dunstctl", "close", NULL};
 
     if (fork() == 0) {
       if (dpy)
