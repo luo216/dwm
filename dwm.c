@@ -2319,7 +2319,6 @@ void click_notify(const Arg *arg) {
 }
 
 int draw_cpu(int x, Block *block) {
-  char stext[100];
   FILE *fp;
   CpuBlock *storage = block->storage;
   fp = fopen("/proc/stat", "r");
@@ -2349,24 +2348,47 @@ int draw_cpu(int x, Block *block) {
   storage->pointer->data[0] = user_usage;
   storage->pointer->data[1] = system_usage;
 
-  // sprintf(stext, "ua:%d%% sy:%d%%", user_usage, system_usage);
-  for (int i = 0; i < 10; i++) {
-    char temp[10];
-    sprintf(temp, "%d,%d;", storage->pointer->data[0],
-            storage->pointer->data[1]);
-    strcat(stext, temp);
-    storage->pointer = storage->pointer->next;
-  }
-  block->bw = STEXTW(stext);
-  x -= block->bw;
-  drw_text(sdrw, x, 0, block->bw, bh, lrpad, stext, 0);
-
   // 更新前一秒的 CPU 使用时间
   storage->prev[User] = storage->curr[User];
   storage->prev[Nice] = storage->curr[Nice];
   storage->prev[System] = storage->curr[System];
   storage->prev[Idle] = storage->curr[Idle];
 
+  // 绘制 CPU 使用率
+  const int w = 62;
+  const int y = 2;
+  const int h = bh - 2 * y;
+  const int cw = 6;
+  const int ch = bh - 2 * y - 2;
+
+  drw_setscheme(sdrw, scheme[SchemeSel]);
+  drw_rect(sdrw, x - w, y, w, h, 1, 1);
+
+  // 绘制 user CPU 使用率
+  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  x -= 1;
+  for (int i = 0; i < 10; i++) {
+    x -= cw;
+    const int ch1 = ch * storage->pointer->data[0] / 100;
+    const int cy = ch - ch1 + y + 1;
+    drw_rect(sdrw, x, cy, cw, ch1, 1, 1);
+    storage->pointer = storage->pointer->next;
+  }
+  // 绘制 system CPU 使用率
+  x = x + w - 2;
+  drw_setscheme(sdrw, scheme[SchemeRed]);
+  for (int i = 0; i < 10; i++) {
+    x -= cw;
+    const int ch1 = ch * storage->pointer->data[0] / 100;
+    const int cy = ch - ch1 + y + 1;
+    const int ch2 = ch * storage->pointer->data[1] / 100;
+    const int cy1 = cy - ch2;
+    drw_rect(sdrw, x, cy1, cw, ch2, 1, 0);
+    storage->pointer = storage->pointer->next;
+  }
+
+  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  block->bw = w;
   return x;
 }
 
