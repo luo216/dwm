@@ -226,6 +226,7 @@ static void arrangemon(Monitor *m);
 static void attach(Client *c);
 static void attachstack(Client *c);
 static void buttonpress(XEvent *e);
+static void click_notify(const Arg *arg);
 static void checkotherwm(void);
 static void cleanup(void);
 static void cleanupmon(Monitor *mon);
@@ -326,9 +327,9 @@ static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
-static void click_notify(const Arg *arg);
 
 /* variables */
+static int static_click_x;
 static Systray *systray = NULL;
 static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
@@ -551,6 +552,7 @@ void buttonpress(XEvent *e) {
       click = ClkLtSymbol;
     else if (ev->x > selmon->ww - systrayrpad) {
       click = ClkStatusText;
+      static_click_x = selmon->ww - ev->x;
     }
   } else if ((c = wintoclient(ev->window))) {
     focus(c);
