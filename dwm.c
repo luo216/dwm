@@ -2489,8 +2489,12 @@ void handle_status_clk(const Arg *arg) {
   int x = 0;
   for (int i = 0; i < LENGTH(Blocks); i++) {
     x += Blocks[i].bw;
-    if (static_click_x < x && Blocks[i].click) {
-      Blocks[i].click(arg);
+    if (static_click_x < x) {
+      if (Blocks[i].click) {
+        Blocks[i].click(arg);
+      } else {
+        return;
+      }
     }
   }
 }
