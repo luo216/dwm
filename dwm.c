@@ -228,14 +228,14 @@ typedef struct Node Node;
 struct Node {
   Node *prev;
   Node *next;
-  void *data;
+  int data[2];
 };
 
 /*status cpu block struct */
 typedef struct {
   int prev[4];
   int curr[4];
-  void *pointer;
+  Node *pointer;
 } CpuBlock;
 
 /* function declarations */
@@ -281,6 +281,7 @@ static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
 static void handle_status_clk(const Arg *arg);
+static void init_statusbar();
 static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
 static void killclient(const Arg *arg);
@@ -2318,7 +2319,7 @@ void click_notify(const Arg *arg) {
 }
 
 int draw_cpu(int x, Block *block) {
-  char stext[20];
+  char stext[100];
   FILE *fp;
   CpuBlock *storage = block->storage;
   fp = fopen("/proc/stat", "r");
@@ -2343,7 +2344,19 @@ int draw_cpu(int x, Block *block) {
   int user_usage = (user_diff * 100) / total_diff;
   int system_usage = (system_diff * 100) / total_diff;
 
-  sprintf(stext, "ua:%d%% sy:%d%%", user_usage, system_usage);
+  // 利用环形结构记录近十次的 CPU 使用率
+  storage->pointer = storage->pointer->prev;
+  storage->pointer->data[0] = user_usage;
+  storage->pointer->data[1] = system_usage;
+
+  // sprintf(stext, "ua:%d%% sy:%d%%", user_usage, system_usage);
+  for (int i = 0; i < 10; i++) {
+    char temp[10];
+    sprintf(temp, "%d,%d;", storage->pointer->data[0],
+            storage->pointer->data[1]);
+    strcat(stext, temp);
+    storage->pointer = storage->pointer->next;
+  }
   block->bw = STEXTW(stext);
   x -= block->bw;
   drw_text(sdrw, x, 0, block->bw, bh, lrpad, stext, 0);
@@ -2507,8 +2520,7 @@ void handle_status_clk(const Arg *arg) {
   }
 }
 
-void *drawstatusbar() {
-  // TODO: status bar
+void init_statusbar() {
   /* init screen */
   sdrw = drw_create(dpy, screen, root, sw, sh);
   if (!drw_fontset_create(sdrw, fonts, LENGTH(fonts)))
@@ -2516,6 +2528,22 @@ void *drawstatusbar() {
   normalfont = sdrw->fonts;
   smallfont = sdrw->fonts->next;
   drw_setscheme(sdrw, scheme[SchemeNorm]);
+
+  /* init variables */
+  static Node Nodes[10];
+  // nodes中每个node头尾相连,最终形成一个环
+  for (int i = 0; i < 10; i++) {
+    Nodes[i].next = &Nodes[i + 1];
+    Nodes[i].prev = &Nodes[i - 1];
+  }
+  Nodes[9].next = &Nodes[0];
+  Nodes[0].prev = &Nodes[9];
+  storage_cpu.pointer = &Nodes[0];
+}
+
+void *drawstatusbar() {
+  // TODO: status bar
+  init_statusbar();
   while (1) {
     if (running == 1) {
       // 遍历mons,在selmon上绘制
