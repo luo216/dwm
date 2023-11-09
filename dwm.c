@@ -129,13 +129,6 @@ enum {
   Net,
   Cpu,
 }; /*status bar blocks*/
-enum {
-  User,
-  Nice,
-  System,
-  Idle,
-}; /*cpu blocks*/
-
 typedef union {
   int i;
   unsigned int ui;
@@ -225,17 +218,24 @@ struct Block {
   void (*click)(const Arg *arg);
 };
 
+typedef struct {
+  unsigned long user;
+  unsigned long nice;
+  unsigned long system;
+  unsigned long idle;
+} Cpuload;
+
 typedef struct Node Node;
 struct Node {
   Node *prev;
   Node *next;
-  int data[2];
+  Cpuload *data;
 };
 
 /*status cpu block struct */
 typedef struct {
-  int prev[4];
-  int curr[4];
+  Cpuload *prev;
+  Cpuload *curr;
   Node *pointer;
 } CpuBlock;
 
@@ -2329,31 +2329,31 @@ int draw_cpu(int x, Block *block) {
   }
 
   // 读取 CPU 使用信息
-  fscanf(fp, "cpu %d %d %d %d", &storage->curr[User], &storage->curr[Nice],
-         &storage->curr[System], &storage->curr[Idle]);
+  fscanf(fp, "cpu %lu %lu %lu %lu", &storage->curr->user, &storage->curr->nice,
+         &storage->curr->system, &storage->curr->idle);
   fclose(fp);
 
   // 计算 CPU 使用时间差值
-  int user_diff = storage->curr[User] - storage->prev[User];
-  int nice_diff = storage->curr[Nice] - storage->prev[Nice];
-  int system_diff = storage->curr[System] - storage->prev[System];
-  int idle_diff = storage->curr[Idle] - storage->prev[Idle];
-  int total_diff = user_diff + nice_diff + system_diff + idle_diff;
+  unsigned long user_diff = storage->curr->user - storage->prev->user;
+  unsigned long nice_diff = storage->curr->nice - storage->prev->nice;
+  unsigned long system_diff = storage->curr->system - storage->prev->system;
+  unsigned long idle_diff = storage->curr->idle - storage->prev->idle;
+  unsigned long total_diff = user_diff + nice_diff + system_diff + idle_diff;
 
   // 计算 CPU 使用率（以百分比表示）
-  int user_usage = (user_diff * 100) / total_diff;
-  int system_usage = (system_diff * 100) / total_diff;
+  unsigned long user_usage = (user_diff * 100) / total_diff;
+  unsigned long system_usage = (system_diff * 100) / total_diff;
 
   // 利用环形结构记录近十次的 CPU 使用率
   storage->pointer = storage->pointer->prev;
-  storage->pointer->data[0] = user_usage;
-  storage->pointer->data[1] = system_usage;
+  storage->pointer->data->user = user_usage;
+  storage->pointer->data->system = system_usage;
 
   // 更新前一秒的 CPU 使用时间
-  storage->prev[User] = storage->curr[User];
-  storage->prev[Nice] = storage->curr[Nice];
-  storage->prev[System] = storage->curr[System];
-  storage->prev[Idle] = storage->curr[Idle];
+  storage->prev->user = storage->curr->user;
+  storage->prev->nice = storage->curr->nice;
+  storage->prev->system = storage->curr->system;
+  storage->prev->idle = storage->curr->idle;
 
   // 绘制 CPU 使用率
   const int w = 62;
@@ -2370,7 +2370,7 @@ int draw_cpu(int x, Block *block) {
   x -= 1;
   for (int i = 0; i < 10; i++) {
     x -= cw;
-    const int ch1 = ch * storage->pointer->data[0] / 100;
+    const int ch1 = ch * storage->pointer->data->user / 100;
     if (ch1 == 0) {
       storage->pointer = storage->pointer->next;
       continue;
@@ -2384,12 +2384,12 @@ int draw_cpu(int x, Block *block) {
   drw_setscheme(sdrw, scheme[SchemeRed]);
   for (int i = 0; i < 10; i++) {
     x -= cw;
-    const int ch2 = ch * storage->pointer->data[1] / 100;
+    const int ch2 = ch * storage->pointer->data->system / 100;
     if (ch2 == 0) {
       storage->pointer = storage->pointer->next;
       continue;
     }
-    const int ch1 = ch * storage->pointer->data[0] / 100;
+    const int ch1 = ch * storage->pointer->data->user / 100;
     const int cy = ch - ch1 + y + 1;
     const int cy1 = cy - ch2;
     drw_rect(sdrw, x, cy1, cw, ch2, 1, 0);
@@ -2589,10 +2589,13 @@ void init_statusbar() {
   for (int i = 0; i < 10; i++) {
     Nodes[i].next = &Nodes[i + 1];
     Nodes[i].prev = &Nodes[i - 1];
+    Nodes[i].data = (Cpuload *)malloc(sizeof(Cpuload));
   }
   Nodes[9].next = &Nodes[0];
   Nodes[0].prev = &Nodes[9];
   storage_cpu.pointer = &Nodes[0];
+  storage_cpu.prev = (Cpuload *)malloc(sizeof(Cpuload));
+  storage_cpu.curr = (Cpuload *)malloc(sizeof(Cpuload));
 }
 
 void *drawstatusbar() {
