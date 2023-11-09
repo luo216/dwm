@@ -2371,6 +2371,10 @@ int draw_cpu(int x, Block *block) {
   for (int i = 0; i < 10; i++) {
     x -= cw;
     const int ch1 = ch * storage->pointer->data[0] / 100;
+    if (ch1 == 0) {
+      storage->pointer = storage->pointer->next;
+      continue;
+    }
     const int cy = ch - ch1 + y + 1;
     drw_rect(sdrw, x, cy, cw, ch1, 1, 0);
     storage->pointer = storage->pointer->next;
@@ -2380,9 +2384,13 @@ int draw_cpu(int x, Block *block) {
   drw_setscheme(sdrw, scheme[SchemeRed]);
   for (int i = 0; i < 10; i++) {
     x -= cw;
+    const int ch2 = ch * storage->pointer->data[1] / 100;
+    if (ch2 == 0) {
+      storage->pointer = storage->pointer->next;
+      continue;
+    }
     const int ch1 = ch * storage->pointer->data[0] / 100;
     const int cy = ch - ch1 + y + 1;
-    const int ch2 = ch * storage->pointer->data[1] / 100;
     const int cy1 = cy - ch2;
     drw_rect(sdrw, x, cy1, cw, ch2, 1, 0);
     storage->pointer = storage->pointer->next;
