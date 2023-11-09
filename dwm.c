@@ -2436,11 +2436,13 @@ int draw_battery(int x, Block *block) {
   x -= block->bw;
   drw_text(sdrw, x, 0, block->bw, bh, lrpad, capacity, 0);
 
-  if (status[0] == 'C') {
+  if (status[0] == 'C' || status[0] == 'F') {
     drw_setscheme(sdrw, scheme[SchemeGreen]);
-  } else if (int_cap < 45 && int_cap > 20) {
+  } else if (int_cap >= 45) {
+    drw_setscheme(sdrw, scheme[SchemeBlue]);
+  } else if (int_cap > 20) {
     drw_setscheme(sdrw, scheme[SchemeOrange]);
-  } else if (int_cap <= 20) {
+  } else {
     drw_setscheme(sdrw, scheme[SchemeRed]);
   }
   block->bw += STEXTW(status);
