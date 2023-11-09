@@ -2432,6 +2432,10 @@ int draw_battery(int x, Block *block) {
   fclose(fp);
   int_cap = atoi(capacity);
 
+  block->bw = STEXTW(capacity);
+  x -= block->bw;
+  drw_text(sdrw, x, 0, block->bw, bh, lrpad, capacity, 0);
+
   if (status[0] == 'C') {
     drw_setscheme(sdrw, scheme[SchemeGreen]);
   } else if (int_cap < 45 && int_cap > 20) {
@@ -2439,14 +2443,11 @@ int draw_battery(int x, Block *block) {
   } else if (int_cap <= 20) {
     drw_setscheme(sdrw, scheme[SchemeRed]);
   }
-
-  block->bw = STEXTW(capacity);
-  x -= block->bw;
-  drw_text(sdrw, x, 0, block->bw, bh, lrpad, capacity, 0);
-  drw_setscheme(sdrw, scheme[SchemeNorm]);
   block->bw += STEXTW(status);
   x -= STEXTW(status);
   drw_text(sdrw, x, 0, STEXTW(status), bh, lrpad, status, 0);
+
+  drw_setscheme(sdrw, scheme[SchemeNorm]);
   return x;
 }
 
