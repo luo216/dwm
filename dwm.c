@@ -2436,6 +2436,18 @@ int draw_battery(int x, Block *block) {
   x -= block->bw;
   drw_text(sdrw, x, 0, block->bw, bh, lrpad, capacity, 0);
 
+  // 绘制电池外壳
+  const int tpad = 4;
+  const int border = 1;
+  const int battery_sw = 6;
+  const int battery_sh = 3;
+  const int battery_w = 2 * battery_sw;
+  const int battery_h = bh - battery_sh - 2 * tpad;
+  x -= battery_w;
+  drw_setscheme(sdrw, scheme[SchemeSel]);
+  drw_rect(sdrw, x, tpad + battery_sh, battery_w, battery_h, 1, 1);
+  drw_rect(sdrw, x + battery_sw / 2, tpad, battery_sw, battery_sh, 1, 1);
+
   if (status[0] == 'C' || status[0] == 'F') {
     drw_setscheme(sdrw, scheme[SchemeGreen]);
   } else if (int_cap >= 45) {
@@ -2445,9 +2457,17 @@ int draw_battery(int x, Block *block) {
   } else {
     drw_setscheme(sdrw, scheme[SchemeRed]);
   }
-  block->bw += STEXTW(status);
-  x -= STEXTW(status);
-  drw_text(sdrw, x, 0, STEXTW(status), bh, lrpad, status, 0);
+
+  const int battery_cap_x = x + border;
+  int battery_cap_y = battery_sh + tpad;
+  const int battery_cap_w = battery_w - 2 * border;
+  int battery_cap_h = battery_h - 2 * border;
+  battery_cap_h = battery_cap_h * int_cap / 100;
+  battery_cap_y = battery_cap_y + (battery_h - border - battery_cap_h);
+  drw_rect(sdrw, battery_cap_x, battery_cap_y, battery_cap_w, battery_cap_h, 1,
+           0);
+  x -= lrpad;
+  block->bw += battery_w + lrpad;
 
   drw_setscheme(sdrw, scheme[SchemeNorm]);
   return x;
