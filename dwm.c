@@ -128,6 +128,7 @@ enum {
   Clock,
   Net,
   Cpu,
+  Cores,
 }; /*status bar blocks*/
 typedef union {
   int i;
@@ -269,6 +270,7 @@ static int draw_net(int x, Block *block);
 static int draw_battery(int x, Block *block);
 static int draw_notify(int x, Block *block);
 static int draw_cpu(int x, Block *block);
+static int draw_cores(int x, Block *block);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -401,6 +403,7 @@ static Block Blocks[] = {
     [Clock] = {0, NULL, draw_clock, NULL},
     [Net] = {0, &storage_net, draw_net, NULL},
     [Cpu] = {0, &storage_cpu, draw_cpu, NULL},
+    [Cores] = {0, NULL, draw_cores, NULL},
 };
 
 /* configuration, allows nested code to access above variables */
@@ -2297,6 +2300,13 @@ void click_notify(const Arg *arg) {
   }
 }
 
+int draw_cores(int x, Block *block) {
+  const char stext[] = "hello world";
+  x -= STEXTW(stext);
+  drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+  return x;
+}
+
 int draw_cpu(int x, Block *block) {
   FILE *fp;
   CpuBlock *storage = block->storage;
@@ -2375,7 +2385,8 @@ int draw_cpu(int x, Block *block) {
   }
 
   drw_setscheme(sdrw, scheme[SchemeNorm]);
-  block->bw = w;
+  x -= lrpad;
+  block->bw = w + lrpad;
   return x;
 }
 
