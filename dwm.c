@@ -2349,7 +2349,7 @@ int draw_cpu(int x, Block *block) {
   for (int i = 0; i < 10; i++) {
     x -= cw;
     const int ch1 = ch * storage->pointer->data->user / 100;
-    if (ch1 == 0) {
+    if (ch1 == 0 || storage->pointer->data->user > 100) {
       storage->pointer = storage->pointer->next;
       continue;
     }
@@ -2363,7 +2363,7 @@ int draw_cpu(int x, Block *block) {
   for (int i = 0; i < 10; i++) {
     x -= cw;
     const int ch2 = ch * storage->pointer->data->system / 100;
-    if (ch2 == 0) {
+    if (ch2 == 0 || storage->pointer->data->system > 100) {
       storage->pointer = storage->pointer->next;
       continue;
     }
