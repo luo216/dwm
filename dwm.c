@@ -250,6 +250,7 @@ static void attach(Client *c);
 static void attachstack(Client *c);
 static void buttonpress(XEvent *e);
 static void click_notify(const Arg *arg);
+static void click_cpu(const Arg *arg);
 static void checkotherwm(void);
 static void cleanup(void);
 static void cleanupmon(Monitor *mon);
@@ -402,7 +403,7 @@ static Block Blocks[] = {
     [Battery] = {0, NULL, draw_battery, NULL},
     [Clock] = {0, NULL, draw_clock, NULL},
     [Net] = {0, &storage_net, draw_net, NULL},
-    [Cpu] = {0, &storage_cpu, draw_cpu, NULL},
+    [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
     [Cores] = {0, NULL, draw_cores, NULL},
 };
 
@@ -2264,6 +2265,14 @@ void updatesizehints(Client *c) {
     c->maxa = c->mina = 0.0;
   c->isfixed = (c->maxw && c->maxh && c->maxw == c->minw && c->maxh == c->minh);
   c->hintsvalid = 1;
+}
+
+void click_cpu(const Arg *arg) {
+  if (arg->i == 1) {
+    const char *system_monitor[] = {"gnome-system-monitor", NULL};
+    const Arg v = {.v = system_monitor};
+    spawn(&v);
+  }
 }
 
 void click_notify(const Arg *arg) {
