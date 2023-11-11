@@ -2335,9 +2335,29 @@ int draw_cores(int x, Block *block) {
   }
   fclose(fp);
 
+  unsigned long ua_arr[numCores];
+  unsigned long sy_arr[numCores];
+  for (int i = 0; i < numCores; i++) {
+    unsigned long user_diff = storage->curr[i].user - storage->prev[i].user;
+    unsigned long nice_diff = storage->curr[i].nice - storage->prev[i].nice;
+    unsigned long system_diff =
+        storage->curr[i].system - storage->prev[i].system;
+    unsigned long idle_diff = storage->curr[i].idle - storage->prev[i].idle;
+    unsigned long total_diff = user_diff + nice_diff + system_diff + idle_diff;
+
+    ua_arr[i] = user_diff * 100 / total_diff;
+    sy_arr[i] = system_diff * 100 / total_diff;
+
+    storage->prev[i].user = storage->curr[i].user;
+    storage->prev[i].nice = storage->curr[i].nice;
+    storage->prev[i].system = storage->curr[i].system;
+    storage->prev[i].idle = storage->curr[i].idle;
+  }
+
+  // stext
   char stext[100];
-  sprintf(stext, "%lu,%lu,%lu", storage->curr[3].user, storage->curr[3].nice,
-          storage->curr[3].system);
+  const int i = 3;
+  sprintf(stext, "%d:ua:%lusy:%lu", i, ua_arr[i], sy_arr[i]);
   x -= STEXTW(stext);
   drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
 
