@@ -1,6 +1,6 @@
 /* See LICENSE file for copyright and license details. */
 /* status bar */
-static const char interface_name[] = "wlp0s20f3";
+static const char interface_name[] = "wlp1s0";
 /* appearance */
 static const unsigned int borderpx = 1; /* border pixel of windows */
 static const unsigned int snap = 32;    /* snap pixel */

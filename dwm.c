@@ -240,6 +240,11 @@ typedef struct {
   Node *pointer;
 } CpuBlock;
 
+typedef struct {
+  Cpuload *prev;
+  Cpuload *curr;
+} CoreBlock;
+
 /* function declarations */
 static void applyrules(Client *c);
 static int applysizehints(Client *c, int *x, int *y, int *w, int *h,
@@ -356,6 +361,8 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
 /* variables */
+static int numCores;
+static CoreBlock storage_cores;
 static CpuBlock storage_cpu;
 static int static_click_x;
 static Systray *systray = NULL;
@@ -404,7 +411,7 @@ static Block Blocks[] = {
     [Clock] = {0, NULL, draw_clock, NULL},
     [Net] = {0, &storage_net, draw_net, NULL},
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
-    [Cores] = {0, NULL, draw_cores, NULL},
+    [Cores] = {0, &storage_cores, draw_cores, NULL},
 };
 
 /* configuration, allows nested code to access above variables */
@@ -2310,9 +2317,30 @@ void click_notify(const Arg *arg) {
 }
 
 int draw_cores(int x, Block *block) {
-  const char stext[] = "hello world";
+  FILE *fp;
+  CoreBlock *storage = block->storage;
+  fp = fopen("/proc/stat", "r");
+  if (fp == NULL) {
+    printf("Failed to open /proc/stat\n");
+    return 1;
+  }
+  // 从fp中逐行读取数据
+  char line[256];
+  fgets(line, sizeof(line), fp);
+  for (int i = 0; i < numCores; i++) {
+    fgets(line, sizeof(line), fp);
+    sscanf(line, "cpu%*d %lu %lu %lu %lu", &storage->curr[i].user,
+           &storage->curr[i].nice, &storage->curr[i].system,
+           &storage->curr[i].idle);
+  }
+  fclose(fp);
+
+  char stext[100];
+  sprintf(stext, "%lu,%lu,%lu", storage->curr[3].user, storage->curr[3].nice,
+          storage->curr[3].system);
   x -= STEXTW(stext);
   drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+
   return x;
 }
 
@@ -2583,6 +2611,7 @@ void init_statusbar() {
 
   /* init variables */
   static Node Nodes[10];
+  numCores = sysconf(_SC_NPROCESSORS_ONLN);
   // nodes中每个node头尾相连,最终形成一个环
   for (int i = 0; i < 10; i++) {
     Nodes[i].next = &Nodes[i + 1];
@@ -2594,6 +2623,10 @@ void init_statusbar() {
   storage_cpu.pointer = &Nodes[0];
   storage_cpu.prev = (Cpuload *)malloc(sizeof(Cpuload));
   storage_cpu.curr = (Cpuload *)malloc(sizeof(Cpuload));
+
+  // init cpu Cores
+  storage_cores.curr = (Cpuload *)malloc(sizeof(Cpuload) * numCores);
+  storage_cores.prev = (Cpuload *)malloc(sizeof(Cpuload) * numCores);
 }
 
 void *drawstatusbar() {
