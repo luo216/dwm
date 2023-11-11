@@ -411,7 +411,7 @@ static Block Blocks[] = {
     [Clock] = {0, NULL, draw_clock, NULL},
     [Net] = {0, &storage_net, draw_net, NULL},
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
-    [Cores] = {0, &storage_cores, draw_cores, NULL},
+    [Cores] = {0, &storage_cores, draw_cores, click_cpu},
 };
 
 /* configuration, allows nested code to access above variables */
