@@ -2353,14 +2353,40 @@ int draw_cores(int x, Block *block) {
     storage->prev[i].system = storage->curr[i].system;
     storage->prev[i].idle = storage->curr[i].idle;
   }
+  // draw cpu cores usage
+  const int tpad = 2;
+  const int border = 1;
+  const int cw = 6;
+  const int w = cw * numCores + 2 * border;
+  const int h = bh - 2 * tpad;
 
-  // stext
-  char stext[100];
-  const int i = 3;
-  sprintf(stext, "%d:ua:%lusy:%lu", i, ua_arr[i], sy_arr[i]);
-  x -= STEXTW(stext);
-  drw_text(sdrw, x, 0, STEXTW(stext), bh, lrpad, stext, 0);
+  drw_setscheme(sdrw, scheme[SchemeSel]);
+  drw_rect(sdrw, x - w, tpad, w, h, 1, 1);
 
+  // draw user usage
+  x -= border;
+  drw_setscheme(sdrw, scheme[SchemeBlue]);
+  for (int i = 0; i < numCores; i++) {
+    x -= cw;
+    const int ch = (h - 2 * border) * ua_arr[i] / 100;
+    const int cy = h - ch + tpad - border;
+    drw_rect(sdrw, x, cy, cw, ch, 1, 0);
+  }
+  // draw system usage
+  x = x + w - border;
+  drw_setscheme(sdrw, scheme[SchemeRed]);
+  for (int i = 0; i < numCores; i++) {
+    x -= cw;
+    const int ch1 = (h - 2 * border) * ua_arr[i] / 100;
+    const int cy1 = h - ch1 + tpad - border;
+    const int ch2 = (h - 2 * border) * sy_arr[i] / 100;
+    const int cy2 = cy1 - ch2;
+
+    drw_rect(sdrw, x, cy2, cw, ch2, 1, 0);
+  }
+
+  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  block->bw = w;
   return x;
 }
 
