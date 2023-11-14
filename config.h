@@ -21,7 +21,7 @@ static const char *fonts[] = {"Hack Nerd Font:size=14",
                               "Hack Nerd Font:size=9"};
 static const char col_white[] = "#eeeeee";
 static const char col_blue1[] = "#325d9b";
-static const char col_blue2[] = "#1c3a5e";
+static const char col_blue2[] = "#2c4a7e";
 static const char col_blue3[] = "#0078d7";
 static const char col_Green[] = "#64DD17";
 static const char col_Orange[] = "Orange";
