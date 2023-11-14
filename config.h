@@ -90,6 +90,7 @@ static const char *dec_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@",
 static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@",
                                    "toggle", NULL};
 static const char *flameshot[] = {"flameshot", "gui", NULL};
+static const char *Xsleep[] = {"Xsleep", NULL};
 
 static const Key keys[] = {
     /* modifier                     key        function        argument */
@@ -98,6 +99,7 @@ static const Key keys[] = {
     {MODKEY, XK_F8, spawn, {.v = tog_volume}},
     {MODKEY, XK_F9, spawn, {.v = dec_volume}},
     {MODKEY, XK_F10, spawn, {.v = inc_volume}},
+    {MODKEY, XK_Escape, spawn, {.v = Xsleep}},
     {MODKEY, XK_Print, spawn, {.v = flameshot}},
     {MODKEY, XK_p, spawn, {.v = roficmd}},
     {MODKEY | ShiftMask, XK_Return, spawn, {.v = termcmd}},
