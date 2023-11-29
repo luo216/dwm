@@ -64,7 +64,7 @@
 #define HEIGHT(X) ((X)->h + 2 * (X)->bw)
 #define TAGMASK ((1 << LENGTH(tags)) - 1)
 #define TEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
-#define STEXTW(X) (drw_fontset_getwidth(sdrw, (X)) + lrpad)
+#define STEXTW(X) (drw_fontset_getwidth(drw, (X)) + lrpad)
 
 #define SYSTEM_TRAY_REQUEST_DOCK 0
 /* XEMBED messages */
@@ -271,6 +271,7 @@ static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
 static void *drawstatusbar();
+static void clean_status_pthread();
 static int draw_clock(int x, Block *block);
 static int draw_net(int x, Block *block);
 static int draw_battery(int x, Block *block);
@@ -361,6 +362,8 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
 /* variables */
+static pthread_t draw_status_thread;
+static Node Nodes[10];
 static int numCores;
 static CoreBlock storage_cores;
 static CpuBlock storage_cpu;
@@ -399,7 +402,7 @@ static Cur *cursor[CurLast];
 static Clr **scheme;
 static Display *dpy;
 static Drw *drw;
-static Drw *sdrw;
+static Drw *drw;
 static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
 static Fnt *normalfont;
@@ -618,6 +621,10 @@ void cleanup(void) {
   Layout foo = {"", NULL};
   Monitor *m;
   size_t i;
+
+  /* clean status bar malloc memory */
+  clean_status_pthread();
+  /* clean status bar malloc memory */
 
   view(&a);
   selmon->lt[selmon->sellt] = &foo;
@@ -2360,21 +2367,21 @@ int draw_cores(int x, Block *block) {
   const int w = cw * numCores + 2 * border;
   const int h = bh - 2 * tpad;
 
-  drw_setscheme(sdrw, scheme[SchemeSel]);
-  drw_rect(sdrw, x - w, tpad, w, h, 1, 1);
+  drw_setscheme(drw, scheme[SchemeSel]);
+  drw_rect(drw, x - w, tpad, w, h, 1, 1);
 
   // draw user usage
   x -= border;
-  drw_setscheme(sdrw, scheme[SchemeBlue]);
+  drw_setscheme(drw, scheme[SchemeBlue]);
   for (int i = 0; i < numCores; i++) {
     x -= cw;
     const int ch = (h - 2 * border) * ua_arr[i] / 100;
     const int cy = h - ch + tpad - border;
-    drw_rect(sdrw, x, cy, cw, ch, 1, 0);
+    drw_rect(drw, x, cy, cw, ch, 1, 0);
   }
   // draw system usage
   x = x + w - border;
-  drw_setscheme(sdrw, scheme[SchemeRed]);
+  drw_setscheme(drw, scheme[SchemeRed]);
   for (int i = 0; i < numCores; i++) {
     x -= cw;
     const int ch1 = (h - 2 * border) * ua_arr[i] / 100;
@@ -2382,10 +2389,10 @@ int draw_cores(int x, Block *block) {
     const int ch2 = (h - 2 * border) * sy_arr[i] / 100;
     const int cy2 = cy1 - ch2;
 
-    drw_rect(sdrw, x, cy2, cw, ch2, 1, 0);
+    drw_rect(drw, x, cy2, cw, ch2, 1, 0);
   }
 
-  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  drw_setscheme(drw, scheme[SchemeNorm]);
   block->bw = w;
   return x;
 }
@@ -2433,11 +2440,11 @@ int draw_cpu(int x, Block *block) {
   const int cw = 6;
   const int ch = bh - 2 * y - 2;
 
-  drw_setscheme(sdrw, scheme[SchemeSel]);
-  drw_rect(sdrw, x - w, y, w, h, 1, 1);
+  drw_setscheme(drw, scheme[SchemeSel]);
+  drw_rect(drw, x - w, y, w, h, 1, 1);
 
   // 绘制 user CPU 使用率
-  drw_setscheme(sdrw, scheme[SchemeBlue]);
+  drw_setscheme(drw, scheme[SchemeBlue]);
   x -= 1;
   for (int i = 0; i < 10; i++) {
     x -= cw;
@@ -2447,12 +2454,12 @@ int draw_cpu(int x, Block *block) {
       continue;
     }
     const int cy = ch - ch1 + y + 1;
-    drw_rect(sdrw, x, cy, cw, ch1, 1, 0);
+    drw_rect(drw, x, cy, cw, ch1, 1, 0);
     storage->pointer = storage->pointer->next;
   }
   // 绘制 system CPU 使用率
   x = x + w - 2;
-  drw_setscheme(sdrw, scheme[SchemeRed]);
+  drw_setscheme(drw, scheme[SchemeRed]);
   for (int i = 0; i < 10; i++) {
     x -= cw;
     const int ch2 = ch * storage->pointer->data->system / 100;
@@ -2463,11 +2470,11 @@ int draw_cpu(int x, Block *block) {
     const int ch1 = ch * storage->pointer->data->user / 100;
     const int cy = ch - ch1 + y + 1;
     const int cy1 = cy - ch2;
-    drw_rect(sdrw, x, cy1, cw, ch2, 1, 0);
+    drw_rect(drw, x, cy1, cw, ch2, 1, 0);
     storage->pointer = storage->pointer->next;
   }
 
-  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  drw_setscheme(drw, scheme[SchemeNorm]);
   x -= lrpad;
   block->bw = w + lrpad;
   return x;
@@ -2477,7 +2484,7 @@ int draw_notify(int x, Block *block) {
   char tag[] = " ";
   block->bw = STEXTW(tag);
   x -= block->bw;
-  drw_text(sdrw, x, 0, block->bw, bh, lrpad, tag, 0);
+  drw_text(drw, x, 0, block->bw, bh, lrpad, tag, 0);
 
   return x;
 }
@@ -2506,7 +2513,7 @@ int draw_battery(int x, Block *block) {
 
   block->bw = STEXTW(capacity);
   x -= block->bw;
-  drw_text(sdrw, x, 0, block->bw, bh, lrpad, capacity, 0);
+  drw_text(drw, x, 0, block->bw, bh, lrpad, capacity, 0);
 
   // 绘制电池外壳
   const int tpad = 4;
@@ -2516,18 +2523,18 @@ int draw_battery(int x, Block *block) {
   const int battery_w = 2 * battery_sw;
   const int battery_h = bh - battery_sh - 2 * tpad;
   x -= battery_w;
-  drw_setscheme(sdrw, scheme[SchemeSel]);
-  drw_rect(sdrw, x, tpad + battery_sh, battery_w, battery_h, 1, 1);
-  drw_rect(sdrw, x + battery_sw / 2, tpad, battery_sw, battery_sh, 1, 1);
+  drw_setscheme(drw, scheme[SchemeSel]);
+  drw_rect(drw, x, tpad + battery_sh, battery_w, battery_h, 1, 1);
+  drw_rect(drw, x + battery_sw / 2, tpad, battery_sw, battery_sh, 1, 1);
 
   if (status[0] == 'C' || status[0] == 'F') {
-    drw_setscheme(sdrw, scheme[SchemeGreen]);
+    drw_setscheme(drw, scheme[SchemeGreen]);
   } else if (int_cap >= 45) {
-    drw_setscheme(sdrw, scheme[SchemeBlue]);
+    drw_setscheme(drw, scheme[SchemeBlue]);
   } else if (int_cap > 20) {
-    drw_setscheme(sdrw, scheme[SchemeOrange]);
+    drw_setscheme(drw, scheme[SchemeOrange]);
   } else {
-    drw_setscheme(sdrw, scheme[SchemeRed]);
+    drw_setscheme(drw, scheme[SchemeRed]);
   }
 
   const int battery_cap_x = x + border;
@@ -2536,12 +2543,12 @@ int draw_battery(int x, Block *block) {
   int battery_cap_h = battery_h - 2 * border;
   battery_cap_h = battery_cap_h * int_cap / 100;
   battery_cap_y = battery_cap_y + (battery_h - border - battery_cap_h);
-  drw_rect(sdrw, battery_cap_x, battery_cap_y, battery_cap_w, battery_cap_h, 1,
+  drw_rect(drw, battery_cap_x, battery_cap_y, battery_cap_w, battery_cap_h, 1,
            0);
   x -= lrpad;
   block->bw += battery_w + lrpad;
 
-  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  drw_setscheme(drw, scheme[SchemeNorm]);
   return x;
 }
 
@@ -2599,14 +2606,14 @@ int draw_net(int x, Block *block) {
     sprintf(rx, "%.2f GB/s", rxi / 1024 / 1024 / 1024);
   }
 
-  drw_setfontset(sdrw, smallfont);
+  drw_setfontset(drw, smallfont);
 
-  drw_text(sdrw, x - STEXTW(tx), 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
-  drw_text(sdrw, x - STEXTW(rx), bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
+  drw_text(drw, x - STEXTW(tx), 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
+  drw_text(drw, x - STEXTW(rx), bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
   x -= STEXTW("999.99 KB/s");
   block->bw = STEXTW("999.99 KB/s");
 
-  drw_setfontset(sdrw, normalfont);
+  drw_setfontset(drw, normalfont);
 
   return x;
 }
@@ -2628,7 +2635,7 @@ int draw_clock(int x, Block *block) {
   sprintf(stext, "%02d:%02d-%s", hour, minute, meridiem);
   block->bw = STEXTW(stext);
   x -= block->bw;
-  drw_text(sdrw, x, 0, block->bw, bh, lrpad, stext, 0);
+  drw_text(drw, x, 0, block->bw, bh, lrpad, stext, 0);
   return x;
 }
 
@@ -2647,16 +2654,9 @@ void handle_status_clk(const Arg *arg) {
 }
 
 void init_statusbar() {
-  /* init screen */
-  sdrw = drw_create(dpy, screen, root, sw, sh);
-  if (!drw_fontset_create(sdrw, fonts, LENGTH(fonts)))
-    die("no fonts could be loaded.");
-  normalfont = sdrw->fonts;
-  smallfont = sdrw->fonts->next;
-  drw_setscheme(sdrw, scheme[SchemeNorm]);
+  normalfont = drw->fonts;
+  smallfont = drw->fonts->next;
 
-  /* init variables */
-  static Node Nodes[10];
   numCores = sysconf(_SC_NPROCESSORS_ONLN);
   // nodes中每个node头尾相连,最终形成一个环
   for (int i = 0; i < 10; i++) {
@@ -2675,30 +2675,41 @@ void init_statusbar() {
   storage_cores.prev = (Cpuload *)malloc(sizeof(Cpuload) * numCores);
 }
 
+void clean_status_pthread() {
+  // TODO: status pthread free meomory
+  pthread_cancel(draw_status_thread);
+  // cpu cores
+  free(storage_cores.curr);
+  free(storage_cores.prev);
+  // cpu nodes
+  free(storage_cpu.curr);
+  free(storage_cpu.prev);
+  for (int i = 0; i < 10; i++) {
+    free(Nodes[i].data);
+  }
+}
+
 void *drawstatusbar() {
-  // TODO: status bar
   init_statusbar();
   while (1) {
-    if (running == 1) {
-      // 遍历mons,在selmon上绘制
-      for (Monitor *m = mons; m; m = m->next)
-        if (m == selmon) {
-          int x = m->ww;
-          drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
+    // 遍历mons,在selmon上绘制
+    for (Monitor *m = mons; m; m = m->next)
+      if (m == selmon) {
+        int x = m->ww;
+        drw_setscheme(drw, scheme[SchemeNorm]);
+        drw_rect(drw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
 
-          for (int i = 0; i < LENGTH(Blocks); i++) {
-            x = Blocks[i].draw(x, &Blocks[i]);
-          }
-
-          drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
-        } else {
-          drw_rect(sdrw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
-          drw_map(sdrw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+        for (int i = 0; i < LENGTH(Blocks); i++) {
+          x = Blocks[i].draw(x, &Blocks[i]);
         }
-      sleep(1);
-    } else {
-      return 0;
-    }
+
+        drw_map(drw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+      } else {
+        drw_setscheme(drw, scheme[SchemeNorm]);
+        drw_rect(drw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
+        drw_map(drw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+      }
+    sleep(1);
   }
   return 0;
 }
@@ -2955,6 +2966,7 @@ void zoom(const Arg *arg) {
 }
 
 int main(int argc, char *argv[]) {
+  // TODO: main start here
   if (argc == 2 && !strcmp("-v", argv[1]))
     die("dwm-" VERSION);
   else if (argc != 1)
@@ -2971,7 +2983,6 @@ int main(int argc, char *argv[]) {
 #endif /* __OpenBSD__ */
   scan();
   runautostart();
-  pthread_t draw_status_thread;
   if (pthread_create(&draw_status_thread, NULL, *drawstatusbar, NULL) != 0)
     die("pthread_create error");
   run();
