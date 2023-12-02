@@ -2889,7 +2889,7 @@ void *drawstatusbar() {
   while (1) {
     // 遍历mons,在selmon上绘制
     for (Monitor *m = mons; m; m = m->next) {
-      systrayw = getsystraywidth();
+      systrayw = getsystraywidth() + systraylpad;
       int stw = getstatuswidth();
       systandstat = stw + systrayw;
       if (m == selmon) {
