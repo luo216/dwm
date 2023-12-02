@@ -24,18 +24,19 @@ static const char col_white[] = "#eeeeee";
 static const char col_blue1[] = "#325d9b";
 static const char col_blue2[] = "#2c4a7e";
 static const char col_blue3[] = "#0078d7";
-static const char col_Green[] = "#64DD17";
-static const char col_Orange[] = "Orange";
-static const char col_Red[] = "Red";
+static const char col_green[] = "#64DD17";
+static const char col_orange[] = "Orange";
+static const char col_red[] = "Red";
+static const char col_gray[] = "#a1afc9";
 static const char *colors[][3] = {
     /*               fg         bg         border   */
     [SchemeNorm] = {col_white, col_blue1, col_blue1},
     [SchemeSel] = {col_white, col_blue2, col_blue1},
-    [SchemeHid] = {col_blue1, col_white, col_blue1},
+    [SchemeHid] = {col_blue1, col_gray, col_blue1},
     [SchemeBlue] = {col_blue3, col_blue1, col_blue1},
-    [SchemeGreen] = {col_Green, col_blue1, col_blue1},
-    [SchemeOrange] = {col_Orange, col_blue1, col_blue1},
-    [SchemeRed] = {col_Red, col_blue1, col_blue1},
+    [SchemeGreen] = {col_green, col_blue1, col_blue1},
+    [SchemeOrange] = {col_orange, col_blue1, col_blue1},
+    [SchemeRed] = {col_red, col_blue1, col_blue1},
 };
 
 /* tagging */
