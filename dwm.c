@@ -377,6 +377,7 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
 /* variables */
+static int systandstat; /* right padding for systray */
 static int systrayw = 100;
 static int logotitlew;
 static pthread_t draw_status_thread;
@@ -614,10 +615,10 @@ void buttonpress(XEvent *e) {
       arg.ui = 1 << i;
     } else if (ev->x < x + (logotitlew + 2) + TEXTW(selmon->ltsymbol))
       click = ClkLtSymbol;
-    else if (ev->x > selmon->ww - systrayrpad) {
+    else if (ev->x > selmon->ww - systandstat) {
       click = ClkStatusText;
       static_click_x = selmon->ww - ev->x;
-    } else if (ev->x < selmon->ww - systrayrpad - systrayw) {
+    } else if (ev->x < selmon->ww - systandstat - systrayw) {
       x += TEXTW(selmon->ltsymbol) + (logotitlew + 2);
       c = m->clients;
 
@@ -949,13 +950,12 @@ void drawbar(Monitor *m) {
   int x, w, n = 0, scm;
   unsigned int i, occ = 0, urg = 0;
   Client *c;
-  systrayw = getsystraywidth();
 
   if (!m->showbar)
     return;
 
   drw_setscheme(drw, scheme[SchemeNorm]);
-  drw_rect(drw, 0, 0, m->ww - systrayrpad, bh, 1, 1);
+  drw_rect(drw, 0, 0, m->ww - systandstat, bh, 1, 1);
 
   /* draw status first so it can be overdrawn by tags later */
   if (m == selmon) { /* status is only drawn on selected monitor */
@@ -994,7 +994,7 @@ void drawbar(Monitor *m) {
   drw_setscheme(drw, scheme[SchemeSel]);
   x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 
-  w = m->ww - x - systrayrpad - systrayw;
+  w = m->ww - x - systandstat;
   if (n > 0) {
     int remainder = w % n;
     int tabw = (1.0 / (double)n) * w + 1;
@@ -1025,7 +1025,7 @@ void drawbar(Monitor *m) {
   m->bt = n;
   m->btw = w;
 
-  drw_map(drw, m->barwin, 0, 0, m->ww - systrayrpad, bh);
+  drw_map(drw, m->barwin, 0, 0, m->ww - systandstat, bh);
 }
 
 void drawbars(void) {
@@ -2888,23 +2888,27 @@ void *drawstatusbar() {
   init_statusbar();
   while (1) {
     // 遍历mons,在selmon上绘制
-    for (Monitor *m = mons; m; m = m->next)
+    for (Monitor *m = mons; m; m = m->next) {
+      systrayw = getsystraywidth();
+      int stw = getstatuswidth();
+      systandstat = stw + systrayw;
       if (m == selmon) {
-        int x = m->ww;
+        int x = m->ww - systrayw;
         drw_setscheme(drw, scheme[SchemeNorm]);
-        drw_rect(drw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
+        drw_rect(drw, m->ww - systandstat, 0, systandstat, bh, 1, 1);
 
         for (int i = 0; i < LENGTH(Blocks); i++) {
           x = Blocks[i].draw(x, &Blocks[i]);
         }
 
-        drw_map(drw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+        drw_map(drw, m->barwin, m->ww - systandstat, 0, systandstat, bh);
       } else {
         drw_setscheme(drw, scheme[SchemeNorm]);
-        drw_rect(drw, m->ww - systrayrpad, 0, systrayrpad, bh, 1, 1);
-        drw_map(drw, m->barwin, m->ww - systrayrpad, 0, systrayrpad, bh);
+        drw_rect(drw, m->ww - systandstat, 0, systandstat, bh, 1, 1);
+        drw_map(drw, m->barwin, m->ww - systandstat, 0, systandstat, bh);
       }
-    sleep(1);
+      sleep(1);
+    }
   }
   return 0;
 }
@@ -2959,7 +2963,7 @@ void updatesystray(void) {
   XWindowChanges wc;
   Client *i;
   Monitor *m = systraytomon(NULL);
-  unsigned int x = m->mx + m->mw - systrayrpad;
+  unsigned int x = m->mx + m->mw;
   unsigned int w = 1;
 
   if (!showsystray)
