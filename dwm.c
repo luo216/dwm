@@ -375,6 +375,7 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
 /* variables */
+static int logotitlew;
 static pthread_t draw_status_thread;
 static Node Nodes[10];
 static int numCores;
@@ -602,19 +603,19 @@ void buttonpress(XEvent *e) {
       if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
         continue;
       x += TEXTW(tags[i]);
-    } while (ev->x >= x + 282 && ++i < LENGTH(tags));
-    if (ev->x <= 282) {
+    } while (ev->x >= x + (logotitlew + 2) && ++i < LENGTH(tags));
+    if (ev->x <= (logotitlew + 2)) {
       click = ClkWinTitle;
     } else if (i < LENGTH(tags)) {
       click = ClkTagBar;
       arg.ui = 1 << i;
-    } else if (ev->x < x + 282 + TEXTW(selmon->ltsymbol))
+    } else if (ev->x < x + (logotitlew + 2) + TEXTW(selmon->ltsymbol))
       click = ClkLtSymbol;
     else if (ev->x > selmon->ww - systrayrpad) {
       click = ClkStatusText;
       static_click_x = selmon->ww - ev->x;
     } else if (ev->x < selmon->ww - systrayrpad - systrayw) {
-      x += TEXTW(selmon->ltsymbol) + 282;
+      x += TEXTW(selmon->ltsymbol) + (logotitlew + 2);
       c = m->clients;
 
       if (c) {
@@ -966,19 +967,12 @@ void drawbar(Monitor *m) {
       urg |= c->tags;
   }
 
-  x = 0;
-  w = TEXTW(" ");
-  // draw a arch linux logo
+  logotitlew = TEXTW("   Arch linux");
+  w = logotitlew;
   drw_setscheme(drw, scheme[SchemeNorm]);
-  drw_text(drw, x, 0, w, bh, lrpad / 2, " ", 0);
-  x += w;
+  drw_text(drw, 0, 0, w, bh, lrpad / 2, "   Arch linux", 0);
+  x = w;
 
-  if ((w = 280 - w) > bh) {
-    drw_setscheme(drw, scheme[SchemeNorm]);
-    drw_text(drw, x, 0, w, bh, lrpad / 2, "Arch linux", 0);
-  }
-
-  x = 280;
   drw_setscheme(drw, scheme[SchemeSel]);
   drw_rect(drw, x, 0, 2, bh, 1, 1);
   x += 2;
