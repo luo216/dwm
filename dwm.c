@@ -301,7 +301,11 @@ static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
 static void hide(const Arg *arg);
 static void hidewin(Client *c);
-static void handle_status_clk(const Arg *arg);
+static void handleStatus1(const Arg *arg);
+static void handleStatus2(const Arg *arg);
+static void handleStatus3(const Arg *arg);
+static void handleStatus4(const Arg *arg);
+static void handleStatus5(const Arg *arg);
 static void init_statusbar();
 static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
@@ -2847,6 +2851,12 @@ void handle_status_clk(const Arg *arg) {
     }
   }
 }
+
+void handleStatus1(const Arg *arg) {}
+void handleStatus2(const Arg *arg) {}
+void handleStatus3(const Arg *arg) {}
+void handleStatus4(const Arg *arg) {}
+void handleStatus5(const Arg *arg) {}
 
 void init_statusbar() {
   normalfont = drw->fonts;
