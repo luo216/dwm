@@ -292,6 +292,7 @@ static void focusstackvis(const Arg *arg);
 static void focusstackhid(const Arg *arg);
 static void focusstack(int inc, int vis);
 static unsigned int getsystraywidth();
+static int getstatuswidth();
 static Atom getatomprop(Client *c, Atom prop);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
@@ -1166,6 +1167,15 @@ unsigned int getsystraywidth() {
     for (i = systray->icons; i; w += i->w + systrayspacing, i = i->next)
       ;
   return w ? w + systrayspacing : 1;
+}
+
+int getstatuswidth() {
+  int width = 0;
+  for (int i = 0; i < LENGTH(Blocks); i++) {
+    width += Blocks[i].bw;
+  }
+
+  return width;
 }
 
 Atom getatomprop(Client *c, Atom prop) {
