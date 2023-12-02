@@ -130,6 +130,7 @@ enum {
   Net,
   Cpu,
   Cores,
+  Temp,
 }; /*status bar blocks*/
 typedef union {
   int i;
@@ -283,6 +284,7 @@ static int draw_battery(int x, Block *block);
 static int draw_notify(int x, Block *block);
 static int draw_cpu(int x, Block *block);
 static int draw_cores(int x, Block *block);
+static int draw_temp(int x, Block *block);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -436,6 +438,7 @@ static Block Blocks[] = {
     [Net] = {0, &storage_net, draw_net, NULL},
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
     [Cores] = {0, &storage_cores, draw_cores, click_cpu},
+    [Temp] = {0, NULL, draw_temp, NULL},
 };
 
 /* configuration, allows nested code to access above variables */
@@ -2684,6 +2687,24 @@ int draw_cpu(int x, Block *block) {
   drw_setscheme(drw, scheme[SchemeNorm]);
   x -= lrpad;
   block->bw = w + lrpad;
+  return x;
+}
+
+int draw_temp(int x, Block *block) {
+  char temp[18];
+  FILE *fp = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
+  if (fp == NULL) {
+    return x;
+  }
+  int tmp;
+  fscanf(fp, "%d", &tmp);
+  fclose(fp);
+  tmp = tmp / 1000;
+  sprintf(temp, " %d󰔄 ", tmp);
+  block->bw = STEXTW(temp);
+  x -= block->bw;
+  drw_text(drw, x, 0, block->bw, bh, lrpad, temp, 0);
+
   return x;
 }
 
