@@ -291,6 +291,7 @@ static void focusmon(const Arg *arg);
 static void focusstackvis(const Arg *arg);
 static void focusstackhid(const Arg *arg);
 static void focusstack(int inc, int vis);
+static unsigned int getsystraywidth();
 static Atom getatomprop(Client *c, Atom prop);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
@@ -375,6 +376,7 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 
 /* variables */
+static int systrayw = 100;
 static int logotitlew;
 static pthread_t draw_status_thread;
 static Node Nodes[10];
@@ -946,6 +948,7 @@ void drawbar(Monitor *m) {
   int x, w, n = 0, scm;
   unsigned int i, occ = 0, urg = 0;
   Client *c;
+  systrayw = getsystraywidth();
 
   if (!m->showbar)
     return;
@@ -1154,6 +1157,15 @@ void focusstack(int inc, int hid) {
       c->mon->hidsel = 1;
     }
   }
+}
+
+unsigned int getsystraywidth() {
+  unsigned int w = 0;
+  Client *i;
+  if (showsystray)
+    for (i = systray->icons; i; w += i->w + systrayspacing, i = i->next)
+      ;
+  return w ? w + systrayspacing : 1;
 }
 
 Atom getatomprop(Client *c, Atom prop) {

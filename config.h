@@ -15,9 +15,8 @@ static const int systraypinningfailfirst =
           display systray on the last monitor*/
 static const int showsystray = 1;   /* 0 means no systray */
 static const int systrayrpad = 620; /* right padding for systray */
-static const int systrayw = 180;
-static const int showbar = 1; /* 0 means no bar */
-static const int topbar = 1;  /* 0 means bottom bar */
+static const int showbar = 1;       /* 0 means no bar */
+static const int topbar = 1;        /* 0 means bottom bar */
 static const char *fonts[] = {"Hack Nerd Font:size=14",
                               "Hack Nerd Font:size=9"};
 static const char col_white[] = "#eeeeee";
