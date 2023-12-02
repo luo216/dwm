@@ -389,7 +389,6 @@ static Node Nodes[10];
 static int numCores;
 static CoreBlock storage_cores;
 static CpuBlock storage_cpu;
-static int static_click_x;
 static Systray *systray = NULL;
 static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
@@ -635,8 +634,16 @@ void buttonpress(XEvent *e) {
         arg.v = c;
       }
     } else if (ev->x > selmon->ww - systandstat) {
+      int stbsw = 0;
+      int stx = selmon->ww - ev->x - systrayw;
+      for (int j = 0; j < LENGTH(Blocks); j++) {
+        stbsw += Blocks[j].bw;
+        if (stbsw > stx) {
+          arg.i = j;
+          break;
+        }
+      }
       click = ClkStatusText;
-      static_click_x = selmon->ww - ev->x - systrayw;
     }
   } else if ((c = wintoclient(ev->window))) {
     focus(c);
@@ -648,7 +655,8 @@ void buttonpress(XEvent *e) {
     if (click == buttons[i].click && buttons[i].func &&
         buttons[i].button == ev->button &&
         CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
-      buttons[i].func((click == ClkTagBar || click == ClkHidTitle) &&
+      buttons[i].func((click == ClkTagBar || click == ClkHidTitle ||
+                       click == ClkStatusText) &&
                               buttons[i].arg.i == 0
                           ? &arg
                           : &buttons[i].arg);
@@ -2838,25 +2846,36 @@ int draw_clock(int x, Block *block) {
   return x;
 }
 
-void handle_status_clk(const Arg *arg) {
-  int x = 0;
-  for (int i = 0; i < LENGTH(Blocks); i++) {
-    x += Blocks[i].bw;
-    if (static_click_x < x) {
-      if (Blocks[i].click) {
-        Blocks[i].click(arg);
-      } else {
-        return;
-      }
-    }
+void handleStatus1(const Arg *arg) {
+  Arg a = {.i = 1};
+  if (Blocks[arg->i].click) {
+    Blocks[arg->i].click(&a);
   }
 }
-
-void handleStatus1(const Arg *arg) {}
-void handleStatus2(const Arg *arg) {}
-void handleStatus3(const Arg *arg) {}
-void handleStatus4(const Arg *arg) {}
-void handleStatus5(const Arg *arg) {}
+void handleStatus2(const Arg *arg) {
+  Arg a = {.i = 2};
+  if (Blocks[arg->i].click) {
+    Blocks[arg->i].click(&a);
+  }
+}
+void handleStatus3(const Arg *arg) {
+  Arg a = {.i = 3};
+  if (Blocks[arg->i].click) {
+    Blocks[arg->i].click(&a);
+  }
+}
+void handleStatus4(const Arg *arg) {
+  Arg a = {.i = 4};
+  if (Blocks[arg->i].click) {
+    Blocks[arg->i].click(&a);
+  }
+}
+void handleStatus5(const Arg *arg) {
+  Arg a = {.i = 5};
+  if (Blocks[arg->i].click) {
+    Blocks[arg->i].click(&a);
+  }
+}
 
 void init_statusbar() {
   normalfont = drw->fonts;
