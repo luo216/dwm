@@ -615,10 +615,7 @@ void buttonpress(XEvent *e) {
       arg.ui = 1 << i;
     } else if (ev->x < x + (logotitlew + 2) + TEXTW(selmon->ltsymbol))
       click = ClkLtSymbol;
-    else if (ev->x > selmon->ww - systandstat) {
-      click = ClkStatusText;
-      static_click_x = selmon->ww - ev->x;
-    } else if (ev->x < selmon->ww - systandstat - systrayw) {
+    else if (ev->x < selmon->ww - systandstat) {
       x += TEXTW(selmon->ltsymbol) + (logotitlew + 2);
       c = m->clients;
 
@@ -633,6 +630,9 @@ void buttonpress(XEvent *e) {
         click = ClkHidTitle;
         arg.v = c;
       }
+    } else if (ev->x > selmon->ww - systandstat) {
+      click = ClkStatusText;
+      static_click_x = selmon->ww - ev->x - systrayw;
     }
   } else if ((c = wintoclient(ev->window))) {
     focus(c);
