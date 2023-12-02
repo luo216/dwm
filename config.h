@@ -1,4 +1,5 @@
 /* See LICENSE file for copyright and license details. */
+static const char logotext[] = "    Arch linux  ";
 /* status bar */
 static const char interface_name[] = "wlp1s0";
 /* appearance */

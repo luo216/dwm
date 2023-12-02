@@ -970,10 +970,10 @@ void drawbar(Monitor *m) {
       urg |= c->tags;
   }
 
-  logotitlew = TEXTW("   Arch linux");
-  w = logotitlew;
+  w = TEXTW(logotext);
+  logotitlew = w;
   drw_setscheme(drw, scheme[SchemeNorm]);
-  drw_text(drw, 0, 0, w, bh, lrpad / 2, "   Arch linux", 0);
+  drw_text(drw, 0, 0, w, bh, lrpad / 2, logotext, 0);
   x = w;
 
   drw_setscheme(drw, scheme[SchemeSel]);
