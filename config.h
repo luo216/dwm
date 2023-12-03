@@ -46,7 +46,7 @@ static const int overviewgappo = 60; /* overview时 窗口与窗口 缝隙大小
 static const int magicgappi = 10; /* overview时 窗口与窗口 缝隙大小 */
 static const int magicgappo = 10; /* overview时 窗口与窗口 缝隙大小 */
 static const char *overviewtag = "OVERVIEW";
-static const Layout overviewlayout = {"", overview};
+static const Layout overviewlayout = {"󰪴 ", overview};
 
 static const Rule rules[] = {
     /* xprop(1):
@@ -68,10 +68,10 @@ static const int lockfullscreen =
 
 static const Layout layouts[] = {
     /* symbol     arrange function */
+    {" 󰕰 ", magicgrid},
     {" 󰕮 ", tile}, /* first entry is default */
     {" 󰉨 ", NULL}, /* no layout function means floating behavior */
     {" 󱢈 ", monocle},
-    {" 󰕰 ", magicgrid},
 };
 
 /* key definitions */
@@ -126,10 +126,10 @@ static const Key keys[] = {
     {MODKEY, XK_Tab, view, {0}},
     {MODKEY | ShiftMask, XK_c, killclient, {0}},
     {MODKEY | ShiftMask, XK_x, killunsel, {0}},
-    {MODKEY, XK_t, setlayout, {.v = &layouts[0]}},
-    {MODKEY, XK_f, setlayout, {.v = &layouts[1]}},
-    {MODKEY, XK_m, setlayout, {.v = &layouts[2]}},
-    {MODKEY, XK_g, setlayout, {.v = &layouts[3]}},
+    {MODKEY, XK_g, setlayout, {.v = &layouts[0]}},
+    {MODKEY, XK_t, setlayout, {.v = &layouts[1]}},
+    {MODKEY, XK_f, setlayout, {.v = &layouts[2]}},
+    {MODKEY, XK_m, setlayout, {.v = &layouts[3]}},
     {MODKEY, XK_a, toggleoverview, {0}},
     {MODKEY | ShiftMask, XK_f, togglefullscr, {0}},
     {MODKEY, XK_space, setlayout, {0}},
