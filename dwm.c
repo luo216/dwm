@@ -2603,7 +2603,8 @@ int draw_cores(int x, Block *block) {
   }
 
   drw_setscheme(drw, scheme[SchemeNorm]);
-  block->bw = w;
+  x -= lrpad;
+  block->bw = w + lrpad;
   return x;
 }
 
@@ -2939,7 +2940,7 @@ void *drawstatusbar() {
   while (1) {
     // 遍历mons,在selmon上绘制
     for (Monitor *m = mons; m; m = m->next) {
-      systrayw = getsystraywidth() + systraylpad;
+      systrayw = getsystraywidth() + lrpad;
       int stw = getstatuswidth();
       systandstat = stw + systrayw;
       if (m == selmon) {
