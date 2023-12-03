@@ -1,4 +1,3 @@
-#include "dwm.h"
 #include <pthread.h>
 
 enum {
