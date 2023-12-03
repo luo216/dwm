@@ -1,7 +1,5 @@
 #include <pthread.h>
 
-#define LENGTH(X) (sizeof X / sizeof X[0])
-
 enum {
   Notify,
   Battery,
