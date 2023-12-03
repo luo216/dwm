@@ -289,6 +289,8 @@ static Monitor *systraytomon(Monitor *m);
 static void tag(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
+static void grid(Monitor *m, uint gappo, uint gappi);
+static void magicgrid(Monitor *m);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
 static void toggletag(const Arg *arg);
@@ -2072,6 +2074,57 @@ void tagmon(const Arg *arg) {
     return;
   sendmon(selmon->sel, dirtomon(arg->i));
 }
+
+void grid(Monitor *m, uint gappo, uint gappi) {
+  unsigned int i, n;
+  unsigned int cx, cy, cw, ch;
+  unsigned int dx;
+  unsigned int cols, rows, overcols;
+  Client *c;
+
+  for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++)
+    ;
+  if (n == 0)
+    return;
+  if (n == 1) {
+    c = nexttiled(m->clients);
+    cw = (m->ww - 2 * gappo) * 0.6;
+    ch = (m->wh - 2 * gappo) * 0.6;
+    resize(c, m->mx + (m->mw - cw) / 2 + gappo,
+           m->my + (m->mh - ch) / 2 + gappo, cw - 2 * c->bw, ch - 2 * c->bw, 0);
+    return;
+  }
+  if (n == 2) {
+    c = nexttiled(m->clients);
+    cw = (m->ww - 2 * gappo - gappi) / 2;
+    ch = (m->wh - 2 * gappo) * 0.6;
+    resize(c, m->mx + gappo, m->my + (m->mh - ch) / 2 + gappo, cw - 2 * c->bw,
+           ch - 2 * c->bw, 0);
+    resize(nexttiled(c->next), m->mx + cw + gappo + gappi,
+           m->my + (m->mh - ch) / 2 + gappo, cw - 2 * c->bw, ch - 2 * c->bw, 0);
+    return;
+  }
+
+  for (cols = 0; cols <= n / 2; cols++)
+    if (cols * cols >= n)
+      break;
+  rows = (cols && (cols - 1) * cols >= n) ? cols - 1 : cols;
+  ch = (m->wh - 2 * gappo - (rows - 1) * gappi) / rows;
+  cw = (m->ww - 2 * gappo - (cols - 1) * gappi) / cols;
+
+  overcols = n % cols;
+  if (overcols)
+    dx = (m->ww - overcols * cw - (overcols - 1) * gappi) / 2 - gappo;
+  for (i = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++) {
+    cx = m->wx + (i % cols) * (cw + gappi);
+    cy = m->wy + (i / cols) * (ch + gappi);
+    if (overcols && i >= n - overcols) {
+      cx += dx;
+    }
+    resize(c, cx + gappo, cy + gappo, cw - 2 * c->bw, ch - 2 * c->bw, 0);
+  }
+}
+void magicgrid(Monitor *m) { grid(m, 12, 12); }
 
 void tile(Monitor *m) {
   unsigned int i, n, h, mw, my, ty;
