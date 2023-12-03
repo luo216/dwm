@@ -2137,8 +2137,8 @@ void grid(Monitor *m, uint gappo, uint gappi) {
     return;
   if (n == 1) {
     c = nexttiled(m->clients);
-    cw = (m->ww - 2 * gappo) * 0.6;
-    ch = (m->wh - 2 * gappo) * 0.6;
+    cw = (m->ww - 2 * gappo) * 0.8;
+    ch = (m->wh - 2 * gappo) * 0.9;
     resize(c, m->mx + (m->mw - cw) / 2 + gappo,
            m->my + (m->mh - ch) / 2 + gappo, cw - 2 * c->bw, ch - 2 * c->bw, 0);
     return;
@@ -2146,7 +2146,7 @@ void grid(Monitor *m, uint gappo, uint gappi) {
   if (n == 2) {
     c = nexttiled(m->clients);
     cw = (m->ww - 2 * gappo - gappi) / 2;
-    ch = (m->wh - 2 * gappo) * 0.6;
+    ch = (m->wh - 2 * gappo) * 0.7;
     resize(c, m->mx + gappo, m->my + (m->mh - ch) / 2 + gappo, cw - 2 * c->bw,
            ch - 2 * c->bw, 0);
     resize(nexttiled(c->next), m->mx + cw + gappo + gappi,
@@ -2173,7 +2173,7 @@ void grid(Monitor *m, uint gappo, uint gappi) {
     resize(c, cx + gappo, cy + gappo, cw - 2 * c->bw, ch - 2 * c->bw, 0);
   }
 }
-void magicgrid(Monitor *m) { grid(m, 12, 12); }
+void magicgrid(Monitor *m) { grid(m, magicgappo, magicgappi); }
 
 void overview(Monitor *m) { grid(m, overviewgappo, overviewgappi); }
 
