@@ -41,7 +41,6 @@
 #endif /* XINERAMA */
 #include <X11/XKBlib.h>
 #include <X11/Xft/Xft.h>
-#include <pthread.h>
 
 #include "drw.h"
 #include "util.h"
@@ -123,15 +122,6 @@ enum {
   ClkRootWin,
   ClkLast
 }; /* clicks */
-enum {
-  Notify,
-  Battery,
-  Clock,
-  Net,
-  Cpu,
-  Cores,
-  Temp,
-}; /*status bar blocks*/
 typedef union {
   int i;
   unsigned int ui;
@@ -215,41 +205,6 @@ struct Systray {
   Client *icons;
 };
 
-/* status bar block struct*/
-typedef struct Block Block;
-struct Block {
-  int bw;
-  void *storage;
-  int (*draw)(int x, Block *block);
-  void (*click)(const Arg *arg);
-};
-
-typedef struct {
-  unsigned long user;
-  unsigned long nice;
-  unsigned long system;
-  unsigned long idle;
-} Cpuload;
-
-typedef struct Node Node;
-struct Node {
-  Node *prev;
-  Node *next;
-  Cpuload *data;
-};
-
-/*status cpu block struct */
-typedef struct {
-  Cpuload *prev;
-  Cpuload *curr;
-  Node *pointer;
-} CpuBlock;
-
-typedef struct {
-  Cpuload *prev;
-  Cpuload *curr;
-} CoreBlock;
-
 /* function declarations */
 static void applyrules(Client *c);
 static int applysizehints(Client *c, int *x, int *y, int *w, int *h,
@@ -260,8 +215,6 @@ static void attach(Client *c);
 static void attachbottom(Client *c);
 static void attachstack(Client *c);
 static void buttonpress(XEvent *e);
-static void click_notify(const Arg *arg);
-static void click_cpu(const Arg *arg);
 static void checkotherwm(void);
 static void cleanup(void);
 static void cleanupmon(Monitor *mon);
@@ -276,15 +229,6 @@ static void detachstack(Client *c);
 static Monitor *dirtomon(int dir);
 static void drawbar(Monitor *m);
 static void drawbars(void);
-static void *drawstatusbar();
-static void clean_status_pthread();
-static int draw_clock(int x, Block *block);
-static int draw_net(int x, Block *block);
-static int draw_battery(int x, Block *block);
-static int draw_notify(int x, Block *block);
-static int draw_cpu(int x, Block *block);
-static int draw_cores(int x, Block *block);
-static int draw_temp(int x, Block *block);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
@@ -294,7 +238,6 @@ static void focusstackvis(const Arg *arg);
 static void focusstackhid(const Arg *arg);
 static void focusstack(int inc, int vis);
 static unsigned int getsystraywidth();
-static int getstatuswidth();
 static Atom getatomprop(Client *c, Atom prop);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
@@ -303,12 +246,6 @@ static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
 static void hide(const Arg *arg);
 static void hidewin(Client *c);
-static void handleStatus1(const Arg *arg);
-static void handleStatus2(const Arg *arg);
-static void handleStatus3(const Arg *arg);
-static void handleStatus4(const Arg *arg);
-static void handleStatus5(const Arg *arg);
-static void init_statusbar();
 static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
 static void killclient(const Arg *arg);
@@ -386,11 +323,6 @@ static void zoom(const Arg *arg);
 static int systandstat; /* right padding for systray */
 static int systrayw = 100;
 static int logotitlew;
-static pthread_t draw_status_thread;
-static Node Nodes[10];
-static int numCores;
-static CoreBlock storage_cores;
-static CpuBlock storage_cpu;
 static Systray *systray = NULL;
 static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
@@ -430,17 +362,8 @@ static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
 static Fnt *normalfont;
 static Fnt *smallfont;
-static float storage_net[2] = {0, 0};
-static Block Blocks[] = {
-    [Notify] = {0, NULL, draw_notify, click_notify},
-    [Battery] = {0, NULL, draw_battery, NULL},
-    [Clock] = {0, NULL, draw_clock, NULL},
-    [Net] = {0, &storage_net, draw_net, NULL},
-    [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
-    [Cores] = {0, &storage_cores, draw_cores, click_cpu},
-    [Temp] = {0, NULL, draw_temp, NULL},
-};
 
+#include "status.h"
 /* configuration, allows nested code to access above variables */
 #include "config.h"
 
