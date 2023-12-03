@@ -1,4 +1,3 @@
-#include "dwm.h"
 #include "status.h"
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -2261,7 +2260,7 @@ int draw_temp(int x, Block *block) {
   fclose(fp);
   tmp = tmp / 1000;
   sprintf(temp, " %d󰔄 ", tmp);
-  block->bw = STEXTW(temp);
+  block->bw = TEXTW(temp);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, temp, 0);
 
@@ -2270,7 +2269,7 @@ int draw_temp(int x, Block *block) {
 
 int draw_notify(int x, Block *block) {
   char tag[] = " ";
-  block->bw = STEXTW(tag);
+  block->bw = TEXTW(tag);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, tag, 0);
 
@@ -2299,7 +2298,7 @@ int draw_battery(int x, Block *block) {
   fclose(fp);
   int_cap = atoi(capacity);
 
-  block->bw = STEXTW(capacity);
+  block->bw = TEXTW(capacity);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, capacity, 0);
 
@@ -2396,10 +2395,10 @@ int draw_net(int x, Block *block) {
 
   drw_setfontset(drw, smallfont);
 
-  drw_text(drw, x - STEXTW(tx), 4, STEXTW(tx), bh / 2, lrpad, tx, 0);
-  drw_text(drw, x - STEXTW(rx), bh / 2, STEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
-  x -= STEXTW("999.99 KB/s");
-  block->bw = STEXTW("999.99 KB/s");
+  drw_text(drw, x - TEXTW(tx), 4, TEXTW(tx), bh / 2, lrpad, tx, 0);
+  drw_text(drw, x - TEXTW(rx), bh / 2, TEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
+  x -= TEXTW("999.99 KB/s");
+  block->bw = TEXTW("999.99 KB/s");
 
   drw_setfontset(drw, normalfont);
 
@@ -2421,7 +2420,7 @@ int draw_clock(int x, Block *block) {
   }
 
   sprintf(stext, "%02d:%02d-%s", hour, minute, meridiem);
-  block->bw = STEXTW(stext);
+  block->bw = TEXTW(stext);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, stext, 0);
   return x;
