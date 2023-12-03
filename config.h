@@ -41,6 +41,11 @@ static const char *colors[][3] = {
 /* tagging */
 static const char *tags[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
 
+static const int overviewgappi = 24; /* overview时 窗口与边缘 缝隙大小 */
+static const int overviewgappo = 60; /* overview时 窗口与窗口 缝隙大小 */
+static const char *overviewtag = "OVERVIEW";
+static const Layout overviewlayout = {"", overview};
+
 static const Rule rules[] = {
     /* xprop(1):
      *	WM_CLASS(STRING) = instance, class
@@ -123,6 +128,7 @@ static const Key keys[] = {
     {MODKEY, XK_f, setlayout, {.v = &layouts[1]}},
     {MODKEY, XK_m, setlayout, {.v = &layouts[2]}},
     {MODKEY, XK_g, setlayout, {.v = &layouts[3]}},
+    {MODKEY, XK_a, toggleoverview, {0}},
     {MODKEY | ShiftMask, XK_f, togglefullscr, {0}},
     {MODKEY, XK_space, setlayout, {0}},
     {MODKEY | ShiftMask, XK_space, togglefloating, {0}},

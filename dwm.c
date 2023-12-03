@@ -55,7 +55,8 @@
 #define INTERSECT(x, y, w, h, m)                                               \
   (MAX(0, MIN((x) + (w), (m)->wx + (m)->ww) - MAX((x), (m)->wx)) *             \
    MAX(0, MIN((y) + (h), (m)->wy + (m)->wh) - MAX((y), (m)->wy)))
-#define ISVISIBLE(C) ((C->tags & C->mon->tagset[C->mon->seltags]))
+#define ISVISIBLE(C)                                                           \
+  ((C->mon->isoverview || C->tags & C->mon->tagset[C->mon->seltags]))
 #define MOUSEMASK (BUTTONMASK | PointerMotionMask)
 #define LENGTH(X) (sizeof X / sizeof X[0])
 #define WIDTH(X) ((X)->w + 2 * (X)->bw)
@@ -187,6 +188,7 @@ struct Monitor {
   Monitor *next;
   Window barwin;
   const Layout *lt[2];
+  unsigned int isoverview;
 };
 
 typedef struct {
@@ -292,12 +294,14 @@ static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
 static void grid(Monitor *m, uint gappo, uint gappi);
 static void magicgrid(Monitor *m);
+static void overview(Monitor *m);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
 static void togglefullscr(const Arg *arg);
 static void toggletag(const Arg *arg);
 static void toggleview(const Arg *arg);
 static void togglewin(const Arg *arg);
+static void toggleoverview(const Arg *arg);
 static void unfocus(Client *c, int setfocus);
 static void unmanage(Client *c, int destroyed);
 static void unmapnotify(XEvent *e);
@@ -497,9 +501,14 @@ void arrange(Monitor *m) {
 }
 
 void arrangemon(Monitor *m) {
-  strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, sizeof m->ltsymbol);
-  if (m->lt[m->sellt]->arrange)
-    m->lt[m->sellt]->arrange(m);
+  if (m->isoverview) {
+    strncpy(m->ltsymbol, overviewlayout.symbol, sizeof m->ltsymbol);
+    overviewlayout.arrange(m);
+  } else {
+    strncpy(m->ltsymbol, m->lt[m->sellt]->symbol, sizeof m->ltsymbol);
+    if (m->lt[m->sellt]->arrange)
+      m->lt[m->sellt]->arrange(m);
+  }
 }
 
 void attach(Client *c) {
@@ -531,12 +540,20 @@ void buttonpress(XEvent *e) {
     unsigned int occ = 0;
     for (c = m->clients; c; c = c->next)
       occ |= c->tags;
-    do {
-      /* Do not reserve space for vacant tags */
-      if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
-        continue;
-      x += TEXTW(tags[i]);
-    } while (ev->x >= x + (logotitlew + 2) && ++i < LENGTH(tags));
+
+    if (selmon->isoverview) {
+      x += TEXTW(overviewtag);
+      i = ~0;
+      if (ev->x > x)
+        i = LENGTH(tags);
+    } else {
+      do {
+        /* Do not reserve space for vacant tags */
+        if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
+          continue;
+        x += TEXTW(tags[i]);
+      } while (ev->x >= x + (logotitlew + 2) && ++i < LENGTH(tags));
+    }
     if (ev->x <= (logotitlew + 2)) {
       click = ClkWinTitle;
     } else if (i < LENGTH(tags)) {
@@ -830,6 +847,7 @@ Monitor *createmon(void) {
   m->topbar = topbar;
   m->lt[0] = &layouts[0];
   m->lt[1] = &layouts[1 % LENGTH(layouts)];
+  m->isoverview = 0;
   strncpy(m->ltsymbol, layouts[0].symbol, sizeof m->ltsymbol);
   return m;
 }
@@ -918,15 +936,22 @@ void drawbar(Monitor *m) {
   drw_setscheme(drw, scheme[SchemeSel]);
   drw_rect(drw, x, 0, 2, bh, 1, 1);
   x += 2;
-  for (i = 0; i < LENGTH(tags); i++) {
-    /* Do not draw vacant tags */
-    if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
-      continue;
-    w = TEXTW(tags[i]);
-    drw_setscheme(
-        drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
-    drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
+  if (m->isoverview) {
+    w = TEXTW(overviewtag);
+    drw_setscheme(drw, scheme[SchemeSel]);
+    drw_text(drw, x, 0, w, bh, lrpad / 2, overviewtag, 0);
     x += w;
+  } else {
+    for (i = 0; i < LENGTH(tags); i++) {
+      /* Do not draw vacant tags */
+      if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
+        continue;
+      w = TEXTW(tags[i]);
+      drw_setscheme(
+          drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
+      drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
+      x += w;
+    }
   }
   w = TEXTW(m->ltsymbol);
   drw_setscheme(drw, scheme[SchemeSel]);
@@ -2150,6 +2175,16 @@ void grid(Monitor *m, uint gappo, uint gappi) {
 }
 void magicgrid(Monitor *m) { grid(m, 12, 12); }
 
+void overview(Monitor *m) { grid(m, overviewgappo, overviewgappi); }
+
+// 显示所有tag 或 跳转到聚焦窗口的tag
+void toggleoverview(const Arg *arg) {
+  uint target =
+      selmon->sel ? selmon->sel->tags : selmon->tagset[selmon->seltags];
+  selmon->isoverview ^= 1;
+  view(&(Arg){.ui = target});
+}
+
 void tile(Monitor *m) {
   unsigned int i, n, h, mw, my, ty;
   Client *c;
@@ -2633,8 +2668,10 @@ void updatewmhints(Client *c) {
 }
 
 void view(const Arg *arg) {
-  if ((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
+  if ((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags]) {
+    arrange(selmon);
     return;
+  }
   selmon->seltags ^= 1; /* toggle sel tagset */
   if (arg->ui & TAGMASK)
     selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
