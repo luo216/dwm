@@ -361,9 +361,7 @@ static Window root, wmcheckwin;
 static Fnt *normalfont;
 static Fnt *smallfont;
 
-#include "status.h"
-/* configuration, allows nested code to access above variables */
-#include "config.h"
+#include "status.c"
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags {
@@ -1103,15 +1101,6 @@ unsigned int getsystraywidth() {
     for (i = systray->icons; i; w += i->w + systrayspacing, i = i->next)
       ;
   return w ? w + systrayspacing : 1;
-}
-
-int getstatuswidth() {
-  int width = 0;
-  for (int i = 0; i < LENGTH(Blocks); i++) {
-    width += Blocks[i].bw;
-  }
-
-  return width;
 }
 
 Atom getatomprop(Client *c, Atom prop) {
