@@ -2186,7 +2186,9 @@ void toggleoverview(const Arg *arg) {
 }
 
 void tile(Monitor *m) {
-  unsigned int i, n, h, mw, my, ty;
+  unsigned int i, n, mw, mh, sh, my,
+      sy; // mw: master的宽度, mh: master的高度, sh: stack的高度, my:
+          // master的y坐标, sy: stack的y坐标
   Client *c;
 
   for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++)
@@ -2195,22 +2197,27 @@ void tile(Monitor *m) {
     return;
 
   if (n > m->nmaster)
-    mw = m->nmaster ? m->ww * m->mfact : 0;
+    mw = m->nmaster ? (m->ww + gappi) * m->mfact : 0;
   else
-    mw = m->ww;
-  for (i = my = ty = 0, c = nexttiled(m->clients); c;
+    mw = m->ww - 2 * gappo + gappi;
+
+  mh = m->nmaster == 0 ? 0
+                       : (m->wh - 2 * gappo - gappi * (m->nmaster - 1)) /
+                             m->nmaster; // 单个master的高度
+  sh = n == m->nmaster ? 0
+                       : (m->wh - 2 * gappo - gappi * (n - m->nmaster - 1)) /
+                             (n - m->nmaster); // 单个stack的高度
+
+  for (i = 0, my = sy = gappo, c = nexttiled(m->clients); c;
        c = nexttiled(c->next), i++)
     if (i < m->nmaster) {
-      h = (m->wh - my) / (MIN(n, m->nmaster) - i);
-      resize(c, m->wx, m->wy + my, mw - (2 * c->bw), h - (2 * c->bw), 0);
-      if (my + HEIGHT(c) < m->wh)
-        my += HEIGHT(c);
+      resize(c, m->wx + gappo, m->wy + my, mw - 2 * c->bw - gappi,
+             mh - 2 * c->bw, 0);
+      my += HEIGHT(c) + gappi;
     } else {
-      h = (m->wh - ty) / (n - i);
-      resize(c, m->wx + mw, m->wy + ty, m->ww - mw - (2 * c->bw),
-             h - (2 * c->bw), 0);
-      if (ty + HEIGHT(c) < m->wh)
-        ty += HEIGHT(c);
+      resize(c, m->wx + mw + gappo, m->wy + sy,
+             m->ww - mw - 2 * c->bw - 2 * gappo, sh - 2 * c->bw, 0);
+      sy += HEIGHT(c) + gappi;
     }
 }
 
