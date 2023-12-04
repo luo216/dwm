@@ -3,7 +3,7 @@ static const char logotext[] = "    Arch linux  ";
 /* status bar */
 static const char interface_name[] = "wlp1s0";
 /* appearance */
-static const unsigned int borderpx = 1; /* border pixel of windows */
+static const unsigned int borderpx = 3; /* border pixel of windows */
 static const unsigned int snap = 32;    /* snap pixel */
 static const unsigned int systraypinning =
     0; /* 0: sloppy systray follows selected monitor, >0: pin systray to monitor
@@ -30,7 +30,7 @@ static const char col_gray[] = "#647c8b";
 static const char *colors[][3] = {
     /*               fg         bg         border   */
     [SchemeNorm] = {col_white, col_blue1, col_blue1},
-    [SchemeSel] = {col_white, col_blue2, col_blue1},
+    [SchemeSel] = {col_white, col_blue2, col_orange},
     [SchemeHid] = {col_white, col_gray, col_blue1},
     [SchemeBlue] = {col_blue3, col_blue1, col_blue1},
     [SchemeGreen] = {col_green, col_blue1, col_blue1},
