@@ -41,7 +41,7 @@ static const char *colors[][3] = {
 /* tagging */
 static const char *tags[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
 static const int gappi = 5;
-static const int gappo = 5;
+static const int gappo = 2 * gappi;
 static const int overviewgappi = 24; /* overview时 窗口与边缘 缝隙大小 */
 static const int overviewgappo = 60; /* overview时 窗口与窗口 缝隙大小 */
 static const int magicgappi = 10; /* overview时 窗口与窗口 缝隙大小 */
