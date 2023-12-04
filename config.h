@@ -131,7 +131,7 @@ static const Key keys[] = {
     {MODKEY, XK_t, setlayout, {.v = &layouts[1]}},
     {MODKEY, XK_f, setlayout, {.v = &layouts[2]}},
     {MODKEY, XK_m, setlayout, {.v = &layouts[3]}},
-    {MODKEY, XK_a, toggleoverview, {0}},
+    {MODKEY | ShiftMask, XK_l, toggleoverview, {0}},
     {MODKEY | ShiftMask, XK_f, togglefullscr, {0}},
     {MODKEY, XK_space, setlayout, {0}},
     {MODKEY | ShiftMask, XK_space, togglefloating, {0}},
