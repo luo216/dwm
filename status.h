@@ -46,6 +46,7 @@ typedef struct {
 } CoreBlock;
 
 /* function declarations */
+static void click_temp(const Arg *arg);
 static void click_notify(const Arg *arg);
 static void click_cpu(const Arg *arg);
 static void *drawstatusbar();
@@ -79,5 +80,5 @@ static Block Blocks[] = {
     [Net] = {0, &storage_net, draw_net, NULL},
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
     [Cores] = {0, &storage_cores, draw_cores, click_cpu},
-    [Temp] = {0, NULL, draw_temp, NULL},
+    [Temp] = {0, NULL, draw_temp, click_temp},
 };

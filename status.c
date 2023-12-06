@@ -11,6 +11,14 @@ int getstatuswidth() {
   return width;
 }
 
+void click_temp(const Arg *arg) {
+  if (arg->i == 1) {
+    const char *psensor[] = {"psensor", NULL};
+    const Arg v = {.v = psensor};
+    spawn(&v);
+  }
+}
+
 void click_cpu(const Arg *arg) {
   if (arg->i == 1) {
     const char *system_monitor[] = {"gnome-system-monitor", NULL};
