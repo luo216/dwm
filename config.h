@@ -26,12 +26,10 @@ static const char col_blue3[] = "#0078d7";
 static const char col_green[] = "#64DD17";
 static const char col_orange[] = "Orange";
 static const char col_red[] = "Red";
-static const char col_gray[] = "#647c8b";
 static const char *colors[][3] = {
     /*               fg         bg         border   */
     [SchemeNorm] = {col_white, col_blue1, col_blue1},
     [SchemeSel] = {col_white, col_blue2, col_orange},
-    [SchemeHid] = {col_white, col_gray, col_blue1},
     [SchemeBlue] = {col_blue3, col_blue1, col_blue1},
     [SchemeGreen] = {col_green, col_blue1, col_blue1},
     [SchemeOrange] = {col_orange, col_blue1, col_blue1},

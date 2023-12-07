@@ -82,7 +82,6 @@ enum { CurNormal, CurResize, CurMove, CurLast }; /* cursor */
 enum {
   SchemeNorm,
   SchemeSel,
-  SchemeHid,
   SchemeBlue,
   SchemeGreen,
   SchemeOrange,
