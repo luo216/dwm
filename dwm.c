@@ -978,10 +978,21 @@ void drawbar(Monitor *m) {
         }
         remainder--;
       }
-      drw_text(drw, x, 0, tabw, bh, lrpad / 2, c->name, 0);
-      // If it is a floating window, mark
-      if (c->isfloating) {
-        drw_rect(drw, x, 5, 5, 5, 1, 0);
+      int titletextw = TEXTW(c->name);
+      int offset = (tabw - titletextw) / 2;
+      if (offset >= 0) {
+        drw_rect(drw, x, 0, offset, bh, 1, 1);
+        drw_text(drw, x + offset, 0, tabw - offset, bh, lrpad / 2, c->name, 0);
+        // If it is a floating window, mark
+        if (c->isfloating) {
+          drw_rect(drw, x, 5, 5, 5, 1, 0);
+        }
+      } else {
+        drw_text(drw, x, 0, tabw, bh, lrpad / 2, c->name, 0);
+        // If it is a floating window, mark
+        if (c->isfloating) {
+          drw_rect(drw, x, 5, 5, 5, 1, 0);
+        }
       }
       x += tabw;
     }
