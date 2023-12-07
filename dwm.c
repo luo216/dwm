@@ -979,6 +979,10 @@ void drawbar(Monitor *m) {
         remainder--;
       }
       drw_text(drw, x, 0, tabw, bh, lrpad / 2, c->name, 0);
+      // If it is a floating window, mark
+      if (c->isfloating) {
+        drw_rect(drw, x, 5, 5, 5, 1, 0);
+      }
       x += tabw;
     }
   } else {
