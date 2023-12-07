@@ -966,8 +966,6 @@ void drawbar(Monitor *m) {
         continue;
       if (m->sel == c)
         scm = SchemeSel;
-      else if (HIDDEN(c))
-        scm = SchemeHid;
       else
         scm = SchemeNorm;
       drw_setscheme(drw, scheme[scm]);
@@ -985,13 +983,19 @@ void drawbar(Monitor *m) {
         drw_text(drw, x + offset, 0, tabw - offset, bh, lrpad / 2, c->name, 0);
         // If it is a floating window, mark
         if (c->isfloating) {
-          drw_rect(drw, x + offset, 5, titletextw, 3, 1, 0);
+          drw_rect(drw, x + offset, 5, titletextw, 2, 1, 0);
+        }
+        if (HIDDEN(c)) {
+          drw_rect(drw, x + offset, bh / 2, titletextw, 2, 1, 0);
         }
       } else {
         drw_text(drw, x, 0, tabw, bh, lrpad / 2, c->name, 0);
         // If it is a floating window, mark
         if (c->isfloating) {
-          drw_rect(drw, x, 5, tabw, 3, 1, 0);
+          drw_rect(drw, x, 5, tabw, 2, 1, 0);
+        }
+        if (HIDDEN(c)) {
+          drw_rect(drw, x, bh / 2, tabw, 2, 1, 0);
         }
       }
       x += tabw;
