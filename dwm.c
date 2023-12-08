@@ -958,6 +958,7 @@ void drawbar(Monitor *m) {
 
   w = m->ww - x - systandstat;
   if (n > 0) {
+    drw_setfontset(drw, smallfont);
     int remainder = w % n;
     int tabw = (1.0 / (double)n) * w + 1;
     for (c = m->clients; c; c = c->next) {
@@ -982,23 +983,25 @@ void drawbar(Monitor *m) {
         drw_text(drw, x + offset, 0, tabw - offset, bh, lrpad / 2, c->name, 0);
         // If it is a floating window, mark
         if (c->isfloating) {
-          drw_rect(drw, x + offset, 5, titletextw, 2, 1, 0);
+          drw_rect(drw, x + offset, 0, titletextw, 2, 1, 0);
         }
         if (HIDDEN(c)) {
-          drw_rect(drw, x + offset, bh / 2, titletextw, 2, 1, 0);
+          drw_rect(drw, x + offset, bh / 2, titletextw, 1, 1, 0);
         }
       } else {
+        int padding = 5;
         drw_text(drw, x, 0, tabw, bh, lrpad / 2, c->name, 0);
         // If it is a floating window, mark
         if (c->isfloating) {
-          drw_rect(drw, x, 5, tabw, 2, 1, 0);
+          drw_rect(drw, x + padding, 0, tabw - 2 * padding, 2, 1, 0);
         }
         if (HIDDEN(c)) {
-          drw_rect(drw, x, bh / 2, tabw, 2, 1, 0);
+          drw_rect(drw, x + padding, bh / 2, tabw - 2 * padding, 1, 1, 0);
         }
       }
       x += tabw;
     }
+    drw_setfontset(drw, normalfont);
   } else {
     drw_setscheme(drw, scheme[SchemeNorm]);
     drw_rect(drw, x, 0, w, bh, 1, 1);
