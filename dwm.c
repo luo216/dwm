@@ -619,10 +619,6 @@ void cleanup(void) {
   Monitor *m;
   size_t i;
 
-  /* clean status bar malloc memory */
-  clean_status_pthread();
-  /* clean status bar malloc memory */
-
   view(&a);
   selmon->lt[selmon->sellt] = &foo;
   for (m = mons; m; m = m->next)
@@ -2821,6 +2817,7 @@ int main(int argc, char *argv[]) {
     die("pthread_create error");
   run();
   cleanup();
+  clean_status_pthread();
   XCloseDisplay(dpy);
   return EXIT_SUCCESS;
 }
