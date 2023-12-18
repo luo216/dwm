@@ -1,12 +1,16 @@
 #include <pthread.h>
 
+/* macros */
+#define NODE_NUM 15
+
+/* enum */
 enum {
   Notify,
   Battery,
   Clock,
   Net,
   Cpu,
-  Cores,
+  // Cores,
   Temp,
 }; /*status bar blocks*/
 
@@ -68,7 +72,7 @@ static void init_statusbar();
 
 /* variables */
 static pthread_t draw_status_thread;
-static Node Nodes[10];
+static Node Nodes[NODE_NUM];
 static int numCores;
 static CoreBlock storage_cores;
 static CpuBlock storage_cpu;
@@ -79,7 +83,7 @@ static Block Blocks[] = {
     [Clock] = {0, NULL, draw_clock, NULL},
     [Net] = {0, &storage_net, draw_net, NULL},
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
-    [Cores] = {0, &storage_cores, draw_cores, click_cpu},
+    //[Cores] = {0, &storage_cores, draw_cores, click_cpu},
     [Temp] = {0, NULL, draw_temp, click_temp},
 };
 /* configuration, allows nested code to access above variables */
@@ -256,7 +260,7 @@ int draw_cpu(int x, Block *block) {
   storage->prev->idle = storage->curr->idle;
 
   // 绘制 CPU 使用率
-  const int w = 62;
+  const int w = 6 * NODE_NUM + 2;
   const int y = 2;
   const int h = bh - 2 * y;
   const int cw = 6;
@@ -268,7 +272,7 @@ int draw_cpu(int x, Block *block) {
   // 绘制 user CPU 使用率
   drw_setscheme(drw, scheme[SchemeBlue]);
   x -= 1;
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < NODE_NUM; i++) {
     x -= cw;
     const int ch1 = ch * storage->pointer->data->user / 100;
     if (ch1 == 0 || storage->pointer->data->user > 100) {
@@ -282,7 +286,7 @@ int draw_cpu(int x, Block *block) {
   // 绘制 system CPU 使用率
   x = x + w - 2;
   drw_setscheme(drw, scheme[SchemeRed]);
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < NODE_NUM; i++) {
     x -= cw;
     const int ch2 = ch * storage->pointer->data->system / 100;
     if (ch2 == 0 || storage->pointer->data->system > 100) {
@@ -516,13 +520,13 @@ void init_statusbar() {
 
   numCores = sysconf(_SC_NPROCESSORS_ONLN);
   // nodes中每个node头尾相连,最终形成一个环
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < NODE_NUM; i++) {
     Nodes[i].next = &Nodes[i + 1];
     Nodes[i].prev = &Nodes[i - 1];
     Nodes[i].data = (Cpuload *)malloc(sizeof(Cpuload));
   }
-  Nodes[9].next = &Nodes[0];
-  Nodes[0].prev = &Nodes[9];
+  Nodes[NODE_NUM - 1].next = &Nodes[0];
+  Nodes[0].prev = &Nodes[NODE_NUM - 1];
   storage_cpu.pointer = &Nodes[0];
   storage_cpu.prev = (Cpuload *)malloc(sizeof(Cpuload));
   storage_cpu.curr = (Cpuload *)malloc(sizeof(Cpuload));
