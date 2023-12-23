@@ -210,7 +210,7 @@ int draw_cores(int x, Block *block) {
     drw_rect(drw, x, cy, cw, ch, 1, 0);
   }
   // draw system usage
-  x = x + w - border;
+  x = x + (cw * numCores);
   drw_setscheme(drw, scheme[SchemeRed]);
   for (int i = 0; i < numCores; i++) {
     x -= cw;
@@ -272,10 +272,10 @@ int draw_cpu(int x, Block *block) {
   storage->prev->idle = storage->curr->idle;
 
   // 绘制 CPU 使用率
-  const int w = 6 * NODE_NUM + 2;
+  const int cw = 6;
+  const int w = cw * NODE_NUM + 2;
   const int y = 2;
   const int h = bh - 2 * y;
-  const int cw = 6;
   const int ch = bh - 2 * y - 2;
 
   drw_setscheme(drw, scheme[SchemeSel]);
@@ -296,7 +296,7 @@ int draw_cpu(int x, Block *block) {
     storage->pointer = storage->pointer->next;
   }
   // 绘制 system CPU 使用率
-  x = x + w - 2;
+  x = x + (cw * NODE_NUM);
   drw_setscheme(drw, scheme[SchemeRed]);
   for (int i = 0; i < NODE_NUM; i++) {
     x -= cw;
