@@ -2204,8 +2204,8 @@ void toggleoverview(const Arg *arg) {
 
 void tile(Monitor *m) {
   unsigned int i, n, mw, mh, sh, my,
-      sy; // mw: master的宽度, mh: master的高度, sh: stack的高度, my:
-          // master的y坐标, sy: stack的y坐标
+      sy; // mw: width of master, mh: height of master, sh: height of stack, my:
+          // master's y coordinate, sy: stack's y coordinate
   Client *c;
 
   for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++)
@@ -2220,10 +2220,10 @@ void tile(Monitor *m) {
 
   mh = m->nmaster == 0 ? 0
                        : (m->wh - 2 * gappo - gappi * (m->nmaster - 1)) /
-                             m->nmaster; // 单个master的高度
+                             m->nmaster; // The height of a single master
   sh = n == m->nmaster ? 0
                        : (m->wh - 2 * gappo - gappi * (n - m->nmaster - 1)) /
-                             (n - m->nmaster); // 单个stack的高度
+                             (n - m->nmaster); // The height of a single stack
 
   for (i = 0, my = sy = gappo, c = nexttiled(m->clients); c;
        c = nexttiled(c->next), i++)

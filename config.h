@@ -40,10 +40,14 @@ static const char *colors[][3] = {
 static const char *tags[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
 static const int gappi = 5;
 static const int gappo = 2 * gappi;
-static const int overviewgappi = 24; /* overview时 窗口与边缘 缝隙大小 */
-static const int overviewgappo = 60; /* overview时 窗口与窗口 缝隙大小 */
-static const int magicgappi = 10; /* overview时 窗口与窗口 缝隙大小 */
-static const int magicgappo = 10; /* overview时 窗口与窗口 缝隙大小 */
+static const int overviewgappi =
+    24; /* Gap size between window and edge during overview */
+static const int overviewgappo =
+    60; /* window and window gap size during overview */
+static const int magicgappi =
+    10; /* window and window gap size during overview */
+static const int magicgappo =
+    10; /* window and window gap size during overview */
 static const char *overviewtag = "OVERVIEW";
 static const Layout overviewlayout = {"󰪴 ", overview};
 

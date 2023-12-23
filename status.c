@@ -156,7 +156,7 @@ int draw_cores(int x, Block *block) {
     printf("Failed to open /proc/stat\n");
     return 1;
   }
-  // 从fp中逐行读取数据
+  // Read data line by line from fp
   char line[256];
   fgets(line, sizeof(line), fp);
   for (int i = 0; i < numCores; i++) {
@@ -237,19 +237,19 @@ int draw_cpu(int x, Block *block) {
     return 1;
   }
 
-  // 读取 CPU 使用信息
+  // Read cpu usage information
   fscanf(fp, "cpu %lu %lu %lu %lu", &storage->curr->user, &storage->curr->nice,
          &storage->curr->system, &storage->curr->idle);
   fclose(fp);
 
-  // 计算 CPU 使用时间差值
+  // Calculate the cpu usage time difference
   unsigned long user_diff = storage->curr->user - storage->prev->user;
   unsigned long nice_diff = storage->curr->nice - storage->prev->nice;
   unsigned long system_diff = storage->curr->system - storage->prev->system;
   unsigned long idle_diff = storage->curr->idle - storage->prev->idle;
   unsigned long total_diff = user_diff + nice_diff + system_diff + idle_diff;
 
-  // 计算 CPU 使用率（以百分比表示）
+  // Calculate cpu usage (expressed as a percentage)
   unsigned long user_usage;
   unsigned long system_usage;
   if (total_diff == 0) {
@@ -260,18 +260,18 @@ int draw_cpu(int x, Block *block) {
     system_usage = (system_diff * 100) / total_diff;
   }
 
-  // 利用环形结构记录近十次的 CPU 使用率
+  // Use the ring structure to record the CPU usage of the past ten times
   storage->pointer = storage->pointer->prev;
   storage->pointer->data->user = user_usage;
   storage->pointer->data->system = system_usage;
 
-  // 更新前一秒的 CPU 使用时间
+  // Update the cpu usage time of the previous second
   storage->prev->user = storage->curr->user;
   storage->prev->nice = storage->curr->nice;
   storage->prev->system = storage->curr->system;
   storage->prev->idle = storage->curr->idle;
 
-  // 绘制 CPU 使用率
+  // Plot cpu usage
   const int cw = 6;
   const int w = cw * NODE_NUM + 2;
   const int y = 2;
@@ -281,7 +281,7 @@ int draw_cpu(int x, Block *block) {
   drw_setscheme(drw, scheme[SchemeSel]);
   drw_rect(drw, x - w, y, w, h, 1, 1);
 
-  // 绘制 user CPU 使用率
+  // Plot user cpu usage
   drw_setscheme(drw, scheme[SchemeBlue]);
   x -= 1;
   for (int i = 0; i < NODE_NUM; i++) {
@@ -295,7 +295,7 @@ int draw_cpu(int x, Block *block) {
     drw_rect(drw, x, cy, cw, ch1, 1, 0);
     storage->pointer = storage->pointer->next;
   }
-  // 绘制 system CPU 使用率
+  // Plot system cpu usage
   x = x + (cw * NODE_NUM);
   drw_setscheme(drw, scheme[SchemeRed]);
   for (int i = 0; i < NODE_NUM; i++) {
@@ -371,7 +371,7 @@ int draw_battery(int x, Block *block) {
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, capacity, 0);
 
-  // 绘制电池外壳
+  // Draw the battery case
   const int tpad = 4;
   const int border = 1;
   const int battery_sw = 6;
@@ -531,7 +531,7 @@ void init_statusbar() {
   smallfont = drw->fonts->next;
 
   numCores = sysconf(_SC_NPROCESSORS_ONLN);
-  // nodes中每个node头尾相连,最终形成一个环
+  // Each node in nodes is connected head to tail, eventually forming a ring
   for (int i = 0; i < NODE_NUM; i++) {
     Nodes[i].next = &Nodes[i + 1];
     Nodes[i].prev = &Nodes[i - 1];
@@ -565,7 +565,7 @@ void clean_status_pthread() {
 void *drawstatusbar() {
   init_statusbar();
   while (1) {
-    // 遍历mons,在selmon上绘制
+    // Traverse mons and draw on selmon
     for (Monitor *m = mons; m; m = m->next) {
       systrayw = getsystraywidth();
       int stw = getstatuswidth();
