@@ -10,7 +10,7 @@ enum {
   Clock,
   Net,
   Cpu,
-  // Cores,
+  Cores,
   Temp,
 }; /*status bar blocks*/
 
@@ -83,7 +83,7 @@ static Block Blocks[] = {
     [Clock] = {0, NULL, draw_clock, NULL},
     [Net] = {0, &storage_net, draw_net, NULL},
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
-    //[Cores] = {0, &storage_cores, draw_cores, click_cpu},
+    [Cores] = {0, &storage_cores, draw_cores, click_cpu},
     [Temp] = {0, NULL, draw_temp, click_temp},
 };
 /* configuration, allows nested code to access above variables */
@@ -177,8 +177,13 @@ int draw_cores(int x, Block *block) {
     unsigned long idle_diff = storage->curr[i].idle - storage->prev[i].idle;
     unsigned long total_diff = user_diff + nice_diff + system_diff + idle_diff;
 
-    ua_arr[i] = user_diff * 100 / total_diff;
-    sy_arr[i] = system_diff * 100 / total_diff;
+    if (total_diff == 0) {
+      ua_arr[i] = 0;
+      sy_arr[i] = 0;
+    } else {
+      ua_arr[i] = (user_diff * 100) / total_diff;
+      sy_arr[i] = (system_diff * 100) / total_diff;
+    }
 
     storage->prev[i].user = storage->curr[i].user;
     storage->prev[i].nice = storage->curr[i].nice;
@@ -245,8 +250,15 @@ int draw_cpu(int x, Block *block) {
   unsigned long total_diff = user_diff + nice_diff + system_diff + idle_diff;
 
   // 计算 CPU 使用率（以百分比表示）
-  unsigned long user_usage = (user_diff * 100) / total_diff;
-  unsigned long system_usage = (system_diff * 100) / total_diff;
+  unsigned long user_usage;
+  unsigned long system_usage;
+  if (total_diff == 0) {
+    user_usage = 0;
+    system_usage = 0;
+  } else {
+    user_usage = (user_diff * 100) / total_diff;
+    system_usage = (system_diff * 100) / total_diff;
+  }
 
   // 利用环形结构记录近十次的 CPU 使用率
   storage->pointer = storage->pointer->prev;
