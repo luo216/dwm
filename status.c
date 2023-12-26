@@ -324,14 +324,16 @@ int draw_temp(int x, Block *block) {
   if (fp == NULL) {
     return x;
   }
+  drw_setfontset(drw, smallfont);
   int tmp;
   fscanf(fp, "%d", &tmp);
   fclose(fp);
   tmp = tmp / 1000;
-  sprintf(temp, "󰿸 %d°C", tmp);
+  sprintf(temp, "%d℃", tmp);
   block->bw = TEXTW(temp);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, temp, 0);
+  drw_setfontset(drw, normalfont);
 
   return x;
 }
