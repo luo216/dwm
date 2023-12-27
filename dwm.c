@@ -2543,22 +2543,23 @@ void updatesizehints(Client *c) {
 }
 
 void updatesystrayicongeom(Client *i, int w, int h) {
+  float th = bh - 2 * systrayontop;
   if (i) {
-    i->h = 19;
+    i->h = th;
     if (w == h)
-      i->w = 19;
-    else if (h == 19)
+      i->w = th;
+    else if (h == th)
       i->w = w;
     else
-      i->w = (int)((float)19 * ((float)w / (float)h));
+      i->w = (int)((float)th * ((float)w / (float)h));
     applysizehints(i, &(i->x), &(i->y), &(i->w), &(i->h), False);
     /* force icons into the systray dimensions if they don't want to */
-    if (i->h > 19) {
+    if (i->h > th) {
       if (i->w == i->h)
-        i->w = 19;
+        i->w = th;
       else
-        i->w = (int)((float)19 * ((float)i->w / (float)i->h));
-      i->h = 19;
+        i->w = (int)((float)th * ((float)i->w / (float)i->h));
+      i->h = th;
     }
   }
 }
@@ -2632,7 +2633,8 @@ void updatesystray(void) {
     XMapRaised(dpy, i->win);
     w += systrayspacing;
     i->x = w;
-    XMoveResizeWindow(dpy, i->win, i->x, 7, i->w, i->h);
+    i->y = systrayontop;
+    XMoveResizeWindow(dpy, i->win, i->x, i->y, i->w, i->h);
     w += i->w;
     if (i->mon != m)
       i->mon = m;
