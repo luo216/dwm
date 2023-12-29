@@ -115,6 +115,7 @@ enum {
   ClkTagBar,
   ClkLtSymbol,
   ClkStatusText,
+  ClkSupericon,
   ClkWinTitle,
   ClkHidTitle,
   ClkClientWin,
@@ -294,6 +295,7 @@ static void tile(Monitor *m);
 static void grid(Monitor *m, uint gappo, uint gappi);
 static void magicgrid(Monitor *m);
 static void overview(Monitor *m);
+static void togglesuperkey(const Arg *arg);
 static void togglebar(const Arg *arg);
 static void togglefloating(const Arg *arg);
 static void togglefullscr(const Arg *arg);
@@ -328,6 +330,8 @@ static void zoom(const Arg *arg);
 /* variables */
 static int systandstat; /* right padding for systray */
 static int systrayw = 100;
+static int supericonw;
+static int superkeyflag = 0;
 static int logotitlew;
 static Systray *systray = NULL;
 static const char autostartblocksh[] = "autostart_blocking.sh";
@@ -551,17 +555,21 @@ void buttonpress(XEvent *e) {
         if (!(occ & 1 << i || m->tagset[m->seltags] & 1 << i))
           continue;
         x += TEXTW(tags[i]);
-      } while (ev->x >= x + (logotitlew + 2) && ++i < LENGTH(tags));
+      } while (ev->x >= x + (supericonw + logotitlew + 2) &&
+               ++i < LENGTH(tags));
     }
-    if (ev->x <= (logotitlew + 2)) {
+    if (ev->x <= supericonw) {
+      click = ClkSupericon;
+    } else if (ev->x <= (supericonw + logotitlew + 2)) {
       click = ClkWinTitle;
     } else if (i < LENGTH(tags)) {
       click = ClkTagBar;
       arg.ui = 1 << i;
-    } else if (ev->x < x + (logotitlew + 2) + TEXTW(selmon->ltsymbol))
+    } else if (ev->x <
+               x + (supericonw + logotitlew + 2) + TEXTW(selmon->ltsymbol))
       click = ClkLtSymbol;
     else if (ev->x < selmon->ww - systandstat) {
-      x += TEXTW(selmon->ltsymbol) + (logotitlew + 2);
+      x += TEXTW(selmon->ltsymbol) + (supericonw + logotitlew + 2);
       c = m->clients;
 
       if (c) {
@@ -922,11 +930,17 @@ void drawbar(Monitor *m) {
       urg |= c->tags;
   }
 
-  w = TEXTW(logotext);
-  logotitlew = w;
-  drw_setscheme(drw, scheme[SchemeNorm]);
-  drw_text(drw, 0, 0, w, bh, lrpad / 2, logotext, 0);
+  supericonw = TEXTW(supericon);
+  w = supericonw;
+  drw_setscheme(drw, superkeyflag ? scheme[SchemeBlue] : scheme[SchemeNorm]);
+  drw_text(drw, 0, 0, w, bh, lrpad, supericon, 0);
   x = w;
+
+  logotitlew = TEXTW(logotext);
+  w = logotitlew;
+  drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_text(drw, x, 0, w, bh, 0, logotext, 0);
+  x += w;
 
   drw_setscheme(drw, scheme[SchemeSel]);
   drw_rect(drw, x, 0, 2, bh, 1, 1);
@@ -2194,7 +2208,7 @@ void magicgrid(Monitor *m) { grid(m, magicgappo, magicgappi); }
 
 void overview(Monitor *m) { grid(m, overviewgappo, overviewgappi); }
 
-// 显示所有tag 或 跳转到聚焦窗口的tag
+// Displays  all tags or tags that jump to the spotlight window
 void toggleoverview(const Arg *arg) {
   uint target =
       selmon->sel ? selmon->sel->tags : selmon->tagset[selmon->seltags];
@@ -2236,6 +2250,18 @@ void tile(Monitor *m) {
              m->ww - mw - 2 * c->bw - 2 * gappo, sh - 2 * c->bw, 0);
       sy += HEIGHT(c) + gappi;
     }
+}
+
+void togglesuperkey(const Arg *arg) {
+  if (superkeyflag) {
+    system("xmodmap -e \"keycode 133 = Super_L NoSymbol Super_L\"");
+    superkeyflag = 0;
+    arrange(selmon);
+  } else {
+    system("xmodmap -e \"keycode 133 = \"");
+    superkeyflag = 1;
+    arrange(selmon);
+  }
 }
 
 void togglebar(const Arg *arg) {

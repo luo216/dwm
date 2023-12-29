@@ -1,5 +1,6 @@
 /* See LICENSE file for copyright and license details. */
-static const char logotext[] = "    Arch  ";
+static const char supericon[] = "   ";
+static const char logotext[] = " Arch  ";
 /* status bar */
 static const char interface_name[] = "wlp1s0";
 /* appearance */
@@ -165,6 +166,7 @@ static const Button buttons[] = {
     {ClkStatusText, 0, Button3, handleStatus3, {0}},
     {ClkStatusText, 0, Button4, handleStatus4, {0}},
     {ClkStatusText, 0, Button5, handleStatus5, {0}},
+    {ClkSupericon, 0, Button1, togglesuperkey, {0}},
     {ClkWinTitle, 0, Button1, spawn, {.v = roficmd}},
     {ClkWinTitle, 0, Button3, spawn, {.v = termcmd}},
     {ClkHidTitle, 0, Button1, togglewin, {0}},
