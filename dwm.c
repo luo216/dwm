@@ -863,6 +863,9 @@ void destroynotify(XEvent *e) {
     unmanage(c, 1);
   else if ((c = wintosystrayicon(ev->window))) {
     removesystrayicon(c);
+    systrayw = getsystraywidth();
+    int stw = getstatuswidth();
+    systandstat = stw + systrayw;
     resizebarwin(selmon);
     updatesystray();
   }
