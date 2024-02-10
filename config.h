@@ -2,7 +2,7 @@
 static const char supericon[] = "   ";
 static const char logotext[] = " Arch  ";
 /* status bar */
-static const char interface_name[] = "wlp1s0";
+static const char interface_name[] = "wlp0s20f3";
 /* appearance */
 static const unsigned int borderpx = 3; /* border pixel of windows */
 static const unsigned int snap = 32;    /* snap pixel */
@@ -61,6 +61,7 @@ static const Rule rules[] = {
     /* class      instance    title       tags mask     isfloating   monitor */
     {"Gimp", NULL, NULL, 0, 1, -1},
     {"Firefox", NULL, NULL, 1 << 8, 0, -1},
+    {"mpv", NULL, NULL, 0, 1, -1},
 };
 
 /* layout(s) */
