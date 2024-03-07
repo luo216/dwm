@@ -443,31 +443,31 @@ int draw_net(int x, Block *block) {
 
   // Format the values
   if (txi < 1024) {
-    sprintf(tx, "%.2f b/s", txi);
+    sprintf(tx, "%.2f B/s", txi);
   } else if (txi < 1024 * 1024) {
-    sprintf(tx, "%.2f Kb/s", txi / 1024);
+    sprintf(tx, "%.2f KB/s", txi / 1024);
   } else if (txi < 1024 * 1024 * 1024) {
-    sprintf(tx, "%.2f Mb/s", txi / 1024 / 1024);
+    sprintf(tx, "%.2f MB/s", txi / 1024 / 1024);
   } else {
-    sprintf(tx, "%.2f Gb/s", txi / 1024 / 1024 / 1024);
+    sprintf(tx, "%.2f GB/s", txi / 1024 / 1024 / 1024);
   }
 
   if (rxi < 1024) {
-    sprintf(rx, "%.2f b/s", rxi);
+    sprintf(rx, "%.2f B/s", rxi);
   } else if (rxi < 1024 * 1024) {
-    sprintf(rx, "%.2f Kb/s", rxi / 1024);
+    sprintf(rx, "%.2f KB/s", rxi / 1024);
   } else if (rxi < 1024 * 1024 * 1024) {
-    sprintf(rx, "%.2f Mb/s", rxi / 1024 / 1024);
+    sprintf(rx, "%.2f MB/s", rxi / 1024 / 1024);
   } else {
-    sprintf(rx, "%.2f Gb/s", rxi / 1024 / 1024 / 1024);
+    sprintf(rx, "%.2f GB/s", rxi / 1024 / 1024 / 1024);
   }
 
   drw_setfontset(drw, smallfont);
 
   drw_text(drw, x - TEXTW(tx), 4, TEXTW(tx), bh / 2, lrpad, tx, 0);
   drw_text(drw, x - TEXTW(rx), bh / 2, TEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
-  x -= TEXTW("999.99 Kb/s");
-  block->bw = TEXTW("999.99 Kb/s");
+  x -= TEXTW("999.99 KB/s");
+  block->bw = TEXTW("999.99 KB/s");
 
   drw_setfontset(drw, normalfont);
 
