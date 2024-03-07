@@ -284,6 +284,7 @@ static void setup(void);
 static void seturgent(Client *c, int urg);
 static void show(const Arg *arg);
 static void showall(const Arg *arg);
+static void showonly(const Arg *arg);
 static void showwin(Client *c);
 static void showhide(Client *c);
 static void sigchld(int unused);
@@ -2099,6 +2100,16 @@ void showall(const Arg *arg) {
       focus(c);
   }
   restack(selmon);
+}
+
+void showonly(const Arg *arg) {
+  Client *c = NULL;
+  showwin(selmon->sel);
+  for (c = selmon->clients; c; c = c->next) {
+    if (ISVISIBLE(c) && c != selmon->sel)
+      hidewin(c);
+  }
+  arrange(selmon);
 }
 
 void showwin(Client *c) {
