@@ -2104,6 +2104,7 @@ void showall(const Arg *arg) {
 
 void showonly(const Arg *arg) {
   Client *c = NULL;
+  selmon->hidsel = 0;
   showwin(selmon->sel);
   for (c = selmon->clients; c; c = c->next) {
     if (ISVISIBLE(c) && c != selmon->sel)
