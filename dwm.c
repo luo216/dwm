@@ -1331,6 +1331,7 @@ void keypress(XEvent *e) {
 
 void killunsel(const Arg *arg) {
   Client *i = NULL;
+  selmon->hidsel = 0;
 
   if (!selmon->sel)
     return;
