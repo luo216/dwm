@@ -109,7 +109,7 @@ static const char *dec_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@",
 static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@",
                                    "toggle", NULL};
 static const char *flameshot[] = {"flameshot", "gui", NULL};
-static const char *dmlock[] = {"dm-tool", "lock", NULL};
+static const char *dmlock[] = {"Xsleep", NULL};
 
 static const Key keys[] = {
     /* modifier                     key        function        argument */
