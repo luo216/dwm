@@ -970,7 +970,11 @@ void drawbar(Monitor *m) {
   drw_setscheme(drw, scheme[SchemeSel]);
   x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 
-  w = m->ww - x - systandstat;
+  w = m->ww - x;
+  if (m == selmon) {
+    w -= systandstat;
+  }
+
   if (n > 0) {
     drw_setfontset(drw, smallfont);
     int remainder = w % n;
