@@ -1358,6 +1358,12 @@ void killunsel(const Arg *arg) {
       }
     }
   }
+
+  if (selmon->isoverview) {
+    uint target = selmon->sel ? selmon->sel->tags : selmon->tagset[selmon->seltags];
+    selmon->isoverview ^= 1;
+    view(&(Arg){.ui = target});
+  }
 }
 
 void killclient(const Arg *arg) {
@@ -2234,8 +2240,7 @@ void overview(Monitor *m) { grid(m, overviewgappo, overviewgappi); }
 
 // Displays  all tags or tags that jump to the spotlight window
 void toggleoverview(const Arg *arg) {
-  uint target =
-      selmon->sel ? selmon->sel->tags : selmon->tagset[selmon->seltags];
+  uint target = selmon->sel ? selmon->sel->tags : selmon->tagset[selmon->seltags];
   selmon->isoverview ^= 1;
   view(&(Arg){.ui = target});
 }
