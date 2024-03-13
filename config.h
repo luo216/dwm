@@ -6,21 +6,15 @@ static const char interface_name[] = "wlp0s20f3";
 /* appearance */
 static const unsigned int borderpx = 3; /* border pixel of windows */
 static const unsigned int snap = 32;    /* snap pixel */
-static const unsigned int systraypinning =
-    0; /* 0: sloppy systray follows selected monitor, >0: pin systray to monitor
-          X */
+static const unsigned int systraypinning = 0; /* 0: sloppy systray follows selected monitor, >0: pin systray to monitor X */
 static const unsigned int systrayontop = 7;
-static const unsigned int systrayonleft =
-    0; /* 0: systray in the right corner, >0: systray on left of status text */
+static const unsigned int systrayonleft = 0; /* 0: systray in the right corner, >0: systray on left of status text */
 static const unsigned int systrayspacing = 2; /* systray spacing */
-static const int systraypinningfailfirst =
-    1; /* 1: if pinning fails, display systray on the first monitor, False:
-          display systray on the last monitor*/
+static const int systraypinningfailfirst = 1; /* 1: if pinning fails, display systray on the first monitor, False: display systray on the last monitor*/
 static const int showsystray = 1; /* 0 means no systray */
 static const int showbar = 1;     /* 0 means no bar */
 static const int topbar = 1;      /* 0 means bottom bar */
-static const char *fonts[] = {"Hack Nerd Font:size=14",
-                              "Hack Nerd Font:size=9"};
+static const char *fonts[] = {"Hack Nerd Font:size=14", "Hack Nerd Font:size=9"};
 static const char col_white[] = "#eeeeee";
 static const char col_blue1[] = "#325d9b";
 static const char col_blue2[] = "#2c4a7e";
@@ -42,14 +36,10 @@ static const char *colors[][3] = {
 static const char *tags[] = {"1", "2", "3", "4", "5", "6", "7", "8", "9"};
 static const int gappi = 5;
 static const int gappo = 2 * gappi;
-static const int overviewgappi =
-    24; /* Gap size between window and edge during overview */
-static const int overviewgappo =
-    60; /* window and window gap size during overview */
-static const int magicgappi =
-    10; /* window and window gap size during overview */
-static const int magicgappo =
-    10; /* window and window gap size during overview */
+static const int overviewgappi = 24; /* Gap size between window and edge during overview */
+static const int overviewgappo = 60; /* window and window gap size during overview */
+static const int magicgappi = 10; /* window and window gap size during overview */
+static const int magicgappo = 10; /* window and window gap size during overview */
 static const char *overviewtag = "OVERVIEW";
 static const Layout overviewlayout = {"󰪴 ", overview};
 
@@ -66,10 +56,8 @@ static const Rule rules[] = {
 /* layout(s) */
 static const float mfact = 0.55; /* factor of master area size [0.05..0.95] */
 static const int nmaster = 1;    /* number of clients in master area */
-static const int resizehints =
-    1; /* 1 means respect size hints in tiled resizals */
-static const int lockfullscreen =
-    1; /* 1 will force focus on the fullscreen window */
+static const int resizehints = 1; /* 1 means respect size hints in tiled resizals */
+static const int lockfullscreen = 1; /* 1 will force focus on the fullscreen window */
 
 static const Layout layouts[] = {
     /* symbol     arrange function */
@@ -98,16 +86,11 @@ static const char *roficmd[] = {"rofi", "-show", NULL};
 static const char *termcmd[] = {"st", NULL};
 static const char *inc_light[] = {"light", "-A", "5", NULL};
 static const char *dec_light[] = {"light", "-U", "5", NULL};
-static const char *inc_kbd_light[] = {
-    "light", "-s", "sysfs/leds/chromeos::kbd_backlight", "-A", "5", NULL};
-static const char *dec_kbd_light[] = {
-    "light", "-s", "sysfs/leds/chromeos::kbd_backlight", "-U", "5", NULL};
-static const char *inc_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@",
-                                   "+5%", NULL};
-static const char *dec_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@",
-                                   "-5%", NULL};
-static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@",
-                                   "toggle", NULL};
+static const char *inc_kbd_light[] = { "light", "-s", "sysfs/leds/chromeos::kbd_backlight", "-A", "5", NULL};
+static const char *dec_kbd_light[] = { "light", "-s", "sysfs/leds/chromeos::kbd_backlight", "-U", "5", NULL};
+static const char *inc_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@", "+5%", NULL};
+static const char *dec_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@", "-5%", NULL};
+static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle", NULL};
 static const char *flameshot[] = {"flameshot", "gui", NULL};
 static const char *dmlock[] = {"Xsleep", NULL};
 
