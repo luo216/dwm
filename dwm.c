@@ -918,7 +918,11 @@ void drawbar(Monitor *m) {
     return;
 
   drw_setscheme(drw, scheme[SchemeNorm]);
-  drw_rect(drw, 0, 0, m->ww - systandstat, bh, 1, 1);
+  if (m == selmon) {
+    drw_rect(drw, 0, 0, m->ww - systandstat, bh, 1, 1);
+  }else {
+    drw_rect(drw, 0, 0, m->ww, bh, 1, 1);
+  }
 
   /* draw status first so it can be overdrawn by tags later */
   if (m == selmon) { /* status is only drawn on selected monitor */
