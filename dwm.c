@@ -291,6 +291,7 @@ static void sigchld(int unused);
 static void spawn(const Arg *arg);
 static Monitor *systraytomon(Monitor *m);
 static void tag(const Arg *arg);
+static void specialspace(const Arg *arg);
 static void tagmon(const Arg *arg);
 static void tile(Monitor *m);
 static void grid(Monitor *m, uint gappo, uint gappi);
@@ -2174,9 +2175,20 @@ void spawn(const Arg *arg) {
 void tag(const Arg *arg) {
   if (selmon->sel && arg->ui & TAGMASK) {
     selmon->sel->tags = arg->ui & TAGMASK;
+    selmon->seltags ^= 1; /* toggle sel tagset */
     selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
     focus(NULL);
     arrange(selmon);
+  }
+}
+
+
+void specialspace(const Arg *arg) {
+  Arg a = {.ui = 1 << (SWORKSPACE-1)};
+  if ((a.ui & TAGMASK) == selmon->tagset[selmon->seltags]) {
+     view(arg);
+  }else {
+     view(&a);
   }
 }
 
