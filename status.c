@@ -580,11 +580,8 @@ void *drawstatusbar() {
         }
 
         drw_map(drw, m->barwin, m->ww - systandstat, 0, systandstat, bh);
-      } else {
-        drw_setscheme(drw, scheme[SchemeNorm]);
-        drw_rect(drw, m->ww - systandstat, 0, systandstat, bh, 1, 1);
-        drw_map(drw, m->barwin, m->ww - systandstat, 0, systandstat, bh);
       }
+
       sleep(1);
     }
   }

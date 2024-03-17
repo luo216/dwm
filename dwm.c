@@ -1032,7 +1032,11 @@ void drawbar(Monitor *m) {
   m->bt = n;
   m->btw = w;
 
-  drw_map(drw, m->barwin, 0, 0, m->ww - systandstat, bh);
+  if (m == selmon) {
+      drw_map(drw, m->barwin, 0, 0, m->ww - systandstat, bh);
+  } else {
+      drw_map(drw, m->barwin, 0, 0, m->ww, bh);
+  }
 }
 
 void drawbars(void) {
