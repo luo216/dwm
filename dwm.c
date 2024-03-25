@@ -978,6 +978,8 @@ void drawbar(Monitor *m) {
   w = m->ww - x;
   if (m == selmon) {
     w -= systandstat;
+  } else {
+    w -= x;
   }
 
   if (n > 0) {
