@@ -340,7 +340,7 @@ static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
 static const char broken[] = "broken";
 static const char dwmdir[] = "dwm";
-static const char localshare[] = ".local/share";
+static const char dotconfig[] = ".config";
 static int screen;
 static int sw, sh; /* X display screen geometry width, height */
 static int bh;     /* bar height */
@@ -1816,9 +1816,9 @@ void runautostart(void) {
   } else {
     /* space for path segments, separators and nul */
     pathpfx =
-        ecalloc(1, strlen(home) + strlen(localshare) + strlen(dwmdir) + 3);
+        ecalloc(1, strlen(home) + strlen(dotconfig) + strlen(dwmdir) + 3);
 
-    if (sprintf(pathpfx, "%s/%s/%s", home, localshare, dwmdir) < 0) {
+    if (sprintf(pathpfx, "%s/%s/%s", home, dotconfig, dwmdir) < 0) {
       free(pathpfx);
       return;
     }
