@@ -328,7 +328,7 @@ int draw_temp(int x, Block *block) {
   fscanf(fp, "%d", &tmp);
   fclose(fp);
   tmp = tmp / 1000;
-  sprintf(temp, "󰈸%d℃", tmp);
+  sprintf(temp, "{󰈸%d℃", tmp);
   block->bw = TEXTW(temp);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, temp, 0);
