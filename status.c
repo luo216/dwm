@@ -53,6 +53,7 @@ typedef struct {
 static void click_temp(const Arg *arg);
 static void click_notify(const Arg *arg);
 static void click_cpu(const Arg *arg);
+static void click_cores(const Arg *arg);
 static void *drawstatusbar();
 static void clean_status_pthread();
 static int draw_clock(int x, Block *block);
@@ -83,7 +84,7 @@ static Block Blocks[] = {
     [Clock] = {0, NULL, draw_clock, NULL},
     [Net] = {0, &storage_net, draw_net, NULL},
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
-    [Cores] = {0, &storage_cores, draw_cores, click_cpu},
+    [Cores] = {0, &storage_cores, draw_cores, click_cores},
     [Temp] = {0, NULL, draw_temp, click_temp},
 };
 /* configuration, allows nested code to access above variables */
@@ -108,8 +109,35 @@ void click_temp(const Arg *arg) {
 
 void click_cpu(const Arg *arg) {
   if (arg->i == 1) {
-    const char *system_monitor[] = {"gnome-system-monitor", NULL};
-    const Arg v = {.v = system_monitor};
+    const Arg v = {.v = dec_volume};
+    spawn(&v);
+  } else if (arg->i == 2) {
+    const Arg v = {.v = tog_volume};
+    spawn(&v);
+  } else if (arg->i == 3) {
+    const Arg v = {.v = inc_volume};
+    spawn(&v);
+  } else if (arg->i == 4) {
+    const Arg v = {.v = inc_volume_1};
+    spawn(&v);
+  } else if (arg->i == 5) {
+    const Arg v = {.v = dec_volume_1};
+    spawn(&v);
+  }
+}
+
+void click_cores(const Arg *arg) {
+  if (arg->i == 1) {
+    const Arg v = {.v = dec_light};
+    spawn(&v);
+  } else if (arg->i == 3) {
+    const Arg v = {.v = inc_light};
+    spawn(&v);
+  } else if (arg->i == 4) {
+    const Arg v = {.v = inc_light_1};
+    spawn(&v);
+  } else if (arg->i == 5) {
+    const Arg v = {.v = dec_light_1};
     spawn(&v);
   }
 }
