@@ -84,7 +84,9 @@ static const Layout layouts[] = {
 
 /* commands */
 static const char *roficmd[] = {"rofi", "-show", NULL};
-static const char *termcmd[] = {"st", NULL};
+static const char *tabsurf[] = {"tabbed", "surf", "-e", NULL};
+static const char *termcmd[] = {"tabbed", "-r", "2", "st", "-w", "''", NULL};
+static const char *termcmd_notab[] = {"st", NULL};
 static const char *inc_light[] = {"light", "-A", "5", NULL};
 static const char *inc_light_1[] = {"light", "-A", "1", NULL};
 static const char *dec_light[] = {"light", "-U", "5", NULL};
@@ -111,6 +113,7 @@ static const Key keys[] = {
     {MODKEY,                        XK_Escape, spawn,          {.v = dmlock}},
     {MODKEY,                        XK_Print,  spawn,          {.v = flameshot}},
     {MODKEY,                        XK_p,      spawn,          {.v = roficmd}},
+    {MODKEY | ShiftMask,            XK_p,      spawn,          {.v = tabsurf}},
     {MODKEY | ShiftMask,            XK_Return, spawn,          {.v = termcmd}},
     {MODKEY,                        XK_b,      togglebar,      {0}},
     {MODKEY,                        XK_j,      focusstackvis,  {.i = +1}},
@@ -173,7 +176,7 @@ static const Button buttons[] = {
     {ClkStatusText,    0,              Button5,      handleStatus5,  {0}},
     {ClkSupericon,     0,              Button1,      togglesuperkey, {0}},
     {ClkWinTitle,      0,              Button1,      spawn,          {.v = roficmd}},
-    {ClkWinTitle,      0,              Button3,      spawn,          {.v = termcmd}},
+    {ClkWinTitle,      0,              Button3,      spawn,          {.v = termcmd_notab}},
     {ClkHidTitle,      0,              Button1,      togglewin,      {0}},
     {ClkClientWin,     MODKEY,         Button1,      movemouse,      {0}},
     {ClkClientWin,     MODKEY,         Button2,      togglefloating, {0}},
