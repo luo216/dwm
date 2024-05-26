@@ -99,6 +99,7 @@ static const char *dec_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@",
 static const char *dec_volume_1[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@", "-1%", NULL};
 static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle", NULL};
 static const char *flameshot[] = {"flameshot", "gui", NULL};
+static const char *pcmanfm[] = {"pcmanfm", NULL};
 static const char *dmlock[] = {"dm-tool", "lock", NULL};
 
 static const Key keys[] = {
@@ -112,6 +113,7 @@ static const Key keys[] = {
     {MODKEY,                        XK_F10,    spawn,          {.v = inc_volume}},
     {MODKEY,                        XK_Escape, spawn,          {.v = dmlock}},
     {MODKEY,                        XK_Print,  spawn,          {.v = flameshot}},
+    {MODKEY,                        XK_e,      spawn,          {.v = pcmanfm}},
     {MODKEY,                        XK_p,      spawn,          {.v = roficmd}},
     {MODKEY | ShiftMask,            XK_p,      spawn,          {.v = tabsurf}},
     {MODKEY | ShiftMask,            XK_Return, spawn,          {.v = termcmd}},
