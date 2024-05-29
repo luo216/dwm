@@ -49,10 +49,13 @@ static const Rule rules[] = {
      *	WM_CLASS(STRING) = instance, class
      *	WM_NAME(STRING) = title
      */
-    /* class        instance    title       tags mask     isfloating   monitor */
-    {"Gimp",        NULL,       NULL,       0,            1,           -1},
-    {"explorer.exe",NULL,       NULL,       0,            1,           -1},
-    {"Firefox",     NULL,       NULL,       1 << 8,       0,           -1},
+    /* class          instance    title       tags mask     isfloating   monitor */
+    {"Gimp",          NULL,       NULL,       0,            1,           -1},
+    {"explorer.exe",  NULL,       NULL,       0,            1,           -1},
+    {"burp-StartBurp",NULL,       NULL,       0,            1,           -1},
+    {"wechat",        NULL,       NULL,       1 << 7,       0,           -1},
+    {"QQ",            NULL,       NULL,       1 << 7,       0,           -1},
+    {"Localsend_app", NULL,       NULL,       1 << 8,       0,           -1},
 };
 
 /* layout(s) */
