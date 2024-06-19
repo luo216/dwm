@@ -41,6 +41,7 @@
 #endif /* XINERAMA */
 #include <X11/XKBlib.h>
 #include <X11/Xft/Xft.h>
+#include <X11/extensions/Xcomposite.h>
 
 #include "drw.h"
 #include "util.h"
@@ -328,6 +329,7 @@ static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
+static XImage* getWindowXimage(Window w);
 
 /* variables */
 static int systandstat; /* right padding for systray */
@@ -2867,6 +2869,23 @@ void zoom(const Arg *arg) {
   if (c == nexttiled(selmon->clients) && !(c = nexttiled(c->next)))
     return;
   pop(c);
+}
+
+XImage* getWindowXimage(Window w) {
+  int composite_event_base, composite_error_base;
+  if (!XCompositeQueryExtension(dpy, &composite_event_base, &composite_error_base)) {
+    fprintf(stderr, "Error: XComposite extension not available.\n");
+    return NULL;
+  }
+
+  XCompositeRedirectWindow(dpy, w, CompositeRedirectAutomatic);
+  Pixmap pixmap = XCompositeNameWindowPixmap(dpy, w);
+  XCompositeUnredirectWindow(dpy, w, CompositeRedirectAutomatic);
+  XWindowAttributes attr;
+  XGetWindowAttributes(dpy, w, &attr);
+  XImage *image = XGetImage(dpy, pixmap, borderpx, borderpx, attr.width, attr.height, AllPlanes, ZPixmap);
+  image->depth = DefaultDepth(dpy, screen);
+  return image;
 }
 
 int main(int argc, char *argv[]) {
