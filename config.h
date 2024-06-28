@@ -165,6 +165,7 @@ static const Key keys[] = {
     {MODKEY | ShiftMask,            XK_u,      tag,            {.ui = 1 << (SWORKSPACE-1)}},
     {MODKEY,                        XK_u,      specialspace,   {0}},
 	  {MODKEY | ShiftMask,            XK_q,      quit,           {0}},
+	  {MODKEY | ShiftMask,            XK_t,      test,           {0}},
 };
 
 /* button definitions */

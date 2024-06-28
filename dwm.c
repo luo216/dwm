@@ -329,7 +329,10 @@ static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
-static XImage* getWindowXimage(Window w);
+static void test();
+static XImage* getWindowXimage(Client *c);
+static void showXimage(XImage *img);
+static XImage *scale_down_image(XImage *orig_image, int scale_factor);
 
 /* variables */
 static int systandstat; /* right padding for systray */
@@ -2828,7 +2831,8 @@ int xerror(Display *dpy, XErrorEvent *ee) {
       (ee->request_code == X_ConfigureWindow && ee->error_code == BadMatch) ||
       (ee->request_code == X_GrabButton && ee->error_code == BadAccess) ||
       (ee->request_code == X_GrabKey && ee->error_code == BadAccess) ||
-      (ee->request_code == X_CopyArea && ee->error_code == BadDrawable))
+      (ee->request_code == X_CopyArea && ee->error_code == BadDrawable) ||
+      (ee->request_code == X_GetImage))
     return 0;
   fprintf(stderr, "dwm: fatal error: request code=%d, error code=%d\n",
           ee->request_code, ee->error_code);
@@ -2871,21 +2875,81 @@ void zoom(const Arg *arg) {
   pop(c);
 }
 
-XImage* getWindowXimage(Window w) {
+static void test(){
   int composite_event_base, composite_error_base;
   if (!XCompositeQueryExtension(dpy, &composite_event_base, &composite_error_base)) {
     fprintf(stderr, "Error: XComposite extension not available.\n");
-    return NULL;
+    return;
   }
+  // 遍历selmon的所有窗口
+  for(Client *c = selmon->clients; c; c = c->next){
+    XImage* ximage = getWindowXimage(c);
+    XImage* scaled_image = scale_down_image(ximage, 2);
+    showXimage(scaled_image);
+  }
+}
 
-  XCompositeRedirectWindow(dpy, w, CompositeRedirectAutomatic);
-  Pixmap pixmap = XCompositeNameWindowPixmap(dpy, w);
-  XCompositeUnredirectWindow(dpy, w, CompositeRedirectAutomatic);
-  XWindowAttributes attr;
-  XGetWindowAttributes(dpy, w, &attr);
-  XImage *image = XGetImage(dpy, pixmap, borderpx, borderpx, attr.width, attr.height, AllPlanes, ZPixmap);
+XImage* getWindowXimage(Client *c) {
+
+  XCompositeRedirectWindow(dpy, c->win, CompositeRedirectAutomatic);
+  Pixmap pixmap = XCompositeNameWindowPixmap(dpy, c->win);
+  XCompositeUnredirectWindow(dpy, c->win, CompositeRedirectAutomatic);
+  // XWindowAttributes attr;
+  // XGetWindowAttributes(dpy, w, &attr);
+  // XImage *image = XGetImage(dpy, pixmap, borderpx, borderpx, attr.width, attr.height, AllPlanes, ZPixmap);
+  XImage *image = XGetImage(dpy, pixmap, c->isfullscreen ? 0 : borderpx, c->isfullscreen ? 0 : borderpx, c->w, c->h, AllPlanes, ZPixmap);
   image->depth = DefaultDepth(dpy, screen);
   return image;
+}
+
+void showXimage(XImage *img) {
+  XEvent event;
+  int x = selmon->wx + (selmon->ww - img->width) / 2;
+  int y = selmon->wy + (selmon->wh - img->height) / 2;
+  Window window = XCreateSimpleWindow(dpy, root, x, y, img->width, img->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
+  XSetWindowBorder(dpy, window, scheme[SchemeSel][ColBorder].pixel);
+  XSelectInput(dpy, window, ExposureMask | ButtonPress);
+  XMapWindow(dpy, window);
+  while (1) {
+      XNextEvent(dpy, &event);
+      if (event.type == Expose) {
+          // Draw XImage to window
+          XPutImage(dpy, window, drw->gc, img, 0, 0, 0, 0, img->width, img->height);
+      }
+      if (event.type == ButtonPress)
+          if (event.xbutton.button == Button5)
+            break;
+  }
+  XDestroyWindow(dpy, window);
+}
+
+XImage *scale_down_image(XImage *orig_image, int scale_factor) {
+  // 计算缩小后的宽度和高度
+  int scaled_width = orig_image->width / scale_factor;
+  int scaled_height = orig_image->height / scale_factor;
+
+  // 创建一个新的 XImage
+  XImage *scaled_image = XCreateImage(dpy, DefaultVisual(dpy, DefaultScreen(dpy)),
+                                      orig_image->depth,
+                                      ZPixmap, 0, NULL,
+                                      scaled_width, scaled_height,
+                                      32, 0);
+
+  // 分配空间给新图像的像素数据
+  scaled_image->data = malloc(scaled_image->height * scaled_image->bytes_per_line);
+
+  // 缩小像素数据
+  for (int y = 0; y < scaled_height; y++) {
+      for (int x = 0; x < scaled_width; x++) {
+          int orig_x = x * scale_factor;
+          int orig_y = y * scale_factor;
+          unsigned long pixel = XGetPixel(orig_image, orig_x, orig_y);
+          XPutPixel(scaled_image, x, y, pixel);
+      }
+  }
+
+  scaled_image->depth = orig_image->depth;
+  return scaled_image;
 }
 
 int main(int argc, char *argv[]) {
