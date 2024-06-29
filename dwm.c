@@ -42,6 +42,7 @@
 #include <X11/XKBlib.h>
 #include <X11/Xft/Xft.h>
 #include <X11/extensions/Xcomposite.h>
+#include <X11/extensions/Xrender.h>
 
 #include "drw.h"
 #include "util.h"
@@ -2907,6 +2908,7 @@ static void test(){
     // showXimage(c->pre.scaled_image);
   }
   for(Client *c = selmon->clients; c; c = c->next){
+    XUnmapWindow(dpy, c->win);
       if (c->pre.win){
         XSelectInput(dpy, c->pre.win, ButtonPress);
         XMapWindow(dpy, c->pre.win);
@@ -2923,20 +2925,43 @@ static void test(){
             break;
           }
   }
+  for(Client *c = selmon->clients; c; c = c->next)
+    XMapWindow(dpy, c->win);
 
 }
 
 XImage* getWindowXimage(Client *c) {
-
   XCompositeRedirectWindow(dpy, c->win, CompositeRedirectAutomatic);
-  Pixmap pixmap = XCompositeNameWindowPixmap(dpy, c->win);
+  // We use XRender to grab the drawable, since it'll save it in a format we like.
+  XWindowAttributes attr;
+  XGetWindowAttributes( dpy, c->win, &attr );
+  XRenderPictFormat *format = XRenderFindVisualFormat( dpy, attr.visual );
+  int hasAlpha = ( format->type == PictTypeDirect && format->direct.alphaMask );
+  XRenderPictureAttributes pa;
+  pa.subwindow_mode = IncludeInferiors;
+  Picture picture = XRenderCreatePicture( dpy, c->win, format, CPSubwindowMode, &pa );
+
+  Pixmap pixmap = XCreatePixmap(dpy, root, c->w, c->h, 32);
+  XRenderPictureAttributes pa2;
+
+  XRenderPictFormat *format2 = XRenderFindStandardFormat(dpy, PictStandardARGB32);
+  Picture pixmapPicture = XRenderCreatePicture( dpy, pixmap, format2, 0, &pa2 );
+  XRenderColor color;
+  color.red = 0x0000;
+  color.green = 0x0000;
+  color.blue = 0x0000;
+  color.alpha = 0x0000;
+  XRenderFillRectangle (dpy, PictOpSrc, pixmapPicture, &color, 0, 0, c->w, c->h);
+  XRenderComposite(dpy, hasAlpha ? PictOpOver : PictOpSrc, picture, 0,
+                   pixmapPicture, 0, 0, 0, 0, 0, 0,
+                   c->w, c->h);
+  XImage* temp = XGetImage( dpy, pixmap, 0, 0, c->w, c->h, AllPlanes, ZPixmap );
+  temp->red_mask = format2->direct.redMask << format2->direct.red;
+  temp->green_mask = format2->direct.greenMask << format2->direct.green;
+  temp->blue_mask = format2->direct.blueMask << format2->direct.blue;
+  temp->depth = DefaultDepth(dpy, screen);
   XCompositeUnredirectWindow(dpy, c->win, CompositeRedirectAutomatic);
-  // XWindowAttributes attr;
-  // XGetWindowAttributes(dpy, w, &attr);
-  // XImage *image = XGetImage(dpy, pixmap, borderpx, borderpx, attr.width, attr.height, AllPlanes, ZPixmap);
-  XImage *image = XGetImage(dpy, pixmap, c->isfullscreen ? 0 : borderpx, c->isfullscreen ? 0 : borderpx, c->w, c->h, AllPlanes, ZPixmap);
-  image->depth = DefaultDepth(dpy, screen);
-  return image;
+  return temp;
 }
 
 void showXimage(XImage *img) {
