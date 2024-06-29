@@ -2925,9 +2925,11 @@ static void test(){
             break;
           }
   }
-  for(Client *c = selmon->clients; c; c = c->next)
+  for(Client *c = selmon->clients; c; c = c->next){
     XMapWindow(dpy, c->win);
-
+    XDestroyImage(c->pre.orig_image);
+    XDestroyImage(c->pre.scaled_image);
+  }
 }
 
 XImage* getWindowXimage(Client *c) {
