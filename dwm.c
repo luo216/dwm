@@ -138,6 +138,12 @@ typedef struct {
   const Arg arg;
 } Button;
 
+typedef struct {
+  XImage *orig_image;
+  XImage *scaled_image;
+  Window win;
+} preview;
+
 typedef struct Monitor Monitor;
 typedef struct Client Client;
 struct Client {
@@ -153,6 +159,7 @@ struct Client {
   Client *snext;
   Monitor *mon;
   Window win;
+  preview pre;
 };
 
 typedef struct {
@@ -2881,12 +2888,42 @@ static void test(){
     fprintf(stderr, "Error: XComposite extension not available.\n");
     return;
   }
+  XEvent event;
   // 遍历selmon的所有窗口
   for(Client *c = selmon->clients; c; c = c->next){
-    XImage* ximage = getWindowXimage(c);
-    XImage* scaled_image = scale_down_image(ximage, 2);
-    showXimage(scaled_image);
+    c->pre.orig_image = getWindowXimage(c);
+    c->pre.scaled_image = scale_down_image(c->pre.orig_image, 2);
+    if (!c->pre.win) {
+      int x = c->mon->wx + (c->mon->ww - c->pre.scaled_image->width) / 2;
+      int y = c->mon->wy + (c->mon->wh - c->pre.scaled_image->height) / 2;
+      c->pre.win = XCreateSimpleWindow(dpy, root, x, y, c->pre.scaled_image->width, c->pre.scaled_image->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
+      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+    }else {
+      int x = c->mon->wx + (c->mon->ww - c->pre.scaled_image->width) / 2;
+      int y = c->mon->wy + (c->mon->wh - c->pre.scaled_image->height) / 2;
+      XMoveResizeWindow(dpy, c->pre.win, x, y, c->pre.scaled_image->width, c->pre.scaled_image->height);
+      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+    }
+    // showXimage(c->pre.scaled_image);
   }
+  for(Client *c = selmon->clients; c; c = c->next){
+      if (c->pre.win){
+        XSelectInput(dpy, c->pre.win, ButtonPress);
+        XMapWindow(dpy, c->pre.win);
+        XPutImage(dpy, c->pre.win, drw->gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
+      }
+  }
+  while (1) {
+      XNextEvent(dpy, &event);
+      if (event.type == ButtonPress) 
+          if (event.xbutton.button == Button5){
+            for (Client *c = selmon->clients; c; c = c->next)
+              if (c->pre.win)
+                XUnmapWindow(dpy, c->pre.win);
+            break;
+          }
+  }
+
 }
 
 XImage* getWindowXimage(Client *c) {
