@@ -148,7 +148,6 @@ struct Preview {
   XImage *scaled_image;
   Window win;
   int x, y;
-  Client *c;
   Preview *next;
 };
 
@@ -2898,7 +2897,8 @@ static void test(){
   // 遍历selmon的所有窗口
   int x = selmon->wx + 100;
   for(Client *c = selmon->clients; c; c = c->next){
-    c->pre.c = c;
+    if (c->isfullscreen)
+      togglefullscr(&(Arg){0});
     if (!HIDDEN(c))
         c->pre.orig_image = getWindowXimage(c);
     c->pre.scaled_image = scale_down_image(c->pre.orig_image, 2);
