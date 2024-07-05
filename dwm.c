@@ -139,14 +139,19 @@ typedef struct {
   const Arg arg;
 } Button;
 
-typedef struct {
+typedef struct Monitor Monitor;
+typedef struct Client Client;
+
+typedef struct Preview Preview;
+struct Preview {
   XImage *orig_image;
   XImage *scaled_image;
   Window win;
-} preview;
+  int x, y;
+  Client *c;
+  Preview *next;
+};
 
-typedef struct Monitor Monitor;
-typedef struct Client Client;
 struct Client {
   char name[256];
   float mina, maxa;
@@ -160,7 +165,7 @@ struct Client {
   Client *snext;
   Monitor *mon;
   Window win;
-  preview pre;
+  Preview pre;
 };
 
 typedef struct {
@@ -339,7 +344,6 @@ static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
 static void test();
 static XImage* getWindowXimage(Client *c);
-static void showXimage(XImage *img);
 static XImage *scale_down_image(XImage *orig_image, int scale_factor);
 
 /* variables */
@@ -2891,18 +2895,19 @@ static void test(){
   }
   XEvent event;
   // 遍历selmon的所有窗口
+  int x = selmon->wx + 100;
   for(Client *c = selmon->clients; c; c = c->next){
+    c->pre.c = c;
     c->pre.orig_image = getWindowXimage(c);
     c->pre.scaled_image = scale_down_image(c->pre.orig_image, 2);
+    c->pre.x = x;
+    x += c->pre.scaled_image->width + 30;
+    c->pre.y = selmon->wy + selmon->wh/2 - c->pre.scaled_image->height/2;
     if (!c->pre.win) {
-      int x = c->mon->wx + (c->mon->ww - c->pre.scaled_image->width) / 2;
-      int y = c->mon->wy + (c->mon->wh - c->pre.scaled_image->height) / 2;
-      c->pre.win = XCreateSimpleWindow(dpy, root, x, y, c->pre.scaled_image->width, c->pre.scaled_image->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
+      c->pre.win = XCreateSimpleWindow(dpy, root, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
       XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
     }else {
-      int x = c->mon->wx + (c->mon->ww - c->pre.scaled_image->width) / 2;
-      int y = c->mon->wy + (c->mon->wh - c->pre.scaled_image->height) / 2;
-      XMoveResizeWindow(dpy, c->pre.win, x, y, c->pre.scaled_image->width, c->pre.scaled_image->height);
+      XMoveResizeWindow(dpy, c->pre.win, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height);
       XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
     }
     // showXimage(c->pre.scaled_image);
@@ -2918,18 +2923,21 @@ static void test(){
   while (1) {
       XNextEvent(dpy, &event);
       if (event.type == ButtonPress) 
-          if (event.xbutton.button == Button5){
-            for (Client *c = selmon->clients; c; c = c->next)
-              if (c->pre.win)
-                XUnmapWindow(dpy, c->pre.win);
+          if (event.xbutton.button == Button1){
+            for(Client *c = selmon->clients; c; c = c->next){
+              XUnmapWindow(dpy, c->pre.win);
+              if (event.xbutton.window == c->pre.win){
+                selmon->tagset[selmon->seltags] = c->tags;
+                focus(c);
+              }
+              XMapWindow(dpy, c->win);
+              XDestroyImage(c->pre.orig_image);
+              XDestroyImage(c->pre.scaled_image);
+            }
             break;
           }
   }
-  for(Client *c = selmon->clients; c; c = c->next){
-    XMapWindow(dpy, c->win);
-    XDestroyImage(c->pre.orig_image);
-    XDestroyImage(c->pre.scaled_image);
-  }
+  arrange(selmon);
 }
 
 XImage* getWindowXimage(Client *c) {
@@ -2964,27 +2972,6 @@ XImage* getWindowXimage(Client *c) {
   temp->depth = DefaultDepth(dpy, screen);
   XCompositeUnredirectWindow(dpy, c->win, CompositeRedirectAutomatic);
   return temp;
-}
-
-void showXimage(XImage *img) {
-  XEvent event;
-  int x = selmon->wx + (selmon->ww - img->width) / 2;
-  int y = selmon->wy + (selmon->wh - img->height) / 2;
-  Window window = XCreateSimpleWindow(dpy, root, x, y, img->width, img->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
-  XSetWindowBorder(dpy, window, scheme[SchemeSel][ColBorder].pixel);
-  XSelectInput(dpy, window, ExposureMask | ButtonPress);
-  XMapWindow(dpy, window);
-  while (1) {
-      XNextEvent(dpy, &event);
-      if (event.type == Expose) {
-          // Draw XImage to window
-          XPutImage(dpy, window, drw->gc, img, 0, 0, 0, 0, img->width, img->height);
-      }
-      if (event.type == ButtonPress)
-          if (event.xbutton.button == Button5)
-            break;
-  }
-  XDestroyWindow(dpy, window);
 }
 
 XImage *scale_down_image(XImage *orig_image, int scale_factor) {

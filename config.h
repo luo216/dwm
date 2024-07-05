@@ -56,6 +56,7 @@ static const Rule rules[] = {
     {"wechat",        NULL,       NULL,       1 << 7,       0,           -1},
     {"QQ",            NULL,       NULL,       1 << 7,       0,           -1},
     {"Localsend_app", NULL,       NULL,       1 << 8,       0,           -1},
+    {"Hiddify",       NULL,       NULL,       1 << 8,       0,           -1},
 };
 
 /* layout(s) */
