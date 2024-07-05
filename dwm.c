@@ -1313,6 +1313,7 @@ void hidewin(Client *c) {
   if (!c || HIDDEN(c))
     return;
 
+  c->pre.orig_image = getWindowXimage(c);
   Window w = c->win;
   static XWindowAttributes ra, ca;
 
@@ -2898,7 +2899,8 @@ static void test(){
   int x = selmon->wx + 100;
   for(Client *c = selmon->clients; c; c = c->next){
     c->pre.c = c;
-    c->pre.orig_image = getWindowXimage(c);
+    if (!HIDDEN(c))
+        c->pre.orig_image = getWindowXimage(c);
     c->pre.scaled_image = scale_down_image(c->pre.orig_image, 2);
     c->pre.x = x;
     x += c->pre.scaled_image->width + 30;
@@ -2929,6 +2931,13 @@ static void test(){
               if (event.xbutton.window == c->pre.win){
                 selmon->tagset[selmon->seltags] = c->tags;
                 focus(c);
+                if (HIDDEN(c)){
+                  showwin(c);
+                  continue;
+                }
+              }
+              if (HIDDEN(c)){
+                continue;
               }
               XMapWindow(dpy, c->win);
               XDestroyImage(c->pre.orig_image);
