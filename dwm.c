@@ -2905,17 +2905,17 @@ static void test(){
     c->pre.y = selmon->wy + selmon->wh/2 - c->pre.scaled_image->height/2;
     if (!c->pre.win) {
       c->pre.win = XCreateSimpleWindow(dpy, root, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
-      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
     }else {
       XMoveResizeWindow(dpy, c->pre.win, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height);
-      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
     }
     // showXimage(c->pre.scaled_image);
   }
   for(Client *c = selmon->clients; c; c = c->next){
     XUnmapWindow(dpy, c->win);
       if (c->pre.win){
-        XSelectInput(dpy, c->pre.win, ButtonPress);
+        XSelectInput(dpy, c->pre.win, ButtonPress | EnterWindowMask | LeaveWindowMask );
         XMapWindow(dpy, c->pre.win);
         XPutImage(dpy, c->pre.win, drw->gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
       }
@@ -2936,6 +2936,18 @@ static void test(){
             }
             break;
           }
+      if (event.type == EnterNotify)
+          for(Client *c = selmon->clients; c; c = c->next)
+              if (event.xcrossing.window == c->pre.win){
+                  XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+                  break;
+              }
+      if (event.type == LeaveNotify)
+          for(Client *c = selmon->clients; c; c = c->next)
+              if (event.xcrossing.window == c->pre.win){
+                  XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+                  break;
+              }
   }
   arrange(selmon);
 }
