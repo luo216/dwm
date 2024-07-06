@@ -2894,33 +2894,27 @@ static void test(){
     return;
   }
   XEvent event;
-  // 遍历selmon的所有窗口
   int x = selmon->wx + 100;
   for(Client *c = selmon->clients; c; c = c->next){
     if (c->isfullscreen)
       togglefullscr(&(Arg){0});
     if (!HIDDEN(c))
         c->pre.orig_image = getWindowXimage(c);
-    c->pre.scaled_image = scale_down_image(c->pre.orig_image, 2);
+    c->pre.scaled_image = scale_down_image(c->pre.orig_image, 4);
     c->pre.x = x;
     x += c->pre.scaled_image->width + 30;
     c->pre.y = selmon->wy + selmon->wh/2 - c->pre.scaled_image->height/2;
-    if (!c->pre.win) {
+    if (!c->pre.win)
       c->pre.win = XCreateSimpleWindow(dpy, root, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
-      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
-    }else {
+    else
       XMoveResizeWindow(dpy, c->pre.win, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height);
-      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
-    }
-    // showXimage(c->pre.scaled_image);
-  }
-  for(Client *c = selmon->clients; c; c = c->next){
+    XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
     XUnmapWindow(dpy, c->win);
-      if (c->pre.win){
-        XSelectInput(dpy, c->pre.win, ButtonPress | EnterWindowMask | LeaveWindowMask );
-        XMapWindow(dpy, c->pre.win);
-        XPutImage(dpy, c->pre.win, drw->gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
-      }
+    if (c->pre.win){
+      XSelectInput(dpy, c->pre.win, ButtonPress | EnterWindowMask | LeaveWindowMask );
+      XMapWindow(dpy, c->pre.win);
+      XPutImage(dpy, c->pre.win, drw->gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
+    }
   }
   while (1) {
       XNextEvent(dpy, &event);
