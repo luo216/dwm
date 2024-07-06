@@ -147,7 +147,7 @@ struct Preview {
   XImage *orig_image;
   XImage *scaled_image;
   Window win;
-  int x, y;
+  unsigned int x, y;
   Preview *next;
 };
 
@@ -341,9 +341,10 @@ static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
-static void test();
-static XImage* getWindowXimage(Client *c);
-static XImage *scale_down_image(XImage *orig_image, int scale_factor);
+static void previewallwin();
+static void setpreviewwindowsizepositions(uint n, Monitor *m, uint gappo, uint gappi);
+static XImage *getwindowximage(Client *c);
+static XImage *scaledownimage(XImage *orig_image, uint cw, uint ch);
 
 /* variables */
 static int systandstat; /* right padding for systray */
@@ -1312,7 +1313,7 @@ void hidewin(Client *c) {
   if (!c || HIDDEN(c))
     return;
 
-  c->pre.orig_image = getWindowXimage(c);
+  c->pre.orig_image = getwindowximage(c);
   Window w = c->win;
   static XWindowAttributes ra, ca;
 
@@ -2887,23 +2888,26 @@ void zoom(const Arg *arg) {
   pop(c);
 }
 
-static void test(){
+void previewallwin(){
   int composite_event_base, composite_error_base;
   if (!XCompositeQueryExtension(dpy, &composite_event_base, &composite_error_base)) {
     fprintf(stderr, "Error: XComposite extension not available.\n");
     return;
   }
-  XEvent event;
-  int x = selmon->wx + 100;
-  for(Client *c = selmon->clients; c; c = c->next){
+  Monitor *m = selmon;
+  Client *c;
+  unsigned int n;
+  for (n = 0, c = m->clients; c; c = c->next, n++){
     if (c->isfullscreen)
       togglefullscr(&(Arg){0});
     if (!HIDDEN(c))
-        c->pre.orig_image = getWindowXimage(c);
-    c->pre.scaled_image = scale_down_image(c->pre.orig_image, 4);
-    c->pre.x = x;
-    x += c->pre.scaled_image->width + 30;
-    c->pre.y = selmon->wy + selmon->wh/2 - c->pre.scaled_image->height/2;
+        c->pre.orig_image = getwindowximage(c);
+  }
+  if (n == 0)
+    return;
+  setpreviewwindowsizepositions(n, m, 60, 15);
+  XEvent event;
+  for(c = m->clients; c; c = c->next){
     if (!c->pre.win)
       c->pre.win = XCreateSimpleWindow(dpy, root, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
     else
@@ -2920,10 +2924,11 @@ static void test(){
       XNextEvent(dpy, &event);
       if (event.type == ButtonPress) 
           if (event.xbutton.button == Button1){
-            for(Client *c = selmon->clients; c; c = c->next){
+            for(c = m->clients; c; c = c->next){
               XUnmapWindow(dpy, c->pre.win);
               if (event.xbutton.window == c->pre.win){
-                selmon->tagset[selmon->seltags] = c->tags;
+                selmon->seltags ^= 1; /* toggle sel tagset */
+                m->tagset[selmon->seltags] = c->tags;
                 focus(c);
                 if (HIDDEN(c)){
                   showwin(c);
@@ -2940,22 +2945,86 @@ static void test(){
             break;
           }
       if (event.type == EnterNotify)
-          for(Client *c = selmon->clients; c; c = c->next)
+          for(c = m->clients; c; c = c->next)
               if (event.xcrossing.window == c->pre.win){
                   XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
                   break;
               }
       if (event.type == LeaveNotify)
-          for(Client *c = selmon->clients; c; c = c->next)
+          for(c = m->clients; c; c = c->next)
               if (event.xcrossing.window == c->pre.win){
                   XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
                   break;
               }
   }
-  arrange(selmon);
+  arrange(m);
 }
 
-XImage* getWindowXimage(Client *c) {
+void setpreviewwindowsizepositions(uint n, Monitor *m, uint gappo, uint gappi){
+  unsigned int i, j;
+  unsigned int cx, cy, cw, ch, cmaxh;
+  unsigned int cols, rows;
+  Client *c, *tmpc;
+
+  if (n == 1) {
+    c = m->clients;
+    cw = (m->ww - 2 * gappo) * 0.8;
+    ch = (m->wh - 2 * gappo) * 0.9;
+    c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+    c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width) / 2;
+    c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
+    return;
+  }
+  if (n == 2) {
+    c = m->clients;
+    cw = (m->ww - 2 * gappo - gappi) / 2;
+    ch = (m->wh - 2 * gappo) * 0.7;
+    c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+    c->next->pre.scaled_image = scaledownimage(c->next->pre.orig_image, cw, ch);
+    c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width - gappi - c->next->pre.scaled_image->width) / 2;
+    c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
+    c->next->pre.x = c->pre.x + c->pre.scaled_image->width + gappi;
+    c->next->pre.y = m->my + (m->mh - c->next->pre.scaled_image->height) / 2;
+    return;
+  }
+  for (cols = 0; cols <= n / 2; cols++)
+    if (cols * cols >= n)
+      break;
+  rows = (cols && (cols - 1) * cols >= n) ? cols - 1 : cols;
+  ch = (m->wh - 2 * gappo) / rows;
+  cw = (m->ww - 2 * gappo) / cols;
+  c = m->clients;
+  cy = 0;
+  for (i = 0; i < rows; i++) {
+    cx = 0;
+    cmaxh = 0;
+    tmpc = c;
+    for (int j = 0; j < cols; j++) {
+      if (!c)
+        break;
+      c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+      c->pre.x = cx;
+      cmaxh = c->pre.scaled_image->height > cmaxh ? c->pre.scaled_image->height : cmaxh;
+      cx += c->pre.scaled_image->width + gappi;
+      c = c->next;
+    }
+    c = tmpc;
+    cx = m->wx + (m->ww - cx) / 2;
+    for (j = 0; j < cols; j++) {
+      if (!c)
+        break;
+      c->pre.x += cx;
+      c->pre.y = cy + (cmaxh - c->pre.scaled_image->height) / 2;
+      c = c->next;
+    }
+    cy += cmaxh + gappi;
+  }
+  cy = m->wy + (m->wh - cy) / 2;
+  for (c = m->clients; c; c = c->next)
+    c->pre.y += cy;
+}
+
+XImage *getwindowximage(Client *c) {
   XCompositeRedirectWindow(dpy, c->win, CompositeRedirectAutomatic);
   // We use XRender to grab the drawable, since it'll save it in a format we like.
   XWindowAttributes attr;
@@ -2989,8 +3058,10 @@ XImage* getWindowXimage(Client *c) {
   return temp;
 }
 
-XImage *scale_down_image(XImage *orig_image, int scale_factor) {
-  // 计算缩小后的宽度和高度
+XImage *scaledownimage(XImage *orig_image, uint cw, uint ch) {
+  int factor_w = orig_image->width / cw + 1;
+  int factor_h = orig_image->height / ch + 1;
+  int scale_factor = factor_w > factor_h ? factor_w : factor_h;
   int scaled_width = orig_image->width / scale_factor;
   int scaled_height = orig_image->height / scale_factor;
 
