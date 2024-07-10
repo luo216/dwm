@@ -41,6 +41,8 @@
 #endif /* XINERAMA */
 #include <X11/XKBlib.h>
 #include <X11/Xft/Xft.h>
+#include <X11/extensions/Xcomposite.h>
+#include <X11/extensions/Xrender.h>
 
 #include "drw.h"
 #include "util.h"
@@ -139,6 +141,16 @@ typedef struct {
 
 typedef struct Monitor Monitor;
 typedef struct Client Client;
+
+typedef struct Preview Preview;
+struct Preview {
+  XImage *orig_image;
+  XImage *scaled_image;
+  Window win;
+  int x, y;
+  Preview *next;
+};
+
 struct Client {
   char name[256];
   float mina, maxa;
@@ -152,6 +164,7 @@ struct Client {
   Client *snext;
   Monitor *mon;
   Window win;
+  Preview pre;
 };
 
 typedef struct {
@@ -328,6 +341,9 @@ static int xerror(Display *dpy, XErrorEvent *ee);
 static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void zoom(const Arg *arg);
+static void test();
+static XImage* getWindowXimage(Client *c);
+static XImage *scale_down_image(XImage *orig_image, int scale_factor);
 
 /* variables */
 static int systandstat; /* right padding for systray */
@@ -1296,6 +1312,7 @@ void hidewin(Client *c) {
   if (!c || HIDDEN(c))
     return;
 
+  c->pre.orig_image = getWindowXimage(c);
   Window w = c->win;
   static XWindowAttributes ra, ca;
 
@@ -2826,7 +2843,8 @@ int xerror(Display *dpy, XErrorEvent *ee) {
       (ee->request_code == X_ConfigureWindow && ee->error_code == BadMatch) ||
       (ee->request_code == X_GrabButton && ee->error_code == BadAccess) ||
       (ee->request_code == X_GrabKey && ee->error_code == BadAccess) ||
-      (ee->request_code == X_CopyArea && ee->error_code == BadDrawable))
+      (ee->request_code == X_CopyArea && ee->error_code == BadDrawable) ||
+      (ee->request_code == X_GetImage))
     return 0;
   fprintf(stderr, "dwm: fatal error: request code=%d, error code=%d\n",
           ee->request_code, ee->error_code);
@@ -2867,6 +2885,137 @@ void zoom(const Arg *arg) {
   if (c == nexttiled(selmon->clients) && !(c = nexttiled(c->next)))
     return;
   pop(c);
+}
+
+static void test(){
+  int composite_event_base, composite_error_base;
+  if (!XCompositeQueryExtension(dpy, &composite_event_base, &composite_error_base)) {
+    fprintf(stderr, "Error: XComposite extension not available.\n");
+    return;
+  }
+  XEvent event;
+  int x = selmon->wx + 100;
+  for(Client *c = selmon->clients; c; c = c->next){
+    if (c->isfullscreen)
+      togglefullscr(&(Arg){0});
+    if (!HIDDEN(c))
+        c->pre.orig_image = getWindowXimage(c);
+    c->pre.scaled_image = scale_down_image(c->pre.orig_image, 4);
+    c->pre.x = x;
+    x += c->pre.scaled_image->width + 30;
+    c->pre.y = selmon->wy + selmon->wh/2 - c->pre.scaled_image->height/2;
+    if (!c->pre.win)
+      c->pre.win = XCreateSimpleWindow(dpy, root, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
+    else
+      XMoveResizeWindow(dpy, c->pre.win, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height);
+    XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+    XUnmapWindow(dpy, c->win);
+    if (c->pre.win){
+      XSelectInput(dpy, c->pre.win, ButtonPress | EnterWindowMask | LeaveWindowMask );
+      XMapWindow(dpy, c->pre.win);
+      XPutImage(dpy, c->pre.win, drw->gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
+    }
+  }
+  while (1) {
+      XNextEvent(dpy, &event);
+      if (event.type == ButtonPress) 
+          if (event.xbutton.button == Button1){
+            for(Client *c = selmon->clients; c; c = c->next){
+              XUnmapWindow(dpy, c->pre.win);
+              if (event.xbutton.window == c->pre.win){
+                selmon->tagset[selmon->seltags] = c->tags;
+                focus(c);
+                if (HIDDEN(c)){
+                  showwin(c);
+                  continue;
+                }
+              }
+              if (HIDDEN(c)){
+                continue;
+              }
+              XMapWindow(dpy, c->win);
+              XDestroyImage(c->pre.orig_image);
+              XDestroyImage(c->pre.scaled_image);
+            }
+            break;
+          }
+      if (event.type == EnterNotify)
+          for(Client *c = selmon->clients; c; c = c->next)
+              if (event.xcrossing.window == c->pre.win){
+                  XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+                  break;
+              }
+      if (event.type == LeaveNotify)
+          for(Client *c = selmon->clients; c; c = c->next)
+              if (event.xcrossing.window == c->pre.win){
+                  XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+                  break;
+              }
+  }
+  arrange(selmon);
+}
+
+XImage* getWindowXimage(Client *c) {
+  XCompositeRedirectWindow(dpy, c->win, CompositeRedirectAutomatic);
+  // We use XRender to grab the drawable, since it'll save it in a format we like.
+  XWindowAttributes attr;
+  XGetWindowAttributes( dpy, c->win, &attr );
+  XRenderPictFormat *format = XRenderFindVisualFormat( dpy, attr.visual );
+  int hasAlpha = ( format->type == PictTypeDirect && format->direct.alphaMask );
+  XRenderPictureAttributes pa;
+  pa.subwindow_mode = IncludeInferiors;
+  Picture picture = XRenderCreatePicture( dpy, c->win, format, CPSubwindowMode, &pa );
+
+  Pixmap pixmap = XCreatePixmap(dpy, root, c->w, c->h, 32);
+  XRenderPictureAttributes pa2;
+
+  XRenderPictFormat *format2 = XRenderFindStandardFormat(dpy, PictStandardARGB32);
+  Picture pixmapPicture = XRenderCreatePicture( dpy, pixmap, format2, 0, &pa2 );
+  XRenderColor color;
+  color.red = 0x0000;
+  color.green = 0x0000;
+  color.blue = 0x0000;
+  color.alpha = 0x0000;
+  XRenderFillRectangle (dpy, PictOpSrc, pixmapPicture, &color, 0, 0, c->w, c->h);
+  XRenderComposite(dpy, hasAlpha ? PictOpOver : PictOpSrc, picture, 0,
+                   pixmapPicture, 0, 0, 0, 0, 0, 0,
+                   c->w, c->h);
+  XImage* temp = XGetImage( dpy, pixmap, 0, 0, c->w, c->h, AllPlanes, ZPixmap );
+  temp->red_mask = format2->direct.redMask << format2->direct.red;
+  temp->green_mask = format2->direct.greenMask << format2->direct.green;
+  temp->blue_mask = format2->direct.blueMask << format2->direct.blue;
+  temp->depth = DefaultDepth(dpy, screen);
+  XCompositeUnredirectWindow(dpy, c->win, CompositeRedirectAutomatic);
+  return temp;
+}
+
+XImage *scale_down_image(XImage *orig_image, int scale_factor) {
+  // 计算缩小后的宽度和高度
+  int scaled_width = orig_image->width / scale_factor;
+  int scaled_height = orig_image->height / scale_factor;
+
+  // 创建一个新的 XImage
+  XImage *scaled_image = XCreateImage(dpy, DefaultVisual(dpy, DefaultScreen(dpy)),
+                                      orig_image->depth,
+                                      ZPixmap, 0, NULL,
+                                      scaled_width, scaled_height,
+                                      32, 0);
+
+  // 分配空间给新图像的像素数据
+  scaled_image->data = malloc(scaled_image->height * scaled_image->bytes_per_line);
+
+  // 缩小像素数据
+  for (int y = 0; y < scaled_height; y++) {
+      for (int x = 0; x < scaled_width; x++) {
+          int orig_x = x * scale_factor;
+          int orig_y = y * scale_factor;
+          unsigned long pixel = XGetPixel(orig_image, orig_x, orig_y);
+          XPutPixel(scaled_image, x, y, pixel);
+      }
+  }
+
+  scaled_image->depth = orig_image->depth;
+  return scaled_image;
 }
 
 int main(int argc, char *argv[]) {

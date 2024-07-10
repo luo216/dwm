@@ -56,6 +56,7 @@ static const Rule rules[] = {
     {"wechat",        NULL,       NULL,       1 << 7,       0,           -1},
     {"QQ",            NULL,       NULL,       1 << 7,       0,           -1},
     {"Localsend_app", NULL,       NULL,       1 << 8,       0,           -1},
+    {"Hiddify",       NULL,       NULL,       1 << 8,       0,           -1},
 };
 
 /* layout(s) */
@@ -165,6 +166,7 @@ static const Key keys[] = {
     {MODKEY | ShiftMask,            XK_u,      tag,            {.ui = 1 << (SWORKSPACE-1)}},
     {MODKEY,                        XK_u,      specialspace,   {0}},
 	  {MODKEY | ShiftMask,            XK_q,      quit,           {0}},
+	  {MODKEY | ShiftMask,            XK_t,      test,           {0}},
 };
 
 /* button definitions */
