@@ -2914,6 +2914,7 @@ void previewallwin(){
     else
       XMoveResizeWindow(dpy, c->pre.win, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height);
     XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+    XSetWindowBorderWidth(dpy, c->pre.win, borderpx);
     XUnmapWindow(dpy, c->win);
     if (c->pre.win){
       XSelectInput(dpy, c->pre.win, ButtonPress | EnterWindowMask | LeaveWindowMask );
