@@ -83,7 +83,7 @@ enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
 enum { Manager, Xembed, XembedInfo, XLast }; /* Xembed atoms */
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
-enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle,
+enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkWinClass,
        ClkClientWin, ClkRootWin, ClkLast }; /* clicks */
 
 typedef union {
@@ -300,6 +300,8 @@ static XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int 
 
 /* variables */
 static Systray *systray = NULL;
+static int systandstat; /* right padding for systray */
+static int systrayw = 100;
 static int logotitlew;
 static int supericonw;
 static const char autostartblocksh[] = "autostart_blocking.sh";
@@ -338,9 +340,11 @@ static Display *dpy;
 static Drw *drw;
 static Monitor *mons, *selmon;
 static Window root, wmcheckwin;
+static Fnt *normalfont;
+static Fnt *smallfont;
 
 /* configuration, allows nested code to access above variables */
-#include "config.h"
+#include "status.c"
 
 /* compile-time check if all tags fit into an unsigned int bit array. */
 struct NumTags { char limitexceeded[LENGTH(tags) > 31 ? -1 : 1]; };
@@ -851,7 +855,7 @@ dirtomon(int dir)
 void
 drawbar(Monitor *m)
 {
-	int x, w, tw = 0, stw = 0, n = 0, scm, tagstop = 5, tagslpad = 2;
+	int x, w, tw = 0, stw = 0, n = 0, scm, tagstop = 3, tagslpad = 2;
 	unsigned int i, occ = 0, urg = 0;
 	Client *c;
 
@@ -859,7 +863,7 @@ drawbar(Monitor *m)
 		return;
 
 	if(showsystray && m == systraytomon(m))
-		stw = getsystraywidth();
+		stw = systandstat;
 
 	for (c = m->clients; c; c = c->next) {
 		if (ISVISIBLE(c))
@@ -873,8 +877,17 @@ drawbar(Monitor *m)
   drw_setscheme(drw, scheme[SchemeNorm]);
   drw_text(drw, x, 0, supericonw, bh, lrpad, supericon, 0);
   x += supericonw;
-  logotitlew = TEXTW(logotext);
-  drw_text(drw, x, 0, logotitlew, bh, 0, logotext, 0);
+  if (selmon->sel) {
+    const char *winclass;
+    XClassHint ch = {NULL, NULL};
+    XGetClassHint(dpy, selmon->sel->win, &ch);
+    winclass = ch.res_class ? ch.res_class : broken;
+    logotitlew = TEXTW(winclass) + lrpad;
+    drw_text(drw, x, 0, logotitlew, bh, lrpad, winclass, 0);
+  } else {
+    logotitlew = TEXTW(logotext) + lrpad;
+    drw_text(drw, x, 0, logotitlew, bh, lrpad, logotext, 0);
+  }
   x += logotitlew;
 
 	for (i = 0; i < LENGTH(tags); i++) {
@@ -882,7 +895,7 @@ drawbar(Monitor *m)
 		drw_setscheme(drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
 		drw_text(drw, x, 0, w, bh, lrpad/2, tags[i], urg & 1 << i);
 		if (occ & 1 << i)
-			drw_rect(drw, x+tagslpad, tagstop, w-tagslpad*2, 2, 1, 0);
+			drw_rect(drw, x+tagslpad, tagstop, w-tagslpad*2, 1, 1, 0);
 		x += w;
 	}
 	w = TEXTW(m->ltsymbol);
@@ -890,37 +903,59 @@ drawbar(Monitor *m)
 	x = drw_text(drw, x, 0, w, bh, lrpad / 2, m->ltsymbol, 0);
 
 	if ((w = m->ww - tw - stw - x) > bh) {
-		if (n > 0) {
-			int remainder = w % n;
-			int tabw = (1.0 / (double)n) * w + 1;
-			for (c = m->clients; c; c = c->next) {
-				if (!ISVISIBLE(c))
-					continue;
-				if (m->sel == c)
-					scm = SchemeSel;
-				else if (HIDDEN(c))
-					scm = SchemeBlue;
-				else
-					scm = SchemeNorm;
-				drw_setscheme(drw, scheme[scm]);
+    if (n > 0) {
+      drw_setfontset(drw, smallfont);
+      int remainder = w % n;
+      int tabw = (1.0 / (double)n) * w + 1;
+      for (c = m->clients; c; c = c->next) {
+        if (!ISVISIBLE(c))
+          continue;
+        if (m->sel == c)
+          scm = SchemeSel;
+        else
+          scm = SchemeNorm;
+        drw_setscheme(drw, scheme[scm]);
 
-				if (remainder >= 0) {
-					if (remainder == 0) {
-						tabw--;
-					}
-					remainder--;
-				}
-				drw_text(drw, x, 0, tabw, bh, lrpad / 2, c->name, 0);
-				x += tabw;
-			}
-		} else {
-			drw_setscheme(drw, scheme[SchemeNorm]);
-			drw_rect(drw, x, 0, w, bh, 1, 1);
-		}
+        if (remainder >= 0) {
+          if (remainder == 0) {
+            tabw--;
+          }
+          remainder--;
+        }
+        int titletextw = TEXTW(c->name);
+        int offset = (tabw - titletextw) / 2;
+        if (offset >= 0) {
+          drw_rect(drw, x, 0, offset, bh, 1, 1);
+          drw_text(drw, x + offset, 0, tabw - offset, bh, lrpad / 2, c->name, 0);
+          // If it is a floating window, mark
+          if (c->isfloating) {
+            drw_rect(drw, x + offset, 0, titletextw, 2, 1, 0);
+          }
+          if (HIDDEN(c)) {
+            drw_rect(drw, x + offset, bh / 2, titletextw, 1, 1, 0);
+          }
+        } else {
+          int padding = 5;
+          drw_text(drw, x, 0, tabw, bh, lrpad / 2, c->name, 0);
+          // If it is a floating window, mark
+          if (c->isfloating) {
+            drw_rect(drw, x + padding, 0, tabw - 2 * padding, 2, 1, 0);
+          }
+          if (HIDDEN(c)) {
+            drw_rect(drw, x + padding, bh / 2, tabw - 2 * padding, 1, 1, 0);
+          }
+        }
+        x += tabw;
+      }
+      drw_setfontset(drw, normalfont);
+    } else {
+      drw_setscheme(drw, scheme[SchemeNorm]);
+      drw_rect(drw, x, 0, w, bh, 1, 1);
+    }
 	}
 	m->bt = n;
 	m->btw = w;
-	drw_map(drw, m->barwin, 0, 0, m->ww, bh);
+	drw_map(drw, m->barwin, 0, 0, m->ww-stw, bh);
 }
 
 void
@@ -2151,7 +2186,7 @@ tile(Monitor *m)
 		return;
   }
 
-  if (n == 1 && selmon->sel->isnothgappx != 1) {
+  if (n == 1 && selmon->sel->isnothgappx != 1 && !HIDDEN(selmon->sel)) {
     h = m->wh * 8 / 9;  /* 8/9 of monitor height,height */
     mw = h * 3 / 2;     /* 4/3 of monitor width,width */
     my = m->wx + (m->ww - mw) / 2; /* center the window,x */
@@ -3026,8 +3061,11 @@ main(int argc, char *argv[])
 #endif /* __OpenBSD__ */
 	scan();
 	runautostart();
+  if (pthread_create(&draw_status_thread, NULL, *drawstatusbar, NULL) != 0)
+    die("pthread_create error");
 	run();
 	cleanup();
+  clean_status_pthread();
 	XCloseDisplay(dpy);
 	return EXIT_SUCCESS;
 }

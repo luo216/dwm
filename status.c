@@ -596,8 +596,7 @@ void *drawstatusbar() {
     // Traverse mons and draw on selmon
     for (Monitor *m = mons; m; m = m->next) {
       systrayw = getsystraywidth();
-      int stw = getstatuswidth();
-      systandstat = stw + systrayw;
+      systandstat = getstatuswidth() + systrayw;
       if (m == selmon) {
         int x = m->ww - systrayw;
         drw_setscheme(drw, scheme[SchemeNorm]);
