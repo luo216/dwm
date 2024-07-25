@@ -300,12 +300,13 @@ static XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int 
 
 /* variables */
 static Systray *systray = NULL;
+static int logotitlew;
+static int supericonw;
 static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
 static const char broken[] = "broken";
 static const char dwmdir[] = "dwm";
 static const char dotconfig[] = ".config";
-static char stext[256];
 static int screen;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh;               /* bar height */
@@ -520,8 +521,7 @@ buttonpress(XEvent *e)
 			arg.ui = 1 << i;
 		} else if (ev->x < x + TEXTW(selmon->ltsymbol))
 			click = ClkLtSymbol;
-		/* 2px right padding */
-		else if (ev->x > selmon->ww - (int)TEXTW(stext) - getsystraywidth())
+		else if (ev->x > selmon->ww - getsystraywidth())
 			click = ClkStatusText;
 		else {
 			x += TEXTW(selmon->ltsymbol);
@@ -851,24 +851,15 @@ dirtomon(int dir)
 void
 drawbar(Monitor *m)
 {
-	int x, w, tw = 0, stw = 0, n = 0, scm;
-	int boxs = drw->fonts->h / 9;
-	int boxw = drw->fonts->h / 6 + 2;
+	int x, w, tw = 0, stw = 0, n = 0, scm, tagstop = 5, tagslpad = 2;
 	unsigned int i, occ = 0, urg = 0;
 	Client *c;
 
 	if (!m->showbar)
 		return;
 
-	if(showsystray && m == systraytomon(m) && !systrayonleft)
+	if(showsystray && m == systraytomon(m))
 		stw = getsystraywidth();
-
-	/* draw status first so it can be overdrawn by tags later */
-	if (m == selmon) { /* status is only drawn on selected monitor */
-		drw_setscheme(drw, scheme[SchemeNorm]);
-		tw = TEXTW(stext) - lrpad / 2 + 2; /* 2px extra right padding */
-		drw_text(drw, m->ww - tw - stw, 0, tw, bh, lrpad / 2 - 2, stext, 0);
-	}
 
 	for (c = m->clients; c; c = c->next) {
 		if (ISVISIBLE(c))
@@ -878,14 +869,20 @@ drawbar(Monitor *m)
 			urg |= c->tags;
 	}
 	x = 0;
+  supericonw = TEXTW(supericon);
+  drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_text(drw, x, 0, supericonw, bh, lrpad, supericon, 0);
+  x += supericonw;
+  logotitlew = TEXTW(logotext);
+  drw_text(drw, x, 0, logotitlew, bh, 0, logotext, 0);
+  x += logotitlew;
+
 	for (i = 0; i < LENGTH(tags); i++) {
 		w = TEXTW(tags[i]);
 		drw_setscheme(drw, scheme[m->tagset[m->seltags] & 1 << i ? SchemeSel : SchemeNorm]);
-		drw_text(drw, x, 0, w, bh, lrpad / 2, tags[i], urg & 1 << i);
+		drw_text(drw, x, 0, w, bh, lrpad/2, tags[i], urg & 1 << i);
 		if (occ & 1 << i)
-			drw_rect(drw, x + boxs, boxs, boxw, boxw,
-				m == selmon && selmon->sel && selmon->sel->tags & 1 << i,
-				urg & 1 << i);
+			drw_rect(drw, x+tagslpad, tagstop, w-tagslpad*2, 2, 1, 0);
 		x += w;
 	}
 	w = TEXTW(m->ltsymbol);
@@ -1966,7 +1963,7 @@ setup(void)
 	drw = drw_create(dpy, screen, root, sw, sh);
 	if (!drw_fontset_create(drw, fonts, LENGTH(fonts)))
 		die("no fonts could be loaded.");
-	lrpad = drw->fonts->h;
+	lrpad = drw->fonts->h / 2 ;
 	bh = drw->fonts->h + 10;
 	updategeom();
 	/* init atoms */
@@ -2532,8 +2529,6 @@ updatesizehints(Client *c)
 void
 updatestatus(void)
 {
-	if (!gettextprop(root, XA_WM_NAME, stext, sizeof(stext)))
-		strcpy(stext, "dwm-"VERSION);
 	drawbar(selmon);
 	updatesystray();
 }
@@ -2599,13 +2594,10 @@ updatesystray(void)
 	Client *i;
 	Monitor *m = systraytomon(NULL);
 	unsigned int x = m->mx + m->mw;
-	unsigned int sw = TEXTW(stext) - lrpad + systrayspacing;
 	unsigned int w = 1;
 
 	if (!showsystray)
 		return;
-	if (systrayonleft)
-		x -= sw + lrpad / 2;
 	if (!systray) {
 		/* init systray */
 		if (!(systray = (Systray *)calloc(1, sizeof(Systray))))
