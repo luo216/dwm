@@ -2186,13 +2186,16 @@ tile(Monitor *m)
 		return;
   }
 
-  if (n == 1 && selmon->sel->isnothgappx != 1 && !HIDDEN(selmon->sel)) {
-    h = m->wh * 8 / 9;  /* 8/9 of monitor height,height */
-    mw = h * 3 / 2;     /* 4/3 of monitor width,width */
-    my = m->wx + (m->ww - mw) / 2; /* center the window,x */
-    ty = m->wy + (m->wh - h) / 3;  /* center the window,y */
-		resize(selmon->sel, my, ty, mw, h, False);
-    return;
+  if (n == 1) {
+    c = nexttiled(m->clients);
+    if ( !c->isfloating && !c->isnothgappx ) {
+      h = m->wh * 8 / 9;  /* 8/9 of monitor height,height */
+      mw = h * 3 / 2;     /* 4/3 of monitor width,width */
+      my = m->wx + (m->ww - mw) / 2; /* center the window,x */
+      ty = m->wy + (m->wh - h) / 3;  /* center the window,y */
+		  resize(c, my, ty, mw, h, False);
+      return;
+    }
   }
 
 	if (n > m->nmaster) {
