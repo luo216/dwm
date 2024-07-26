@@ -51,6 +51,7 @@ typedef struct {
 
 /* function declarations */
 static void click_temp(const Arg *arg);
+static void click_net(const Arg *arg);
 static void click_notify(const Arg *arg);
 static void click_cpu(const Arg *arg);
 static void click_cores(const Arg *arg);
@@ -75,6 +76,8 @@ static void init_statusbar();
 static pthread_t draw_status_thread;
 static Node Nodes[NODE_NUM];
 static int numCores;
+static int thermal_zone_index;
+static int interface_index = 0;
 static CoreBlock storage_cores;
 static CpuBlock storage_cpu;
 static float storage_net[2] = {0, 0};
@@ -82,7 +85,7 @@ static Block Blocks[] = {
     [Notify] = {0, NULL, draw_notify, click_notify},
     [Battery] = {0, NULL, draw_battery, NULL},
     [Clock] = {0, NULL, draw_clock, NULL},
-    [Net] = {0, &storage_net, draw_net, NULL},
+    [Net] = {0, &storage_net, draw_net, click_net},
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
     [Cores] = {0, &storage_cores, draw_cores, click_cores},
     [Temp] = {0, NULL, draw_temp, click_temp},
@@ -101,8 +104,35 @@ int getstatuswidth() {
 
 void click_temp(const Arg *arg) {
   if (arg->i == 1) {
+    if (thermal_zone_index < thermal_zone_num) {
+      thermal_zone_index++;
+    } else {
+      thermal_zone_index = 0;
+    }
+    char thermal_str[30];
+    sprintf(thermal_str, "Thermal Zone: %d", thermal_zone_index);
+    const char *notify[] = {"notify-send", thermal_str,  NULL};
+    const Arg v = {.v = notify};
+    spawn(&v);
+  }
+  if (arg->i == 3) {
     const char *psensor[] = {"psensor", NULL};
     const Arg v = {.v = psensor};
+    spawn(&v);
+  }
+}
+
+void click_net(const Arg *arg) {
+  if (arg->i == 1) {
+    if (interface_index < LENGTH(interface_name) - 1) {
+      interface_index++;
+    } else {
+      interface_index = 0;
+    }
+    char thermal_str[30];
+    sprintf(thermal_str, "Interface: %s", interface_name[interface_index]);
+    const char *notify[] = {"notify-send", thermal_str,  NULL};
+    const Arg v = {.v = notify};
     spawn(&v);
   }
 }
@@ -348,7 +378,9 @@ int draw_cpu(int x, Block *block) {
 
 int draw_temp(int x, Block *block) {
   char temp[18];
-  FILE *fp = fopen("/sys/class/thermal/thermal_zone0/temp", "r");
+  char temp_addr[40];
+  sprintf(temp_addr, "/sys/class/thermal/thermal_zone%d/temp", thermal_zone_index);
+  FILE *fp = fopen(temp_addr, "r");
   if (fp == NULL) {
     return x;
   }
@@ -440,18 +472,23 @@ int draw_net(int x, Block *block) {
   char rx[20], tx[20];
   char txpath[50];
   char rxpath[50];
-  sprintf(txpath, "/sys/class/net/%s/statistics/tx_bytes", interface_name);
-  sprintf(rxpath, "/sys/class/net/%s/statistics/rx_bytes", interface_name);
+  int null_width = 15;
+  sprintf(txpath, "/sys/class/net/%s/statistics/tx_bytes", interface_name[interface_index]);
+  sprintf(rxpath, "/sys/class/net/%s/statistics/rx_bytes", interface_name[interface_index]);
 
   // read tx and rx
   FILE *fp = fopen(txpath, "r");
   if (fp == NULL) {
+    x -= null_width;
+    block->bw = null_width;
     return x;
   }
   fscanf(fp, "%s", tx);
   fclose(fp);
   fp = fopen(rxpath, "r");
   if (fp == NULL) {
+    x -= null_width;
+    block->bw = null_width;
     return x;
   }
   fscanf(fp, "%s", rx);

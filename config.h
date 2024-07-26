@@ -3,7 +3,8 @@
 static const char supericon[] = "   ";
 static const char logotext[] = "Arch";
 /* status bar */
-static const char interface_name[] = "wlp0s20f3";
+static const char *interface_name[] = {"enp2s0", "wlp0s20f3", "virbr0", "ztxx4jgrxb", "docker0"};
+static const int thermal_zone_num = 2;
 /* appearance */
 static const unsigned int borderpx  = 3;        /* border pixel of windows */
 static const unsigned int gappx     = 6;       /* gap pixel between windows */
@@ -158,7 +159,7 @@ static const Button buttons[] = {
   { ClkWinClass,          0,              Button1,        spawn,          {.v = roficmd}},
   { ClkWinClass,          0,              Button3,        spawn,          {.v = termcmd_notab}},
 	{ ClkWinTitle,          0,              Button1,        togglewin,      {0} },
-	{ ClkWinTitle,          0,              Button2,        zoom,           {0} },
+	{ ClkWinTitle,          0,              Button3,        zoom,           {0} },
   { ClkStatusText,        0,              Button1,        handleStatus1,  {0}},
   { ClkStatusText,        0,              Button2,        handleStatus2,  {0}},
   { ClkStatusText,        0,              Button3,        handleStatus3,  {0}},

@@ -518,19 +518,28 @@ buttonpress(XEvent *e)
 	if (ev->window == selmon->barwin) {
 		i = 0;
     x = supericonw + logotitlew;
-    if ( ev->x >= x)
-        click = ClkWinClass;
 		do
 			x += TEXTW(tags[i]);
 		while (ev->x >= x && ++i < LENGTH(tags));
-		if (i < LENGTH(tags)) {
+    if ( ev->x < supericonw + logotitlew) {
+      click = ClkWinClass;
+    } else if (i < LENGTH(tags)) {
 			click = ClkTagBar;
 			arg.ui = 1 << i;
-		} else if (ev->x < x + TEXTW(selmon->ltsymbol))
+		} else if (ev->x < x + TEXTW(selmon->ltsymbol)) {
 			click = ClkLtSymbol;
-		else if (ev->x > selmon->ww - systandstat)
+    } else if (ev->x > selmon->ww - systandstat) {
+      int stbsw = 0;
+      int stx = selmon->ww - ev->x - systrayw;
+      for (int j = 0; j < LENGTH(Blocks); j++) {
+        stbsw += Blocks[j].bw;
+        if (stbsw > stx) {
+          arg.i = j;
+          break;
+        }
+      }
 			click = ClkStatusText;
-		else {
+    } else {
 			x += TEXTW(selmon->ltsymbol);
 			c = m->clients;
 
@@ -555,7 +564,7 @@ buttonpress(XEvent *e)
 	for (i = 0; i < LENGTH(buttons); i++)
 		if (click == buttons[i].click && buttons[i].func && buttons[i].button == ev->button
 		&& CLEANMASK(buttons[i].mask) == CLEANMASK(ev->state))
-			buttons[i].func((click == ClkTagBar || click == ClkWinTitle) && buttons[i].arg.i == 0 ? &arg : &buttons[i].arg);
+			buttons[i].func((click == ClkTagBar || click == ClkWinTitle || click == ClkStatusText) && buttons[i].arg.i == 0 ? &arg : &buttons[i].arg);
 }
 
 void
