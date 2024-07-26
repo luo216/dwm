@@ -516,7 +516,10 @@ buttonpress(XEvent *e)
 		focus(NULL);
 	}
 	if (ev->window == selmon->barwin) {
-		i = x = 0;
+		i = 0;
+    x = supericonw + logotitlew;
+    if ( ev->x >= x)
+        click = ClkWinClass;
 		do
 			x += TEXTW(tags[i]);
 		while (ev->x >= x && ++i < LENGTH(tags));
@@ -525,7 +528,7 @@ buttonpress(XEvent *e)
 			arg.ui = 1 << i;
 		} else if (ev->x < x + TEXTW(selmon->ltsymbol))
 			click = ClkLtSymbol;
-		else if (ev->x > selmon->ww - getsystraywidth())
+		else if (ev->x > selmon->ww - systandstat)
 			click = ClkStatusText;
 		else {
 			x += TEXTW(selmon->ltsymbol);
