@@ -29,10 +29,10 @@ static const char *colors[][3]      = {
   /*               fg           bg          border   */
   [SchemeNorm]   = {col_white,  col_blue1,  col_blue1},
   [SchemeSel]    = {col_white,  col_blue2,  col_orange},
-  [SchemeBlue]   = {col_blue3,  col_blue1,  col_blue1},
-  [SchemeGreen]  = {col_green,  col_blue1,  col_blue1},
-  [SchemeOrange] = {col_orange, col_blue1,  col_blue1},
-  [SchemeRed]    = {col_red,    col_blue1,  col_blue1},
+  [SchemeBlue]   = {col_blue3,  col_blue3,  col_blue3},
+  [SchemeGreen]  = {col_green,  col_green,  col_green},
+  [SchemeOrange] = {col_orange, col_orange, col_orange},
+  [SchemeRed]    = {col_red,    col_red,    col_red},
 };
 
 /* tagging */
