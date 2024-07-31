@@ -24,7 +24,7 @@ index 8efca9a..8d7c303 100644
  # flags
  CPPFLAGS = -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700L -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS}
 diff --git a/dwm.c b/dwm.c
-index 67c6b2b..25a52df 100644
+index 67c6b2b..538343c 100644
 --- a/dwm.c
 +++ b/dwm.c
 @@ -40,6 +40,8 @@
@@ -72,11 +72,12 @@ index 67c6b2b..25a52df 100644
  
  /* variables */
  static const char broken[] = "broken";
-@@ -2140,6 +2157,207 @@ zoom(const Arg *arg)
+@@ -2140,6 +2157,212 @@ zoom(const Arg *arg)
  	pop(c);
  }
  
-+void previewallwin(){
++void
++previewallwin(){
 +  int composite_event_base, composite_error_base;
 +  if (!XCompositeQueryExtension(dpy, &composite_event_base, &composite_error_base)) {
 +    fprintf(stderr, "Error: XComposite extension not available.\n");
@@ -108,7 +109,8 @@ index 67c6b2b..25a52df 100644
 +    if (c->pre.win){
 +      XSelectInput(dpy, c->pre.win, ButtonPress | EnterWindowMask | LeaveWindowMask );
 +      XMapWindow(dpy, c->pre.win);
-+      XPutImage(dpy, c->pre.win, drw->gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
++      GC gc = XCreateGC(dpy, c->pre.win, 0, NULL);
++      XPutImage(dpy, c->pre.win, gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
 +    }
 +  }
 +  while (1) {
@@ -158,7 +160,8 @@ index 67c6b2b..25a52df 100644
 +  focus(focus_c);
 +}
 +
-+void setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi){
++void
++setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi){
 +  unsigned int i, j;
 +  unsigned int cx, cy, cw, ch, cmaxh;
 +  unsigned int cols, rows;
@@ -222,7 +225,8 @@ index 67c6b2b..25a52df 100644
 +    c->pre.y += cy;
 +}
 +
-+XImage *getwindowximage(Client *c) {
++XImage*
++getwindowximage(Client *c) {
 +  XCompositeRedirectWindow(dpy, c->win, CompositeRedirectAutomatic);
 +  XWindowAttributes attr;
 +  XGetWindowAttributes( dpy, c->win, &attr );
@@ -253,7 +257,8 @@ index 67c6b2b..25a52df 100644
 +  return temp;
 +}
 +
-+XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch) {
++XImage*
++scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch) {
 +  int factor_w = orig_image->width / cw + 1;
 +  int factor_h = orig_image->height / ch + 1;
 +  int scale_factor = factor_w > factor_h ? factor_w : factor_h;
