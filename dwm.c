@@ -2854,7 +2854,8 @@ zoom(const Arg *arg)
 	pop(c);
 }
 
-void previewallwin(){
+void
+previewallwin(){
   int composite_event_base, composite_error_base;
   if (!XCompositeQueryExtension(dpy, &composite_event_base, &composite_error_base)) {
     fprintf(stderr, "Error: XComposite extension not available.\n");
@@ -2887,7 +2888,8 @@ void previewallwin(){
     if (c->pre.win){
       XSelectInput(dpy, c->pre.win, ButtonPress | EnterWindowMask | LeaveWindowMask );
       XMapWindow(dpy, c->pre.win);
-      XPutImage(dpy, c->pre.win, drw->gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
+      GC gc = XCreateGC(dpy, c->pre.win, 0, NULL);
+      XPutImage(dpy, c->pre.win, gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
     }
   }
   while (1) {
@@ -2937,7 +2939,8 @@ void previewallwin(){
   focus(focus_c);
 }
 
-void setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi){
+void
+setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi){
   unsigned int i, j;
   unsigned int cx, cy, cw, ch, cmaxh;
   unsigned int cols, rows;
@@ -3001,7 +3004,8 @@ void setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gapp
     c->pre.y += cy;
 }
 
-XImage *getwindowximage(Client *c) {
+XImage*
+getwindowximage(Client *c) {
   XCompositeRedirectWindow(dpy, c->win, CompositeRedirectAutomatic);
   XWindowAttributes attr;
   XGetWindowAttributes( dpy, c->win, &attr );
@@ -3032,7 +3036,8 @@ XImage *getwindowximage(Client *c) {
   return temp;
 }
 
-XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch) {
+XImage*
+scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch) {
   int factor_w = orig_image->width / cw + 1;
   int factor_h = orig_image->height / ch + 1;
   int scale_factor = factor_w > factor_h ? factor_w : factor_h;
