@@ -179,13 +179,9 @@ void click_notify(const Arg *arg) {
     for (int i = 0; i < 5; i++) {
       spawn(&v);
     }
-  } else if (arg->i == 2) {
+  } else if (arg->i == 3) {
     const char *history_clear[] = {"dunstctl", "history-clear", NULL};
     const Arg v = {.v = history_clear};
-    spawn(&v);
-  } else if (arg->i == 3) {
-    const char *history_close[] = {"dunstctl", "close-all", NULL};
-    const Arg v = {.v = history_close};
     spawn(&v);
   } else if (arg->i == 4) {
     const char *history_pop[] = {"dunstctl", "history-pop", NULL};
