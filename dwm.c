@@ -41,7 +41,6 @@
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
 #include <X11/Xft/Xft.h>
-#include <X11/extensions/Xcomposite.h>
 #include <X11/extensions/Xrender.h>
 
 #include "drw.h"
@@ -2942,11 +2941,6 @@ killorzoom(const Arg *arg){
 
 void
 previewallwin(){
-  int composite_event_base, composite_error_base;
-  if (!XCompositeQueryExtension(dpy, &composite_event_base, &composite_error_base)) {
-    fprintf(stderr, "Error: XComposite extension not available.\n");
-    return;
-  }
   Monitor *m = selmon;
   Client *c, *focus_c = NULL;
   unsigned int n;
@@ -3092,7 +3086,6 @@ setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, un
 
 XImage*
 getwindowximage(Client *c) {
-  XCompositeRedirectWindow(dpy, c->win, CompositeRedirectAutomatic);
   XWindowAttributes attr;
   XGetWindowAttributes( dpy, c->win, &attr );
   XRenderPictFormat *format = XRenderFindVisualFormat( dpy, attr.visual );
@@ -3118,7 +3111,6 @@ getwindowximage(Client *c) {
   temp->green_mask = format2->direct.greenMask << format2->direct.green;
   temp->blue_mask = format2->direct.blueMask << format2->direct.blue;
   temp->depth = DefaultDepth(dpy, screen);
-  XCompositeUnredirectWindow(dpy, c->win, CompositeRedirectAutomatic);
   return temp;
 }
 

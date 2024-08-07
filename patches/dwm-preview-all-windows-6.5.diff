@@ -11,7 +11,7 @@ index 9efa774..f462e32 100644
  
  /* button definitions */
 diff --git a/config.mk b/config.mk
-index 8efca9a..8d7c303 100644
+index 8efca9a..8c62d8f 100644
 --- a/config.mk
 +++ b/config.mk
 @@ -23,7 +23,7 @@ FREETYPEINC = /usr/include/freetype2
@@ -19,24 +19,23 @@ index 8efca9a..8d7c303 100644
  # includes and libs
  INCS = -I${X11INC} -I${FREETYPEINC}
 -LIBS = -L${X11LIB} -lX11 ${XINERAMALIBS} ${FREETYPELIBS}
-+LIBS = -L${X11LIB} -lX11 -lXrender -lXcomposite ${XINERAMALIBS} ${FREETYPELIBS}
++LIBS = -L${X11LIB} -lX11 -lXrender ${XINERAMALIBS} ${FREETYPELIBS}
  
  # flags
  CPPFLAGS = -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700L -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS}
 diff --git a/dwm.c b/dwm.c
-index 67c6b2b..538343c 100644
+index 67c6b2b..bb81b53 100644
 --- a/dwm.c
 +++ b/dwm.c
-@@ -40,6 +40,8 @@
+@@ -40,6 +40,7 @@
  #include <X11/extensions/Xinerama.h>
  #endif /* XINERAMA */
  #include <X11/Xft/Xft.h>
-+#include <X11/extensions/Xcomposite.h>
 +#include <X11/extensions/Xrender.h>
  
  #include "drw.h"
  #include "util.h"
-@@ -84,6 +86,16 @@ typedef struct {
+@@ -84,6 +85,16 @@ typedef struct {
  
  typedef struct Monitor Monitor;
  typedef struct Client Client;
@@ -53,7 +52,7 @@ index 67c6b2b..538343c 100644
  struct Client {
  	char name[256];
  	float mina, maxa;
-@@ -97,6 +109,7 @@ struct Client {
+@@ -97,6 +108,7 @@ struct Client {
  	Client *snext;
  	Monitor *mon;
  	Window win;
@@ -61,7 +60,7 @@ index 67c6b2b..538343c 100644
  };
  
  typedef struct {
-@@ -233,6 +246,10 @@ static int xerror(Display *dpy, XErrorEvent *ee);
+@@ -233,6 +245,10 @@ static int xerror(Display *dpy, XErrorEvent *ee);
  static int xerrordummy(Display *dpy, XErrorEvent *ee);
  static int xerrorstart(Display *dpy, XErrorEvent *ee);
  static void zoom(const Arg *arg);
@@ -72,17 +71,12 @@ index 67c6b2b..538343c 100644
  
  /* variables */
  static const char broken[] = "broken";
-@@ -2140,6 +2157,212 @@ zoom(const Arg *arg)
+@@ -2140,6 +2156,205 @@ zoom(const Arg *arg)
  	pop(c);
  }
  
 +void
 +previewallwin(){
-+  int composite_event_base, composite_error_base;
-+  if (!XCompositeQueryExtension(dpy, &composite_event_base, &composite_error_base)) {
-+    fprintf(stderr, "Error: XComposite extension not available.\n");
-+    return;
-+  }
 +  Monitor *m = selmon;
 +  Client *c, *focus_c = NULL;
 +  unsigned int n;
@@ -227,7 +221,6 @@ index 67c6b2b..538343c 100644
 +
 +XImage*
 +getwindowximage(Client *c) {
-+  XCompositeRedirectWindow(dpy, c->win, CompositeRedirectAutomatic);
 +  XWindowAttributes attr;
 +  XGetWindowAttributes( dpy, c->win, &attr );
 +  XRenderPictFormat *format = XRenderFindVisualFormat( dpy, attr.visual );
@@ -253,7 +246,6 @@ index 67c6b2b..538343c 100644
 +  temp->green_mask = format2->direct.greenMask << format2->direct.green;
 +  temp->blue_mask = format2->direct.blueMask << format2->direct.blue;
 +  temp->depth = DefaultDepth(dpy, screen);
-+  XCompositeUnredirectWindow(dpy, c->win, CompositeRedirectAutomatic);
 +  return temp;
 +}
 +
