@@ -295,6 +295,7 @@ static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void xinitvisual();
 static void zoom(const Arg *arg);
+static void killorzoom(const Arg *arg);
 static void previewallwin();
 static void setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi);
 static XImage *getwindowximage(Client *c);
@@ -2902,6 +2903,15 @@ zoom(const Arg *arg)
 	if (c == nexttiled(selmon->clients) && !(c = nexttiled(c->next)))
 		return;
 	pop(c);
+}
+
+void
+killorzoom(const Arg *arg){
+	Client *c = (Client*)arg->v;
+  if (c == nexttiled(selmon->clients))
+    killclient(&(Arg){0});
+  else
+    zoom(arg);
 }
 
 void
