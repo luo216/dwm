@@ -83,7 +83,7 @@ enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
        NetWMWindowTypeDialog, NetClientList, NetLast }; /* EWMH atoms */
 enum { Manager, Xembed, XembedInfo, XLast }; /* Xembed atoms */
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
-enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkWinClass,
+enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkNullWinTitle, ClkWinClass,
        ClkClientWin, ClkRootWin, ClkLast }; /* clicks */
 
 typedef union {
@@ -562,6 +562,8 @@ buttonpress(XEvent *e)
 
 				click = ClkWinTitle;
 				arg.v = c;
+			} else {
+			  click = ClkNullWinTitle;
 			}
 		}
 	} else if ((c = wintoclient(ev->window))) {
@@ -2932,8 +2934,11 @@ zoom(const Arg *arg)
 
 void
 killorzoom(const Arg *arg){
-	Client *c = (Client*)arg->v;
-  if (c == nexttiled(selmon->clients))
+	Client *ac = (Client*)arg->v;
+  Client *c = selmon->clients;
+	for (; c && (!ISVISIBLE(c)); c = c->next)
+    break;
+  if (ac == c)
     killclient(&(Arg){0});
   else
     zoom(arg);
