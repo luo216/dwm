@@ -230,6 +230,7 @@ static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
 static Client *nexttiled(Client *c);
+static Client *nextvisible(Client *c);
 static void pop(Client *c);
 static void propertynotify(XEvent *e);
 static void quit(const Arg *arg);
@@ -1536,6 +1537,13 @@ nexttiled(Client *c)
 {
 	for (; c && (c->isfloating || !ISVISIBLE(c) || HIDDEN(c)); c = c->next);
 	return c;
+}
+
+Client *
+nextvisible(Client *c)
+{
+  for (; c && !ISVISIBLE(c); c = c->next);
+  return c;
 }
 
 void
@@ -2934,11 +2942,8 @@ zoom(const Arg *arg)
 
 void
 killorzoom(const Arg *arg){
-	Client *ac = (Client*)arg->v;
-  Client *c = selmon->clients;
-	for (; c && (!ISVISIBLE(c)); c = c->next)
-    break;
-  if (ac == c)
+	Client *c = (Client*)arg->v;
+  if (c == nextvisible(selmon->clients))
     killclient(&(Arg){0});
   else
     zoom(arg);
