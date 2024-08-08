@@ -111,13 +111,23 @@ void click_temp(const Arg *arg) {
     }
     char thermal_str[30];
     sprintf(thermal_str, "Thermal Zone: %d", thermal_zone_index);
-    const char *notify[] = {"notify-send", thermal_str,  NULL};
+    const char *notify[] = {"notify-send", thermal_str, NULL};
     const Arg v = {.v = notify};
     spawn(&v);
   }
   if (arg->i == 3) {
     const char *psensor[] = {"psensor", NULL};
     const Arg v = {.v = psensor};
+    spawn(&v);
+  }
+  if (arg->i == 4) {
+    const char *keymap[] = {"/usr/local/bin/key-remap.sh", NULL};
+    const Arg v = {.v = keymap};
+    spawn(&v);
+  }
+  if (arg->i == 5) {
+    const char *monitor[] = {"mate-system-monitor", NULL};
+    const Arg v = {.v = monitor};
     spawn(&v);
   }
 }
