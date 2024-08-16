@@ -85,8 +85,8 @@ static const Layout layouts[] = {
 
 /* commands */
 static const char *roficmd[] = {"rofi", "-mousable", "-show", NULL};
-static const char *tabsurf[] = {"tabbed", "surf", "-e", NULL};
-static const char *termcmd[] = {"tabbed", "-r", "2", "st", "-w", "''", NULL};
+static const char *tabsurf[] = {"tabbed", "-n", "surf-browser", "surf", "-e", NULL};
+static const char *termcmd[] = {"tabbed", "-n", "simple-terminal", "-r", "2", "st", "-w", "''", NULL};
 static const char *termcmd_notab[] = {"st", NULL};
 static const char *inc_light[] = {"light", "-A", "5", NULL};
 static const char *inc_light_1[] = {"light", "-A", "1", NULL};
