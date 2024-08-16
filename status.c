@@ -121,7 +121,7 @@ void click_temp(const Arg *arg) {
     spawn(&v);
   }
   if (arg->i == 4) {
-    const char *keymap[] = {"/usr/local/bin/key-remap.sh", NULL};
+    const char *keymap[] = {"/usr/local/bin/caps2super.sh", NULL};
     const Arg v = {.v = keymap};
     spawn(&v);
   }
