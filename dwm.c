@@ -84,7 +84,7 @@ enum { NetSupported, NetWMName, NetWMState, NetWMCheck,
 enum { Manager, Xembed, XembedInfo, XLast }; /* Xembed atoms */
 enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms */
 enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkNullWinTitle, ClkWinClass,
-       ClkClientWin, ClkRootWin, ClkLast }; /* clicks */
+       ClkSuperIcon, ClkClientWin, ClkRootWin, ClkLast }; /* clicks */
 
 typedef union {
 	int i;
@@ -270,6 +270,7 @@ static void togglefullscr(const Arg *arg);
 static void toggletag(const Arg *arg);
 static void toggleview(const Arg *arg);
 static void togglewin(const Arg *arg);
+static void togglesupericon(const Arg *arg);
 static void unfocus(Client *c, int setfocus);
 static void unmanage(Client *c, int destroyed);
 static void unmapnotify(XEvent *e);
@@ -304,6 +305,7 @@ static XImage *getwindowximage(Client *c);
 static XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch);
 
 /* variables */
+static int supericonflag = 1;
 static Systray *systray = NULL;
 static int systandstat; /* right padding for systray */
 static int systrayw = 100;
@@ -531,7 +533,9 @@ buttonpress(XEvent *e)
 		do
 			x += TEXTW(tags[i]);
 		while (ev->x >= x && ++i < LENGTH(tags));
-    if ( ev->x < supericonw + logotitlew) {
+    if ( ev->x < supericonw) {
+      click = ClkSuperIcon;
+    } else if ( ev->x < supericonw + logotitlew) {
       click = ClkWinClass;
     } else if (i < LENGTH(tags)) {
 			click = ClkTagBar;
@@ -900,8 +904,10 @@ drawbar(Monitor *m)
 	}
 	x = 0;
   supericonw = TEXTW(supericon);
-  drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_setscheme(drw, (supericonflag) ? scheme[SchemeNorm] : scheme[SchemeBlue]);
   drw_text(drw, x, 0, supericonw, bh, lrpad, supericon, 0);
+
+  drw_setscheme(drw, scheme[SchemeNorm]);
   x += supericonw;
   if (selmon->sel) {
     const char *winclass;
@@ -1319,6 +1325,9 @@ isuniquegeom(XineramaScreenInfo *unique, size_t n, XineramaScreenInfo *info)
 void
 keypress(XEvent *e)
 {
+  if (!supericonflag)
+    return;
+
 	unsigned int i;
 	KeySym keysym;
 	XKeyEvent *ev;
@@ -2347,6 +2356,12 @@ togglewin(const Arg *arg)
 		focus(c);
 		restack(selmon);
 	}
+}
+
+void
+togglesupericon(const Arg *arg){
+  supericonflag = !supericonflag;
+  drawbars();
 }
 
 void
