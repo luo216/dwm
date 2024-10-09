@@ -102,6 +102,8 @@ static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@", "
 static const char *flameshot[] = {"flameshot", "gui", NULL};
 static const char *pcmanfm[] = {"pcmanfm", NULL};
 static const char *dmlock[] = {"Xsleep", "1", NULL};
+static const char *xdo_click4[] = {"xdotool", "click", "4", NULL};
+static const char *xdo_click5[] = {"xdotool", "click", "5", NULL};
 
 static const Key keys[] = {
 	/* modifier                     key        function        argument */
@@ -157,6 +159,8 @@ static const Key keys[] = {
 	TAGKEYS(                        XK_9,                      8)
 	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} },
  	{ MODKEY,                       XK_r,      previewallwin,  {0} },
+ 	{ MODKEY,                       XK_u,      spawn,          {.v = xdo_click4} },
+ 	{ MODKEY,                       XK_n,      spawn,          {.v = xdo_click5} },
 };
 
 /* button definitions */
