@@ -1,10 +1,16 @@
 /* See LICENSE file for copyright and license details. */
 
 static const char supericon[] = "   ";
-static const char logotext[] = "Arch";
+static const char logotext[] = "Arch-linux";
 /* status bar */
-static const char *interface_name[] = {"enp2s0", "wlp0s20f3", "virbr0", "ztxx4jgrxb", "docker0"};
+static const char *interface_name[] = {"enp3s0", "wlp0s20f3", "virbr0", "docker0"};
 static const int thermal_zone_num = 2;
+/* config patch */
+static const char autostartblocksh[] = "autostart_blocking.sh";
+static const char autostartsh[] = "autostart.sh";
+static const char broken[] = "broken";
+static const char dwmdir[] = "dwm";
+static const char dotconfig[] = ".config";
 /* appearance */
 static const unsigned int borderpx  = 3;        /* border pixel of windows */
 static const unsigned int gappx     = 6;       /* gap pixel between windows */
@@ -55,7 +61,6 @@ static const Rule rules[] = {
 	 *	WM_NAME(STRING) = title
 	 */
 	/* class            instance    title       tags mask     isfloating   monitor */
-	{ "Gimp",           NULL,       NULL,       0,            1,           -1 },
 	{ "R-quick-share",  NULL,       NULL,       1 << 8,       0,           -1 },
 };
 
@@ -101,7 +106,7 @@ static const char *dec_volume_1[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@
 static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle", NULL};
 static const char *flameshot[] = {"flameshot", "gui", NULL};
 static const char *pcmanfm[] = {"pcmanfm", NULL};
-static const char *dmlock[] = {"Xsleep", "1", NULL};
+static const char *dmlock[] = {"xsleep.sh", "5", NULL};
 static const char *xdo_click4[] = {"xdotool", "click", "4", NULL};
 static const char *xdo_click5[] = {"xdotool", "click", "5", NULL};
 

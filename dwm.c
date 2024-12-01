@@ -310,11 +310,6 @@ static int systandstat; /* right padding for systray */
 static int systrayw = 100;
 static int logotitlew;
 static int supericonw;
-static const char autostartblocksh[] = "autostart_blocking.sh";
-static const char autostartsh[] = "autostart.sh";
-static const char broken[] = "broken";
-static const char dwmdir[] = "dwm";
-static const char dotconfig[] = ".config";
 static int screen;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh;               /* bar height */

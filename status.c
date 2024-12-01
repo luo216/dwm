@@ -12,6 +12,7 @@ enum {
   Cpu,
   Cores,
   Temp,
+  More,
 }; /*status bar blocks*/
 
 /* status bar block struct*/
@@ -50,6 +51,7 @@ typedef struct {
 } CoreBlock;
 
 /* function declarations */
+static void click_more(const Arg *arg);
 static void click_temp(const Arg *arg);
 static void click_net(const Arg *arg);
 static void click_notify(const Arg *arg);
@@ -64,6 +66,7 @@ static int draw_notify(int x, Block *block);
 static int draw_cpu(int x, Block *block);
 static int draw_cores(int x, Block *block);
 static int draw_temp(int x, Block *block);
+static int draw_more(int x, Block *block);
 static int getstatuswidth();
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
@@ -89,6 +92,7 @@ static Block Blocks[] = {
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
     [Cores] = {0, &storage_cores, draw_cores, click_cores},
     [Temp] = {0, NULL, draw_temp, click_temp},
+    [More] = {0, NULL, draw_more, click_more},
 };
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -115,19 +119,12 @@ void click_temp(const Arg *arg) {
     const Arg v = {.v = notify};
     spawn(&v);
   }
-  if (arg->i == 3) {
-    const char *psensor[] = {"psensor", NULL};
-    const Arg v = {.v = psensor};
-    spawn(&v);
-  }
-  if (arg->i == 4) {
-    const char *keymap[] = {"/usr/local/bin/caps2super.sh", NULL};
-    const Arg v = {.v = keymap};
-    spawn(&v);
-  }
-  if (arg->i == 5) {
-    const char *monitor[] = {"mate-system-monitor", NULL};
-    const Arg v = {.v = monitor};
+}
+
+void click_more(const Arg *arg) {
+  if (arg->i == 1) {
+    const char *orders[] = {"script-orders.sh", NULL};
+    const Arg v = {.v = orders};
     spawn(&v);
   }
 }
@@ -141,7 +138,7 @@ void click_net(const Arg *arg) {
     }
     char thermal_str[30];
     sprintf(thermal_str, "Interface: %s", interface_name[interface_index]);
-    const char *notify[] = {"notify-send", thermal_str,  NULL};
+    const char *notify[] = {"notify-send", thermal_str, NULL};
     const Arg v = {.v = notify};
     spawn(&v);
   }
@@ -385,7 +382,8 @@ int draw_cpu(int x, Block *block) {
 int draw_temp(int x, Block *block) {
   char temp[18];
   char temp_addr[40];
-  sprintf(temp_addr, "/sys/class/thermal/thermal_zone%d/temp", thermal_zone_index);
+  sprintf(temp_addr, "/sys/class/thermal/thermal_zone%d/temp",
+          thermal_zone_index);
   FILE *fp = fopen(temp_addr, "r");
   if (fp == NULL) {
     return x;
@@ -394,7 +392,7 @@ int draw_temp(int x, Block *block) {
   fscanf(fp, "%d", &tmp);
   fclose(fp);
   tmp = tmp / 1000;
-  sprintf(temp, " %d℃", tmp);
+  sprintf(temp, "%d℃", tmp);
   block->bw = TEXTW(temp);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, temp, 0);
@@ -404,6 +402,15 @@ int draw_temp(int x, Block *block) {
 
 int draw_notify(int x, Block *block) {
   char tag[] = " ";
+  block->bw = TEXTW(tag);
+  x -= block->bw;
+  drw_text(drw, x, 0, block->bw, bh, lrpad, tag, 0);
+
+  return x;
+}
+
+int draw_more(int x, Block *block) {
+  char tag[] = "";
   block->bw = TEXTW(tag);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, lrpad, tag, 0);
@@ -479,8 +486,10 @@ int draw_net(int x, Block *block) {
   char txpath[50];
   char rxpath[50];
   int null_width = 15;
-  sprintf(txpath, "/sys/class/net/%s/statistics/tx_bytes", interface_name[interface_index]);
-  sprintf(rxpath, "/sys/class/net/%s/statistics/rx_bytes", interface_name[interface_index]);
+  sprintf(txpath, "/sys/class/net/%s/statistics/tx_bytes",
+          interface_name[interface_index]);
+  sprintf(rxpath, "/sys/class/net/%s/statistics/rx_bytes",
+          interface_name[interface_index]);
 
   // read tx and rx
   FILE *fp = fopen(txpath, "r");
