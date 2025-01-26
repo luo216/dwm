@@ -73,13 +73,15 @@ static void handleStatus2(const Arg *arg);
 static void handleStatus3(const Arg *arg);
 static void handleStatus4(const Arg *arg);
 static void handleStatus5(const Arg *arg);
+static int get_temp_nums();
 static void init_statusbar();
 
 /* variables */
 static pthread_t draw_status_thread;
 static Node Nodes[NODE_NUM];
 static int numCores;
-static int thermal_zone_index;
+static int thermal_zone_index = 0;
+static int thermal_zone_num = 0;
 static int interface_index = 0;
 static CoreBlock storage_cores;
 static CpuBlock storage_cpu;
@@ -123,8 +125,7 @@ void click_temp(const Arg *arg) {
 
 void click_more(const Arg *arg) {
   if (arg->i == 1) {
-    const char *orders[] = {"script-orders.sh", NULL};
-    const Arg v = {.v = orders};
+    const Arg v = {.v = script_menu};
     spawn(&v);
   }
 }
@@ -392,10 +393,10 @@ int draw_temp(int x, Block *block) {
   fscanf(fp, "%d", &tmp);
   fclose(fp);
   tmp = tmp / 1000;
-  sprintf(temp, "%d℃", tmp);
+  sprintf(temp, "%d", tmp);
   block->bw = TEXTW(temp);
   x -= block->bw;
-  drw_text(drw, x, 0, block->bw, bh, lrpad, temp, 0);
+  drw_text(drw, x, 0, block->bw, bh, 0, temp, 0);
 
   return x;
 }
@@ -410,10 +411,10 @@ int draw_notify(int x, Block *block) {
 }
 
 int draw_more(int x, Block *block) {
-  char tag[] = "";
+  char tag[] = "󰍻 ";
   block->bw = TEXTW(tag);
   x -= block->bw;
-  drw_text(drw, x, 0, block->bw, bh, lrpad, tag, 0);
+  drw_text(drw, x, 0, block->bw, bh, lrpad * 3 / 4, tag, 0);
 
   return x;
 }
@@ -522,24 +523,24 @@ int draw_net(int x, Block *block) {
   f_arr[1] = rxi_tmp;
 
   // Format the values
-  if (txi < 1024) {
+  if (txi < 1000) {
     sprintf(tx, "%.2f B/s", txi);
-  } else if (txi < 1024 * 1024) {
-    sprintf(tx, "%.2f KB/s", txi / 1024);
-  } else if (txi < 1024 * 1024 * 1024) {
-    sprintf(tx, "%.2f MB/s", txi / 1024 / 1024);
+  } else if (txi < 1000 * 1000) {
+    sprintf(tx, "%.2f KB/s", txi / 1000);
+  } else if (txi < 1000 * 1000 * 1000) {
+    sprintf(tx, "%.2f MB/s", txi / 1000 / 1000);
   } else {
-    sprintf(tx, "%.2f GB/s", txi / 1024 / 1024 / 1024);
+    sprintf(tx, "%.2f GB/s", txi / 1000 / 1000 / 1000);
   }
 
-  if (rxi < 1024) {
+  if (rxi < 1000) {
     sprintf(rx, "%.2f B/s", rxi);
-  } else if (rxi < 1024 * 1024) {
-    sprintf(rx, "%.2f KB/s", rxi / 1024);
-  } else if (rxi < 1024 * 1024 * 1024) {
-    sprintf(rx, "%.2f MB/s", rxi / 1024 / 1024);
+  } else if (rxi < 1000 * 1000) {
+    sprintf(rx, "%.2f KB/s", rxi / 1000);
+  } else if (rxi < 1000 * 1000 * 1000) {
+    sprintf(rx, "%.2f MB/s", rxi / 1000 / 1000);
   } else {
-    sprintf(rx, "%.2f GB/s", rxi / 1024 / 1024 / 1024);
+    sprintf(rx, "%.2f GB/s", rxi / 1000 / 1000 / 1000);
   }
 
   drw_setfontset(drw, smallfont);
@@ -606,6 +607,37 @@ void handleStatus5(const Arg *arg) {
   }
 }
 
+int get_temp_nums() {
+  const char *path = "/sys/class/thermal";
+  DIR *dir;
+  struct dirent *entry;
+  int max_number = -1;
+
+  // Open directory
+  dir = opendir(path);
+  if (dir == NULL) {
+    perror("opendir");
+    return -1;
+  }
+
+  // Read directory entry
+  while ((entry = readdir(dir)) != NULL) {
+    // Check out whether the name of the entry starts with \ "thermal zone \"
+    if (strncmp(entry->d_name, "thermal_zone", 12) == 0) {
+      // Extract the number and update max number
+      int number = -1;
+      sscanf(entry->d_name, "thermal_zone%d", &number);
+      if (number > max_number) {
+        max_number = number;
+      }
+    }
+  }
+
+  // Close the directory
+  closedir(dir);
+  return max_number;
+}
+
 void init_statusbar() {
   normalfont = drw->fonts;
   smallfont = drw->fonts->next;
@@ -626,6 +658,9 @@ void init_statusbar() {
   // init cpu Cores
   storage_cores.curr = (Cpuload *)malloc(sizeof(Cpuload) * numCores);
   storage_cores.prev = (Cpuload *)malloc(sizeof(Cpuload) * numCores);
+
+  // get temp nums
+  thermal_zone_num = get_temp_nums();
 }
 
 void clean_status_pthread() {

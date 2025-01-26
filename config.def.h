@@ -4,7 +4,6 @@ static const char supericon[] = "   ";
 static const char logotext[] = "Arch-linux";
 /* status bar */
 static const char *interface_name[] = {"enp3s0", "wlp0s20f3", "virbr0", "docker0"};
-static const int thermal_zone_num = 2;
 /* config patch */
 static const char autostartblocksh[] = "autostart_blocking.sh";
 static const char autostartsh[] = "autostart.sh";
@@ -23,24 +22,17 @@ static const int systraypinningfailfirst = 1;   /* 1: if pinning fails, display 
 static const int showsystray        = 1;     /* 0 means no systray */
 static const int showbar            = 1;     /* 0 means no bar */
 static const int topbar             = 1;     /* 0 means bottom bar */
-static const char *fonts[] = {"Hack Nerd Font:size=14", "Hack Nerd Font:size=9"};
-static const char col_white[]       = "#eeeeee";
-static const char col_blue1[]       = "#325d9b";
-static const char col_blue2[]       = "#2c4a7e";
-static const char col_blue3[]       = "#0078d7";
-static const char col_green[]       = "#64DD17";
-static const char col_orange[]      = "Orange";
-static const char col_red[]         = "Red";
+static const char *fonts[] = {"Hack Nerd Font:size=14", "WenQuanYi Zen Hei:size=9"};
 static const unsigned int baralpha = 0xd0;
 static const unsigned int borderalpha = OPAQUE;
 static const char *colors[][3]      = {
   /*               fg           bg          border   */
-  [SchemeNorm]   = {col_white,  col_blue1,  col_blue1},
-  [SchemeSel]    = {col_white,  col_blue2,  col_orange},
-  [SchemeBlue]   = {col_blue3,  col_blue1,  col_blue3},
-  [SchemeGreen]  = {col_green,  col_green,  col_green},
-  [SchemeOrange] = {col_orange, col_orange, col_orange},
-  [SchemeRed]    = {col_red,    col_red,    col_red},
+  [SchemeNorm]   = {"#eeeeee",  "#325d9b",  "#325d9b"},
+  [SchemeSel]    = {"#eeeeee",  "#2c4a7e",  "Orange"},
+  [SchemeBlue]   = {"#0078d7",  "#325d9b",  "#0078d7"},
+  [SchemeGreen]  = {"#64DD17",  "#64DD17",  "#64DD17"},
+  [SchemeOrange] = {"Orange",   "Orange",   "Orange"},
+  [SchemeRed]    = {"Red",      "Red",      "Red"},
 };
 static const unsigned int alphas[][3]      = {
     /*               fg      bg        border*/
@@ -90,41 +82,35 @@ static const Layout layouts[] = {
 
 /* commands */
 static const char *roficmd[] = {"rofi", "-mousable", "-show", NULL};
-static const char *tabsurf[] = {"tabbed", "-n", "surf-browser", "surf", "-e", NULL};
-static const char *termcmd[] = {"tabbed", "-n", "simple-terminal", "-r", "2", "st", "-w", "''", NULL};
-static const char *termcmd_notab[] = {"st", NULL};
+static const char *browser[] = {"google-chrome-stable", NULL};
+static const char *termcmd[] = {"wezterm", NULL};
+static const char *script_menu[] = {"script-menu.sh", NULL};
 static const char *inc_light[] = {"light", "-A", "5", NULL};
 static const char *inc_light_1[] = {"light", "-A", "1", NULL};
 static const char *dec_light[] = {"light", "-U", "5", NULL};
 static const char *dec_light_1[] = {"light", "-U", "1", NULL};
-static const char *inc_kbd_light[] = { "light", "-s", "sysfs/leds/chromeos::kbd_backlight", "-A", "5", NULL};
-static const char *dec_kbd_light[] = { "light", "-s", "sysfs/leds/chromeos::kbd_backlight", "-U", "5", NULL};
 static const char *inc_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@", "+5%", NULL};
 static const char *inc_volume_1[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@", "+1%", NULL};
 static const char *dec_volume[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@", "-5%", NULL};
 static const char *dec_volume_1[] = {"pactl", "set-sink-volume", "@DEFAULT_SINK@", "-1%", NULL};
 static const char *tog_volume[] = {"pactl", "set-sink-mute", "@DEFAULT_SINK@", "toggle", NULL};
 static const char *flameshot[] = {"flameshot", "gui", NULL};
-static const char *pcmanfm[] = {"pcmanfm", NULL};
-static const char *dmlock[] = {"xsleep.sh", "5", NULL};
+static const char *filemgr[] = {"thunar", NULL};
 static const char *xdo_click4[] = {"xdotool", "click", "4", NULL};
 static const char *xdo_click5[] = {"xdotool", "click", "5", NULL};
 
 static const Key keys[] = {
 	/* modifier                     key        function        argument */
-  { MODKEY,                       XK_F5,     spawn,          {.v = dec_light}},
-  { MODKEY,                       XK_F6,     spawn,          {.v = inc_light}},
-  { MODKEY|ShiftMask,             XK_F5,     spawn,          {.v = dec_kbd_light}},
-  { MODKEY|ShiftMask,             XK_F6,     spawn,          {.v = inc_kbd_light}},
-  { MODKEY,                       XK_F8,     spawn,          {.v = tog_volume}},
-  { MODKEY,                       XK_F9,     spawn,          {.v = dec_volume}},
-  { MODKEY,                       XK_F10,    spawn,          {.v = inc_volume}},
-  { MODKEY,                       XK_Escape, spawn,          {.v = dmlock}},
-  { MODKEY,                       XK_Print,  spawn,          {.v = flameshot}},
+  { MODKEY,                       XK_F3,     spawn,          {.v = tog_volume } },
+  { MODKEY,                       XK_F5,     spawn,          {.v = dec_volume } },
+  { MODKEY,                       XK_F6,     spawn,          {.v = inc_volume } },
+  { MODKEY,                       XK_F8,     spawn,          {.v = dec_light } },
+  { MODKEY,                       XK_F9,     spawn,          {.v = inc_light } },
+  { MODKEY,                       XK_F10,    spawn,          {.v = flameshot } },
 	{ MODKEY,                       XK_p,      spawn,          {.v = roficmd } },
-  { MODKEY|ShiftMask,             XK_p,      spawn,          {.v = tabsurf}},
-  { MODKEY|ShiftMask,             XK_Return, spawn,          {.v = termcmd}},
-  { MODKEY,                       XK_e,      spawn,          {.v = pcmanfm}},
+  { MODKEY|ShiftMask,             XK_p,      spawn,          {.v = browser } },
+  { MODKEY|ShiftMask,             XK_Return, spawn,          {.v = termcmd } },
+  { MODKEY,                       XK_e,      spawn,          {.v = filemgr } },
 	{ MODKEY,                       XK_b,      togglebar,      {0} },
 	{ MODKEY,                       XK_j,      focusstackvis,  {.i = +1 } },
 	{ MODKEY,                       XK_k,      focusstackvis,  {.i = -1 } },
@@ -151,7 +137,7 @@ static const Key keys[] = {
 	{ MODKEY|ShiftMask,             XK_period, tagmon,         {.i = +1 } },
 	{ MODKEY,                       XK_s,      show,           {0} },
 	{ MODKEY|ShiftMask,             XK_s,      showall,        {0} },
-  { MODKEY,                       XK_o,      showonly,       {0}},
+  { MODKEY,                       XK_o,      showonly,       {0} },
 	{ MODKEY|ShiftMask,             XK_h,      hide,           {0} },
 	TAGKEYS(                        XK_1,                      0)
 	TAGKEYS(                        XK_2,                      1)
@@ -172,9 +158,9 @@ static const Key keys[] = {
 /* click can be ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkClientWin, or ClkRootWin */
 static const Button buttons[] = {
 	/* click                event mask      button          function        argument */
-  { ClkSuperIcon,         0,              Button1,        togglesupericon,  {0}},
-  { ClkWinClass,          0,              Button1,        spawn,            {.v = roficmd}},
-  { ClkWinClass,          0,              Button3,        spawn,            {.v = termcmd_notab}},
+  { ClkSuperIcon,         0,              Button1,        togglesupericon,  {0} },
+  { ClkWinClass,          0,              Button1,        spawn,            {.v = roficmd} },
+  { ClkWinClass,          0,              Button3,        spawn,            {.v = termcmd} },
 	{ ClkWinClass,          0,              Button4,        pview,            {0} },
 	{ ClkWinClass,          0,              Button5,        nview,            {0} },
 	{ ClkTagBar,            0,              Button1,        view,             {0} },
@@ -183,17 +169,17 @@ static const Button buttons[] = {
 	{ ClkTagBar,            0,              Button5,        nview,            {0} },
 	{ ClkTagBar,            MODKEY,         Button1,        tag,              {0} },
 	{ ClkTagBar,            MODKEY,         Button3,        toggletag,        {0} },
-  { ClkLtSymbol,          0,              Button1,        setlayout,        {0}},
-  { ClkLtSymbol,          0,              Button3,        setlayout,        {.v = &layouts[2]}},
+  { ClkLtSymbol,          0,              Button1,        setlayout,        {0} },
+  { ClkLtSymbol,          0,              Button3,        setlayout,        {.v = &layouts[2]} },
 	{ ClkWinTitle,          0,              Button1,        togglewin,        {0} },
 	{ ClkWinTitle,          0,              Button3,        killorzoom,       {0} },
 	{ ClkWinTitle,          0,              Button5,        previewallwin,    {0} },
 	{ ClkNullWinTitle,      0,              Button5,        previewallwin,    {0} },
-  { ClkStatusText,        0,              Button1,        handleStatus1,    {0}},
-  { ClkStatusText,        0,              Button2,        handleStatus2,    {0}},
-  { ClkStatusText,        0,              Button3,        handleStatus3,    {0}},
-  { ClkStatusText,        0,              Button4,        handleStatus4,    {0}},
-  { ClkStatusText,        0,              Button5,        handleStatus5,    {0}},
+  { ClkStatusText,        0,              Button1,        handleStatus1,    {0} },
+  { ClkStatusText,        0,              Button2,        handleStatus2,    {0} },
+  { ClkStatusText,        0,              Button3,        handleStatus3,    {0} },
+  { ClkStatusText,        0,              Button4,        handleStatus4,    {0} },
+  { ClkStatusText,        0,              Button5,        handleStatus5,    {0} },
 	{ ClkClientWin,         MODKEY,         Button1,        movemouse,        {0} },
 	{ ClkClientWin,         MODKEY,         Button2,        togglefloating,   {0} },
 	{ ClkClientWin,         MODKEY,         Button3,        resizemouse,      {0} },
