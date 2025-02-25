@@ -1,7 +1,7 @@
 #include <pthread.h>
 
 /* macros */
-#define NODE_NUM 15
+#define NODE_NUM 90
 
 /* enum */
 enum {
@@ -80,6 +80,7 @@ static void init_statusbar();
 static pthread_t draw_status_thread;
 static Node Nodes[NODE_NUM];
 static int numCores;
+static int cores_cwidth;
 static int thermal_zone_index = 0;
 static int thermal_zone_num = 0;
 static int interface_index = 0;
@@ -255,7 +256,7 @@ int draw_cores(int x, Block *block) {
   // draw cpu cores usage
   const int tpad = 2;
   const int border = 1;
-  const int cw = 6;
+  const int cw = cores_cwidth;
   const int w = cw * numCores + 2 * border;
   const int h = bh - 2 * tpad;
 
@@ -334,7 +335,7 @@ int draw_cpu(int x, Block *block) {
   storage->prev->idle = storage->curr->idle;
 
   // Plot cpu usage
-  const int cw = 6;
+  const int cw = 1;
   const int w = cw * NODE_NUM + 2;
   const int y = 2;
   const int h = bh - 2 * y;
@@ -643,6 +644,7 @@ void init_statusbar() {
   smallfont = drw->fonts->next;
 
   numCores = sysconf(_SC_NPROCESSORS_ONLN);
+  cores_cwidth = NODE_NUM / numCores;
   // Each node in nodes is connected head to tail, eventually forming a ring
   for (int i = 0; i < NODE_NUM; i++) {
     Nodes[i].next = &Nodes[i + 1];
