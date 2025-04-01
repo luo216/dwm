@@ -149,7 +149,8 @@ static const Key keys[] = {
 	TAGKEYS(                        XK_8,                      7)
 	TAGKEYS(                        XK_9,                      8)
 	{ MODKEY|ShiftMask,             XK_q,      quit,           {0} },
- 	{ MODKEY,                       XK_r,      previewallwin,  {0} },
+ 	{ MODKEY|ShiftMask,             XK_r,      previewallwin,  {0} },
+ 	{ MODKEY,                       XK_r,      previewindexwin,{0} },
  	{ MODKEY,                       XK_u,      spawn,          {.v = xdo_click4} },
  	{ MODKEY,                       XK_n,      spawn,          {.v = xdo_click5} },
 };
@@ -173,8 +174,10 @@ static const Button buttons[] = {
   { ClkLtSymbol,          0,              Button3,        setlayout,        {.v = &layouts[2]} },
 	{ ClkWinTitle,          0,              Button1,        togglewin,        {0} },
 	{ ClkWinTitle,          0,              Button3,        killorzoom,       {0} },
-	{ ClkWinTitle,          0,              Button5,        previewallwin,    {0} },
-	{ ClkNullWinTitle,      0,              Button5,        previewallwin,    {0} },
+	{ ClkWinTitle,          0,              Button4,        previewallwin,    {0} },
+	{ ClkNullWinTitle,      0,              Button4,        previewallwin,    {0} },
+	{ ClkWinTitle,          0,              Button5,        previewindexwin,  {0} },
+	{ ClkNullWinTitle,      0,              Button5,        previewindexwin,  {0} },
   { ClkStatusText,        0,              Button1,        handleStatus1,    {0} },
   { ClkStatusText,        0,              Button2,        handleStatus2,    {0} },
   { ClkStatusText,        0,              Button3,        handleStatus3,    {0} },
