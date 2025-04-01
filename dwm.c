@@ -228,6 +228,7 @@ static void maprequest(XEvent *e);
 static void monocle(Monitor *m);
 static void motionnotify(XEvent *e);
 static void movemouse(const Arg *arg);
+static Client *nextpreview(Client *c);
 static Client *nexttiled(Client *c);
 static Client *nextvisible(Client *c);
 static void pop(Client *c);
@@ -299,7 +300,9 @@ static void xinitvisual();
 static void zoom(const Arg *arg);
 static void killorzoom(const Arg *arg);
 static void previewallwin();
+static void previewindexwin();
 static void setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi);
+static void setindexpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi);
 static XImage *getwindowximage(Client *c);
 static XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch);
 
@@ -1083,12 +1086,14 @@ focusmon(const Arg *arg)
 }
 
 void
-focusstackvis(const Arg *arg) {
+focusstackvis(const Arg *arg)
+{
 	focusstack(arg->i, 0);
 }
 
 void
-focusstackhid(const Arg *arg) {
+focusstackhid(const Arg *arg)
+{
 	focusstack(arg->i, 1);
 }
 
@@ -1275,7 +1280,8 @@ hide(const Arg *arg)
 }
 
 void
-hidewin(Client *c) {
+hidewin(Client *c) 
+{
 	if (!c || HIDDEN(c))
 		return;
 
@@ -1533,6 +1539,13 @@ movemouse(const Arg *arg)
 		selmon = m;
 		focus(NULL);
 	}
+}
+
+Client *
+nextpreview(Client *c)
+{
+	for (; c && !ISVISIBLE(c); c = c->next);
+	return c;
 }
 
 Client *
@@ -2134,7 +2147,8 @@ showall(const Arg *arg)
 	restack(selmon);
 }
 
-void showonly(const Arg *arg) {
+void showonly(const Arg *arg)
+{
   Client *c = NULL;
   selmon->hidsel = 0;
   showwin(selmon->sel);
@@ -2353,7 +2367,8 @@ togglewin(const Arg *arg)
 }
 
 void
-togglesupericon(const Arg *arg){
+togglesupericon(const Arg *arg)
+{
   supericonflag = !supericonflag;
   drawbars();
 }
@@ -2959,7 +2974,90 @@ killorzoom(const Arg *arg){
 }
 
 void
-previewallwin(){
+previewindexwin()
+{
+  Monitor *m = selmon;
+  Client *c, *focus_c = NULL;
+  unsigned int n;
+  for (n = 0, c = nextpreview(m->clients); c; c = nextpreview(c->next), n++){
+    /* If you hit actualfullscreen patch Unlock the notes below */
+    if (c->isfullscreen)
+      togglefullscr(&(Arg){0});
+    /* If you hit awesomebar patch Unlock the notes below */
+    if (HIDDEN(c))
+      continue;
+    c->pre.orig_image = getwindowximage(c);
+  }
+  if (n == 0)
+    return;
+  setindexpreviewwindowsizepositions(n, m, 60, 15);
+  XEvent event;
+  for(c = nextpreview(m->clients); c; c = nextpreview(c->next)){
+    if (!c->pre.win)
+      c->pre.win = XCreateSimpleWindow(dpy, root, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height, 1, BlackPixel(dpy, screen), WhitePixel(dpy, screen));
+    else
+      XMoveResizeWindow(dpy, c->pre.win, c->pre.x, c->pre.y, c->pre.scaled_image->width, c->pre.scaled_image->height);
+    XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+    XSetWindowBorderWidth(dpy, c->pre.win, borderpx);
+    XUnmapWindow(dpy, c->win);
+    if (c->pre.win){
+      XSelectInput(dpy, c->pre.win, ButtonPress | EnterWindowMask | LeaveWindowMask );
+      XMapWindow(dpy, c->pre.win);
+      GC gc = XCreateGC(dpy, c->pre.win, 0, NULL);
+      XPutImage(dpy, c->pre.win, gc, c->pre.scaled_image, 0, 0, 0, 0, c->pre.scaled_image->width, c->pre.scaled_image->height);
+    }
+  }
+  while (1) {
+    XNextEvent(dpy, &event);
+    if (event.type == ButtonPress) 
+      if (event.xbutton.button == Button1){
+        for(c = nextpreview(m->clients); c; c = nextpreview(c->next)){
+          XUnmapWindow(dpy, c->pre.win);
+          if (event.xbutton.window == c->pre.win){
+            selmon->seltags ^= 1; /* toggle sel tagset */
+            m->tagset[selmon->seltags] = c->tags;
+            focus_c = c;
+            focus(NULL);
+            /* If you hit awesomebar patch Unlock the notes below */
+            if (HIDDEN(c)){
+              showwin(c);
+              continue;
+            }
+          }
+          /* If you hit awesomebar patch Unlock the notes below; 
+           * And you should add the following line to "hidewin" Function
+           * c->pre.orig_image = getwindowximage(c);
+           * */
+          if (HIDDEN(c)){
+            continue;
+          }
+          XMapWindow(dpy, c->win);
+          XDestroyImage(c->pre.orig_image);
+          XDestroyImage(c->pre.scaled_image);
+        }
+        break;
+    }
+    if (event.type == EnterNotify)
+      for(c = nextpreview(m->clients); c; c = nextpreview(c->next))
+        if (event.xcrossing.window == c->pre.win){
+          XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+          break;
+    }
+    if (event.type == LeaveNotify)
+      for(c = nextpreview(m->clients); c; c = nextpreview(c->next))
+        if (event.xcrossing.window == c->pre.win){
+          XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+          break;
+    }
+  }
+
+  arrange(m);
+  focus(focus_c);
+}
+
+void
+previewallwin()
+{
   Monitor *m = selmon;
   Client *c, *focus_c = NULL;
   unsigned int n;
@@ -3039,7 +3137,75 @@ previewallwin(){
 }
 
 void
-setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi){
+setindexpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi)
+{
+  unsigned int i, j;
+  unsigned int cx, cy, cw, ch, cmaxh;
+  unsigned int cols, rows;
+  Client *c, *tmpc;
+
+  if (n == 1) {
+    c = nextpreview(m->clients);
+    cw = (m->ww - 2 * gappo) * 0.8;
+    ch = (m->wh - 2 * gappo) * 0.9;
+    c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+    c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width) / 2;
+    c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
+    return;
+  }
+  if (n == 2) {
+    c = nextpreview(m->clients);
+    tmpc = nextpreview(c->next);
+    cw = (m->ww - 2 * gappo - gappi) / 2;
+    ch = (m->wh - 2 * gappo) * 0.7;
+    c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+    tmpc->pre.scaled_image = scaledownimage(tmpc->pre.orig_image, cw, ch);
+    c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width - gappi - tmpc->pre.scaled_image->width) / 2;
+    c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
+    tmpc->pre.x = c->pre.x + c->pre.scaled_image->width + gappi;
+    tmpc->pre.y = m->my + (m->mh - tmpc->pre.scaled_image->height) / 2;
+    return;
+  }
+  for (cols = 0; cols <= n / 2; cols++)
+    if (cols * cols >= n)
+      break;
+  rows = (cols && (cols - 1) * cols >= n) ? cols - 1 : cols;
+  ch = (m->wh - 2 * gappo) / rows;
+  cw = (m->ww - 2 * gappo) / cols;
+  c = nextpreview(m->clients);
+  cy = 0;
+  for (i = 0; i < rows; i++) {
+    cx = 0;
+    cmaxh = 0;
+    tmpc = c;
+    for (int j = 0; j < cols; j++) {
+      if (!c)
+        break;
+      c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+      c->pre.x = cx;
+      cmaxh = c->pre.scaled_image->height > cmaxh ? c->pre.scaled_image->height : cmaxh;
+      cx += c->pre.scaled_image->width + gappi;
+      c = nextpreview(c->next);
+    }
+    c = tmpc;
+    cx = m->wx + (m->ww - cx) / 2;
+    for (j = 0; j < cols; j++) {
+      if (!c)
+        break;
+      c->pre.x += cx;
+      c->pre.y = cy + (cmaxh - c->pre.scaled_image->height) / 2;
+      c = nextpreview(c->next);
+    }
+    cy += cmaxh + gappi;
+  }
+  cy = m->wy + (m->wh - cy) / 2;
+  for (c = nextpreview(m->clients); c; c = nextpreview(c->next))
+    c->pre.y += cy;
+}
+
+void
+setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi)
+{
   unsigned int i, j;
   unsigned int cx, cy, cw, ch, cmaxh;
   unsigned int cols, rows;
@@ -3104,7 +3270,8 @@ setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, un
 }
 
 XImage*
-getwindowximage(Client *c) {
+getwindowximage(Client *c)
+{
   XWindowAttributes attr;
   XGetWindowAttributes( dpy, c->win, &attr );
   XRenderPictFormat *format = XRenderFindVisualFormat( dpy, attr.visual );
@@ -3134,7 +3301,8 @@ getwindowximage(Client *c) {
 }
 
 XImage*
-scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch) {
+scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch)
+{
   int factor_w = orig_image->width / cw + 1;
   int factor_h = orig_image->height / ch + 1;
   int scale_factor = factor_w > factor_h ? factor_w : factor_h;
