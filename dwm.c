@@ -114,13 +114,13 @@ struct Preview {
 
 struct Client {
 	char name[256];
-	float mina, maxa;
+	float mina, maxa, mfact;
 	int x, y, w, h;
 	int oldx, oldy, oldw, oldh;
 	int basew, baseh, incw, inch, maxw, maxh, minw, minh, hintsvalid;
 	int bw, oldbw;
 	unsigned int tags;
-	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen, isnothgappx;
+	int isfixed, isfloating, isurgent, neverfocus, oldstate, isfullscreen, isLeftEdgeLean, isAtEdge;
 	Client *next;
 	Client *snext;
 	Monitor *mon;
@@ -143,7 +143,7 @@ typedef struct {
 struct Monitor {
 	char ltsymbol[16];
 	float mfact;
-	int nmaster;
+  int isLeftEdgeLean;
 	int num;
 	int by;               /* bar geometry */
 	int btw;              /* width of tasks portion of bar */
@@ -157,6 +157,7 @@ struct Monitor {
 	int topbar;
 	int hidsel;
 	Client *clients;
+	Client *visible;
 	Client *sel;
 	Client *stack;
 	Monitor *next;
@@ -183,6 +184,7 @@ struct Systray {
 static void applyrules(Client *c);
 static int applysizehints(Client *c, int *x, int *y, int *w, int *h, int interact);
 static void arrange(Monitor *m);
+static void arrangeClients(Monitor *m);
 static void arrangemon(Monitor *m);
 static void attach(Client *c);
 static void attachbottom(Client *c);
@@ -205,6 +207,7 @@ static void drawbars(void);
 static void enternotify(XEvent *e);
 static void expose(XEvent *e);
 static void focus(Client *c);
+static void transferFocusAttributes(Client *unfocus, Client *focus);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
 static void focusstackvis(const Arg *arg);
@@ -219,7 +222,6 @@ static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
 static void hide(const Arg *arg);
 static void hidewin(Client *c);
-static void incnmaster(const Arg *arg);
 static void keypress(XEvent *e);
 static void killclient(const Arg *arg);
 static void manage(Window w, XWindowAttributes *wa);
@@ -271,6 +273,7 @@ static void toggletag(const Arg *arg);
 static void toggleview(const Arg *arg);
 static void togglewin(const Arg *arg);
 static void togglesupericon(const Arg *arg);
+static void toggleEdgeLean(const Arg *arg);
 static void unfocus(Client *c, int setfocus);
 static void unmanage(Client *c, int destroyed);
 static void unmapnotify(XEvent *e);
@@ -298,6 +301,7 @@ static int xerrordummy(Display *dpy, XErrorEvent *ee);
 static int xerrorstart(Display *dpy, XErrorEvent *ee);
 static void xinitvisual();
 static void zoom(const Arg *arg);
+static void moveclient(const Arg *arg);
 static void killorzoom(const Arg *arg);
 static void previewallwin();
 static void previewindexwin();
@@ -475,6 +479,46 @@ arrange(Monitor *m)
 		restack(m);
 	} else for (m = mons; m; m = m->next)
 		arrangemon(m);
+}
+
+void
+arrangeClients(Monitor *m) {
+  Client *h1 = NULL, *t1 = NULL;
+  Client *h2 = NULL, *t2 = NULL;
+  Client *current = m->clients;
+  Client *next_node;
+
+  while (current != NULL) {
+    next_node = current->next;
+    current->next = NULL;
+
+    if (ISVISIBLE(current)) {
+      if (h2 == NULL) {
+        h2 = t2 = current;
+      } else {
+        t2->next = current;
+        t2 = current;
+      }
+    } else {
+      if (h1 == NULL) {
+        h1 = t1 = current;
+      } else {
+        t1->next = current;
+        t1 = current;
+      }
+    }
+
+    current = next_node;
+  }
+
+  if (h1 != NULL) {
+    t1->next = h2;
+    m->clients = h1;
+  } else {
+    m->clients = h2;
+  }
+
+  m->visible = h2;
 }
 
 void
@@ -818,7 +862,7 @@ createmon(void)
 	m = ecalloc(1, sizeof(Monitor));
 	m->tagset[0] = m->tagset[1] = 1;
 	m->mfact = mfact;
-	m->nmaster = nmaster;
+  m->isLeftEdgeLean = LeftEdgeLean;
 	m->showbar = showbar;
 	m->topbar = topbar;
 	m->lt[0] = &layouts[0];
@@ -1029,8 +1073,27 @@ expose(XEvent *e)
 }
 
 void
+transferFocusAttributes(Client *unfocus, Client *focus)
+{
+  if (unfocus && focus && focus->tags == unfocus->tags && unfocus != focus) {
+    focus->isLeftEdgeLean = unfocus->isLeftEdgeLean;
+    for (Client *c = nexttiled(focus->mon->clients); c; c = nexttiled(c->next)) {
+      if (c == focus) {
+        focus->isAtEdge = focus->isLeftEdgeLean ? 1 : 0;
+        return;
+      }
+      if (c == unfocus) {
+        focus->isAtEdge = focus->isLeftEdgeLean ? 0 : 1;
+        return;
+      }
+    }
+  }
+}
+
+void
 focus(Client *c)
 {
+  transferFocusAttributes(selmon->sel, c);
 	if (!c || !ISVISIBLE(c))
 		for (c = selmon->stack; c && (!ISVISIBLE(c) || HIDDEN(c)); c = c->snext);
 	if (selmon->sel && selmon->sel != c) {
@@ -1089,6 +1152,7 @@ void
 focusstackvis(const Arg *arg)
 {
 	focusstack(arg->i, 0);
+  arrange(selmon);
 }
 
 void
@@ -1303,13 +1367,6 @@ hidewin(Client *c)
 	XUngrabServer(dpy);
 }
 
-void
-incnmaster(const Arg *arg)
-{
-	selmon->nmaster = MAX(selmon->nmaster + arg->i, 0);
-	arrange(selmon);
-}
-
 #ifdef XINERAMA
 static int
 isuniquegeom(XineramaScreenInfo *unique, size_t n, XineramaScreenInfo *info)
@@ -1366,6 +1423,9 @@ manage(Window w, XWindowAttributes *wa)
 	XWindowChanges wc;
 
 	c = ecalloc(1, sizeof(Client));
+  c->isLeftEdgeLean = selmon->isLeftEdgeLean;
+  c->isAtEdge = selmon->isLeftEdgeLean ? 0 : 1;
+  c->mfact = mfact;
 	c->win = w;
 	/* geometry */
 	c->x = c->oldx = wa->x;
@@ -2015,10 +2075,10 @@ setmfact(const Arg *arg)
 
 	if (!arg || !selmon->lt[selmon->sellt]->arrange)
 		return;
-	f = arg->f < 1.0 ? arg->f + selmon->mfact : arg->f - 1.0;
+	f = arg->f < 1.0 ? arg->f + selmon->sel ->mfact : arg->f - 1.0;
 	if (f < 0.05 || f > 0.95)
 		return;
-	selmon->mfact = f;
+	selmon->sel ->mfact = f;
 	arrange(selmon);
 }
 
@@ -2228,45 +2288,62 @@ tagmon(const Arg *arg)
 void
 tile(Monitor *m)
 {
-	unsigned int i, n, h, mw, my, ty, ns;
-	Client *c;
+	unsigned int n, j, x, y, w, h, sw=0;
+	Client *c, *i;
+  h = m->wh - (borderpx + gappx)*2;
+  y = m->wy + gappx;
 
-	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++);
-	if (n == 0) {
-		return;
-  }
+	for (i = m->stack; i && (!ISVISIBLE(i) || i->isfloating || HIDDEN(i)); i = i->snext);
+	for (n = 0, c = nexttiled(m->clients); c; c = nexttiled(c->next), n++)
+    if (c == i) j = n;
+	if (n == 0) return;
 
   if (n == 1) {
-    c = nexttiled(m->clients);
-    if ( !c->isfloating && !c->isnothgappx ) {
-      h = m->wh * 8 / 9;  /* 8/9 of monitor height,height */
-      mw = h * 3 / 2;     /* 4/3 of monitor width,width */
-      my = m->wx + (m->ww - mw) / 2; /* center the window,x */
-      ty = m->wy + (m->wh - h) / 3;  /* center the window,y */
-		  resize(c, my, ty, mw, h, False);
+    if (i->mfact < 0.9) {
+      h = m->wh * 8 / 9;            /* 8/9 of monitor height,height */
+      w = h * 3 / 2;                /* 4/3 of monitor width,width */
+      x = m->wx + (m->ww - w) / 2;  /* center the window,x */
+      y = m->wy + (m->wh - h) / 3;  /* center the window,y */
+		  resize(i, x, y, w, h, False);
+      return;
+    } else {
+      w = m->ww - (borderpx + gappx)*2;
+      x = m->wx + gappx;
+		  resize(i, x, y, w, h, False);
       return;
     }
   }
 
-	if (n > m->nmaster) {
-		mw = m->nmaster ? m->ww * m->mfact : 0;
-		ns = m->nmaster > 0 ? 2 : 1;
-	} else {
-		mw = m->ww;
-		ns = 1;
-	}
-	for(i = 0, my = ty = gappx, c = nexttiled(m->clients); c; c = nexttiled(c->next), i++)
-		if (i < m->nmaster) {
-			h = (m->wh - my) / (MIN(n, m->nmaster) - i) - gappx;
-			resize(c, m->wx + gappx, m->wy + my, mw - (2*c->bw) - gappx*(5-ns)/2, h - (2*c->bw), False);
-			if (my + HEIGHT(c) < m->wh)
-				my += HEIGHT(c) + gappx;
-		} else {
-			h = (m->wh - ty) / (n - i) - gappx;
-			resize(c, m->wx + mw + gappx/ns, m->wy + ty, m->ww - mw - (2*c->bw) - gappx*(5-ns)/2, h - (2*c->bw), False);
-			if (ty + HEIGHT(c) < m->wh)
-				ty += HEIGHT(c) + gappx;
-		}
+Client *arr[n];
+int k;
+for (k = 0, c = nexttiled(m->clients); c && k < n; c = nexttiled(c->next)) {
+    arr[k++] = c;
+}
+  if (i->isLeftEdgeLean){
+    if (!i->isAtEdge && j > 0) j--;
+    for (k = 0; k < n; k++) {
+      if (k < j || sw >= m->ww) {
+		    XMoveWindow(dpy, arr[k]->win, WIDTH(arr[k]) * -2, arr[k]->y);
+        continue;
+      }
+      w = m->ww * arr[k]->mfact - (borderpx + gappx)*2;
+      x = m->wx + sw + gappx;
+		  resize(arr[k], x, y, w, h, False);
+      sw += w + borderpx + gappx;
+    }
+  } else {
+    if (!i->isAtEdge && j < n-1) j++;
+    for (k = n-1; k >= 0; k--) {
+      if (k > j || sw >= m->ww) {
+        XMoveWindow(dpy, arr[k]->win, WIDTH(arr[k]) * -2, arr[k]->y);
+        continue;
+      }
+      w = m->ww * arr[k]->mfact - (borderpx + gappx)*2;
+      x = m->wx + m->ww - sw - w - gappx - borderpx*2;
+		  resize(arr[k], x, y, w, h, False);
+      sw += w + borderpx + gappx;
+    }
+  }
 }
 
 void
@@ -2307,10 +2384,10 @@ void
 togglehgappx(const Arg *arg)
 {
   if (selmon->sel) {
-    if (selmon->sel->isnothgappx == 1)
-      selmon->sel->isnothgappx = 0;
+    if (selmon->sel->mfact > 0.9)
+      selmon->sel->mfact = mfact;
     else
-      selmon->sel->isnothgappx = 1;
+      selmon->sel->mfact = 0.95;
   }
   arrange(selmon);
 }
@@ -2333,6 +2410,7 @@ toggletag(const Arg *arg)
 	if (newtags) {
 		selmon->sel->tags = newtags;
 		focus(NULL);
+    arrangeClients(selmon);
 		arrange(selmon);
 	}
 }
@@ -2345,6 +2423,7 @@ toggleview(const Arg *arg)
 	if (newtagset) {
 		selmon->tagset[selmon->seltags] = newtagset;
 		focus(NULL);
+    arrangeClients(selmon);
 		arrange(selmon);
 	}
 }
@@ -2363,6 +2442,7 @@ togglewin(const Arg *arg)
 			showwin(c);
 		focus(c);
 		restack(selmon);
+    arrange(selmon);
 	}
 }
 
@@ -2384,6 +2464,14 @@ unfocus(Client *c, int setfocus)
 		XSetInputFocus(dpy, root, RevertToPointerRoot, CurrentTime);
 		XDeleteProperty(dpy, root, netatom[NetActiveWindow]);
 	}
+}
+
+void
+toggleEdgeLean(const Arg *arg)
+{
+  selmon->isLeftEdgeLean = !selmon->isLeftEdgeLean;
+  selmon->sel->isLeftEdgeLean = selmon->isLeftEdgeLean;
+  arrange(selmon);
 }
 
 void
@@ -2792,9 +2880,9 @@ view(const Arg *arg)
 	if ((arg->ui & TAGMASK) == selmon->tagset[selmon->seltags])
 		return;
 	selmon->seltags ^= 1; /* toggle sel tagset */
-	if (arg->ui & TAGMASK)
-		selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
+	if (arg->ui & TAGMASK) selmon->tagset[selmon->seltags] = arg->ui & TAGMASK;
 	focus(NULL);
+  arrangeClients(selmon);
 	arrange(selmon);
 }
 
@@ -2965,7 +3053,49 @@ zoom(const Arg *arg)
 }
 
 void
-killorzoom(const Arg *arg){
+moveclient(const Arg *arg)
+{
+  int direction = arg->i;
+  Client *iter, *original_target = selmon->sel;
+  Client *target = original_target;
+  Client *nodes[3] = { NULL, NULL, NULL };
+
+  if (!selmon->lt[selmon->sellt]->arrange || !target || target->isfloating)
+    return;
+
+  if (!direction) {
+    target = target->next;
+    if (!target) return;
+  }
+
+  for (iter = selmon->clients ; iter; iter = iter->next) {
+    nodes[2] = nodes[1];
+    nodes[1] = nodes[0];
+    nodes[0] = iter;
+    if (iter == target)
+        break;
+  }
+
+  if (!nodes[0] || !nodes[1] || !ISVISIBLE(nodes[0]) || !ISVISIBLE(nodes[1]))
+    return;
+
+  if (nodes[2]) {
+    nodes[2]->next = nodes[0];
+    if (ISVISIBLE(nodes[2]))
+      selmon->visible = nodes[0];
+  } else {
+    selmon->clients = nodes[0];
+    selmon->visible = nodes[0];
+  }
+  nodes[1]->next = nodes[0]->next;
+  nodes[0]->next = nodes[1];
+
+  arrange(original_target->mon);
+}
+
+void
+killorzoom(const Arg *arg)
+{
 	Client *c = (Client*)arg->v;
   if (c == nextvisible(selmon->clients))
     killclient(&(Arg){0});
@@ -3051,8 +3181,8 @@ previewindexwin()
     }
   }
 
-  arrange(m);
   focus(focus_c);
+  arrange(m);
 }
 
 void
@@ -3132,8 +3262,9 @@ previewallwin()
                   break;
               }
   }
-  arrange(m);
   focus(focus_c);
+  arrangeClients(m);
+  arrange(m);
 }
 
 void
