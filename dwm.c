@@ -305,8 +305,8 @@ static void moveclient(const Arg *arg);
 static void killorzoom(const Arg *arg);
 static void previewallwin();
 static void previewindexwin();
-static void setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi);
-static void setindexpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi);
+static void arrangePreviews(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi);
+static void arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi);
 static XImage *getwindowximage(Client *c);
 static XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch);
 
@@ -3120,7 +3120,7 @@ previewindexwin()
   }
   if (n == 0)
     return;
-  setindexpreviewwindowsizepositions(n, m, 60, 15);
+  arrangeIndexPreviews(n, m, 60, 15);
   XEvent event;
   for(c = nextpreview(m->clients); c; c = nextpreview(c->next)){
     if (!c->pre.win)
@@ -3202,7 +3202,7 @@ previewallwin()
   }
   if (n == 0)
     return;
-  setpreviewwindowsizepositions(n, m, 60, 15);
+  arrangePreviews(n, m, 60, 15);
   XEvent event;
   for(c = m->clients; c; c = c->next){
     if (!c->pre.win)
@@ -3268,7 +3268,7 @@ previewallwin()
 }
 
 void
-setindexpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi)
+arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi)
 {
   unsigned int i, j;
   unsigned int cx, cy, cw, ch, cmaxh;
@@ -3276,27 +3276,37 @@ setindexpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gapp
   Client *c, *tmpc;
 
   if (n == 1) {
-    c = nextpreview(m->clients);
-    cw = (m->ww - 2 * gappo) * 0.8;
-    ch = (m->wh - 2 * gappo) * 0.9;
-    c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
-    c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width) / 2;
-    c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
-    return;
+      c = m->clients;
+      unsigned int cw = (m->ww - 2*gappo) * 8 / 10;
+      unsigned int ch = (m->wh - 2*gappo) * 9 / 10;
+      c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+      c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width)/2;
+      c->pre.y = m->my + (m->mh - c->pre.scaled_image->height)/2;
+      return;
   }
-  if (n == 2) {
-    c = nextpreview(m->clients);
-    tmpc = nextpreview(c->next);
-    cw = (m->ww - 2 * gappo - gappi) / 2;
-    ch = (m->wh - 2 * gappo) * 0.7;
-    c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
-    tmpc->pre.scaled_image = scaledownimage(tmpc->pre.orig_image, cw, ch);
-    c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width - gappi - tmpc->pre.scaled_image->width) / 2;
-    c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
-    tmpc->pre.x = c->pre.x + c->pre.scaled_image->width + gappi;
-    tmpc->pre.y = m->my + (m->mh - tmpc->pre.scaled_image->height) / 2;
-    return;
+
+  if (n <= 4) {
+      unsigned int total_gapi = gappi * (n - 1);
+      cw = (m->ww - 2*gappo - total_gapi) / n;
+      ch = (m->wh - 2*gappo) * 7 / 10;
+
+      unsigned int total_width = 0;
+      for (c = m->clients; c; c = c->next) {
+          c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+          total_width += c->pre.scaled_image->width;
+      }
+      total_width += total_gapi;
+
+      cx = m->mx + (m->mw - total_width)/2;
+      cy = m->my + (m->mh - ch)/2;
+      for (c = m->clients; c; c = c->next) {
+          c->pre.x = cx;
+          c->pre.y = cy + (ch - c->pre.scaled_image->height)/2;
+          cx += c->pre.scaled_image->width + gappi;
+      }
+      return;
   }
+
   for (cols = 0; cols <= n / 2; cols++)
     if (cols * cols >= n)
       break;
@@ -3335,7 +3345,7 @@ setindexpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gapp
 }
 
 void
-setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi)
+arrangePreviews(unsigned int n, Monitor *m, unsigned int gappo, unsigned int gappi)
 {
   unsigned int i, j;
   unsigned int cx, cy, cw, ch, cmaxh;
@@ -3343,26 +3353,37 @@ setpreviewwindowsizepositions(unsigned int n, Monitor *m, unsigned int gappo, un
   Client *c, *tmpc;
 
   if (n == 1) {
-    c = m->clients;
-    cw = (m->ww - 2 * gappo) * 0.8;
-    ch = (m->wh - 2 * gappo) * 0.9;
-    c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
-    c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width) / 2;
-    c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
-    return;
+      c = m->clients;
+      unsigned int cw = (m->ww - 2*gappo) * 8 / 10;
+      unsigned int ch = (m->wh - 2*gappo) * 9 / 10;
+      c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+      c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width)/2;
+      c->pre.y = m->my + (m->mh - c->pre.scaled_image->height)/2;
+      return;
   }
-  if (n == 2) {
-    c = m->clients;
-    cw = (m->ww - 2 * gappo - gappi) / 2;
-    ch = (m->wh - 2 * gappo) * 0.7;
-    c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
-    c->next->pre.scaled_image = scaledownimage(c->next->pre.orig_image, cw, ch);
-    c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width - gappi - c->next->pre.scaled_image->width) / 2;
-    c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
-    c->next->pre.x = c->pre.x + c->pre.scaled_image->width + gappi;
-    c->next->pre.y = m->my + (m->mh - c->next->pre.scaled_image->height) / 2;
-    return;
+
+  if (n <= 4) {
+      unsigned int total_gapi = gappi * (n - 1);
+      cw = (m->ww - 2*gappo - total_gapi) / n;
+      ch = (m->wh - 2*gappo) * 7 / 10;
+
+      unsigned int total_width = 0;
+      for (c = m->clients; c; c = c->next) {
+          c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
+          total_width += c->pre.scaled_image->width;
+      }
+      total_width += total_gapi;
+
+      cx = m->mx + (m->mw - total_width)/2;
+      cy = m->my + (m->mh - ch)/2;
+      for (c = m->clients; c; c = c->next) {
+          c->pre.x = cx;
+          c->pre.y = cy + (ch - c->pre.scaled_image->height)/2;
+          cx += c->pre.scaled_image->width + gappi;
+      }
+      return;
   }
+
   for (cols = 0; cols <= n / 2; cols++)
     if (cols * cols >= n)
       break;
