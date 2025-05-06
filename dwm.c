@@ -3280,7 +3280,7 @@ arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo, unsigned in
   Client *c, *tmpc;
 
   if (n == 1) {
-      c = m->clients;
+      c = nextpreview(m->clients);
       unsigned int cw = (m->ww - 2*gappo) * 8 / 10;
       unsigned int ch = (m->wh - 2*gappo) * 9 / 10;
       c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
@@ -3295,7 +3295,7 @@ arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo, unsigned in
       ch = (m->wh - 2*gappo) * 7 / 10;
 
       unsigned int total_width = 0;
-      for (c = m->clients; c; c = c->next) {
+      for (c = nextpreview(m->clients); c; c = nextpreview(c->next)) {
           c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
           total_width += c->pre.scaled_image->width;
       }
@@ -3303,7 +3303,7 @@ arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo, unsigned in
 
       cx = m->mx + (m->mw - total_width)/2;
       cy = m->my + (m->mh - ch)/2;
-      for (c = m->clients; c; c = c->next) {
+      for (c = nextpreview(m->clients); c; c = nextpreview(c->next)) {
           c->pre.x = cx;
           c->pre.y = cy + (ch - c->pre.scaled_image->height)/2;
           cx += c->pre.scaled_image->width + gappi;
