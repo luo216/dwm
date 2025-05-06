@@ -211,8 +211,8 @@ static void transferFocusAttributes(Client *unfocus, Client *focus);
 static void focusin(XEvent *e);
 static void focusmon(const Arg *arg);
 static void focusstackvis(const Arg *arg);
-static void focusstackhid(const Arg *arg);
-static void focusstack(int inc, int vis);
+static void focusstackedge(const Arg *arg);
+static void focusstack(int inc);
 static Atom getatomprop(Client *c, Atom prop);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
@@ -1151,44 +1151,48 @@ focusmon(const Arg *arg)
 void
 focusstackvis(const Arg *arg)
 {
-	focusstack(arg->i, 0);
+	focusstack(arg->i);
+  arrange(selmon);
+}
+
+
+void
+focusstackedge(const Arg *arg)
+{
+	focusstack(arg->i);
+  selmon->sel->isAtEdge = 1;
+  selmon->sel->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
   arrange(selmon);
 }
 
 void
-focusstackhid(const Arg *arg)
-{
-	focusstack(arg->i, 1);
-}
-
-void
-focusstack(int inc, int hid)
+focusstack(int inc)
 {
 	Client *c = NULL, *i;
 	// if no client selected AND exclude hidden client; if client selected but fullscreened
-	if ((!selmon->sel && !hid) || (selmon->sel && selmon->sel->isfullscreen && lockfullscreen))
+	if (!selmon->sel || (selmon->sel && selmon->sel->isfullscreen && lockfullscreen))
 		return;
 	if (!selmon->clients)
 		return;
 	if (inc > 0) {
 		if (selmon->sel)
 			for (c = selmon->sel->next;
-					c && (!ISVISIBLE(c) || (!hid && HIDDEN(c)));
+					c && (!ISVISIBLE(c) || HIDDEN(c));
 					c = c->next);
 		if (!c)
 			for (c = selmon->clients;
-					c && (!ISVISIBLE(c) || (!hid && HIDDEN(c)));
+					c && (!ISVISIBLE(c) || HIDDEN(c));
 					c = c->next);
 	} else {
 		if (selmon->sel) {
 			for (i = selmon->clients; i != selmon->sel; i = i->next)
-				if (ISVISIBLE(i) && !(!hid && HIDDEN(i)))
+				if (ISVISIBLE(i) && !HIDDEN(i))
 					c = i;
 		} else
 			c = selmon->clients;
 		if (!c)
 			for (; i; i = i->next)
-				if (ISVISIBLE(i) && !(!hid && HIDDEN(i)))
+				if (ISVISIBLE(i) && !HIDDEN(i))
 					c = i;
 	}
 	if (c) {
