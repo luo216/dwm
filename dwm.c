@@ -2473,9 +2473,12 @@ unfocus(Client *c, int setfocus)
 void
 toggleEdgeLean(const Arg *arg)
 {
-  selmon->isLeftEdgeLean = !selmon->isLeftEdgeLean;
-  selmon->sel->isLeftEdgeLean = selmon->isLeftEdgeLean;
-  arrange(selmon);
+  if (selmon->sel) {
+    selmon->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
+    selmon->sel->isAtEdge = !selmon->sel->isAtEdge;
+    selmon->sel->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
+    arrange(selmon);
+  }
 }
 
 void
