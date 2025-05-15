@@ -532,17 +532,33 @@ arrangemon(Monitor *m)
 void
 attach(Client *c)
 {
-	c->next = c->mon->clients;
-	c->mon->clients = c;
+  if (ISVISIBLE(c->mon->clients)) {
+    c->next = c->mon->clients;
+    c->mon->clients = c;
+  } else {
+    Client *tc;
+    for (tc = c->mon->clients; tc && !ISVISIBLE(tc->next); tc = tc->next);
+    c->next = tc->next;
+    tc->next = c;
+  }
 }
 
 void
 attachbottom(Client *c)
 {
-	Client **tc;
-	c->next = NULL;
-	for (tc = &c->mon->clients; *tc; tc = &(*tc)->next);
-	*tc = c;
+  if (c->mon->sel) {
+    c->next = c->mon->sel->next;
+    c->mon->sel->next = c;
+  } else {
+    if (!c->mon->clients)
+      c->mon->clients = c;
+    else {
+      Client *tc;
+      for (tc = c->mon->clients; tc->next; tc = tc->next);
+      c->next = NULL;
+      tc->next = c;
+    }
+  }
 }
 
 void
@@ -1180,20 +1196,14 @@ focusstack(int inc)
 					c && (!ISVISIBLE(c) || HIDDEN(c));
 					c = c->next);
 		if (!c)
-			for (c = selmon->clients;
-					c && (!ISVISIBLE(c) || HIDDEN(c));
-					c = c->next);
+      return;
 	} else {
 		if (selmon->sel) {
 			for (i = selmon->clients; i != selmon->sel; i = i->next)
 				if (ISVISIBLE(i) && !HIDDEN(i))
 					c = i;
 		} else
-			c = selmon->clients;
-		if (!c)
-			for (; i; i = i->next)
-				if (ISVISIBLE(i) && !HIDDEN(i))
-					c = i;
+        return;
 	}
 	if (c) {
 		focus(c);
@@ -2475,8 +2485,8 @@ toggleEdgeLean(const Arg *arg)
 {
   if (selmon->sel) {
     selmon->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
-    selmon->sel->isAtEdge = !selmon->sel->isAtEdge;
     selmon->sel->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
+    selmon->sel->isAtEdge = !selmon->sel->isAtEdge;
     arrange(selmon);
   }
 }
@@ -3189,6 +3199,11 @@ previewindexwin()
   }
 
   focus(focus_c);
+  if (focus_c && !focus_c->isAtEdge) {
+    focus_c->mon->isLeftEdgeLean = !focus_c->isLeftEdgeLean;
+    focus_c->isLeftEdgeLean = !focus_c->isLeftEdgeLean;
+    focus_c->isAtEdge = 1;
+  }
   arrange(m);
 }
 
@@ -3271,6 +3286,11 @@ previewallwin()
   }
   focus(focus_c);
   arrangeClients(m);
+  if (focus_c && !focus_c->isAtEdge) {
+    focus_c->mon->isLeftEdgeLean = !focus_c->isLeftEdgeLean;
+    focus_c->isLeftEdgeLean = !focus_c->isLeftEdgeLean;
+    focus_c->isAtEdge = 1;
+  }
   arrange(m);
 }
 
