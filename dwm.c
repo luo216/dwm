@@ -1190,10 +1190,13 @@ void focusstackvis(const Arg *arg) {
 }
 
 void focusstackedge(const Arg *arg) {
-  focusstack(arg->i);
-  selmon->sel->isAtEdge = 1;
-  selmon->sel->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
-  arrange(selmon);
+  if (selmon->sel) {
+    focusstack(arg->i);
+    selmon->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
+    selmon->sel->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
+    selmon->sel->isAtEdge = !selmon->sel->isAtEdge;
+    arrange(selmon);
+  }
 }
 
 void focusstack(int inc) {
@@ -3083,13 +3086,13 @@ void previewindexwin() {
 
   // Grab keyboard for input
   XGrabKeyboard(dpy, root, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-  
+
   // Move cursor to selected window
   if (selected_index >= 0 && selected_index < n) {
     Client *sel_c = clients_array[selected_index];
-    XWarpPointer(dpy, None, sel_c->pre.win, 0, 0, 0, 0, 
-                sel_c->pre.scaled_image->width/2, 
-                sel_c->pre.scaled_image->height/2);
+    XWarpPointer(dpy, None, sel_c->pre.win, 0, 0, 0, 0,
+                 sel_c->pre.scaled_image->width / 2,
+                 sel_c->pre.scaled_image->height / 2);
   }
 
   XEvent event;
@@ -3109,28 +3112,33 @@ void previewindexwin() {
         int best_index = -1;
         int min_distance = INT_MAX;
         Client *current = clients_array[selected_index];
-        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
-        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
-        
+        int current_center_x =
+            current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y =
+            current->pre.y + current->pre.scaled_image->height / 2;
+
         for (i = 0; i < n; i++) {
-          if (i == selected_index) continue;
+          if (i == selected_index)
+            continue;
           Client *candidate = clients_array[i];
-          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
-          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
-          
+          int candidate_center_x =
+              candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y =
+              candidate->pre.y + candidate->pre.scaled_image->height / 2;
+
           // Only consider windows to the left
           if (candidate_center_x < current_center_x) {
             int dx = current_center_x - candidate_center_x;
             int dy = abs(current_center_y - candidate_center_y);
             int distance = dx + dy * 2; // Weight vertical distance more
-            
+
             if (distance < min_distance) {
               min_distance = distance;
               best_index = i;
             }
           }
         }
-        
+
         if (best_index != -1) {
           selected_index = best_index;
         }
@@ -3139,28 +3147,33 @@ void previewindexwin() {
         int best_index = -1;
         int min_distance = INT_MAX;
         Client *current = clients_array[selected_index];
-        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
-        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
-        
+        int current_center_x =
+            current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y =
+            current->pre.y + current->pre.scaled_image->height / 2;
+
         for (i = 0; i < n; i++) {
-          if (i == selected_index) continue;
+          if (i == selected_index)
+            continue;
           Client *candidate = clients_array[i];
-          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
-          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
-          
+          int candidate_center_x =
+              candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y =
+              candidate->pre.y + candidate->pre.scaled_image->height / 2;
+
           // Only consider windows to the right
           if (candidate_center_x > current_center_x) {
             int dx = candidate_center_x - current_center_x;
             int dy = abs(current_center_y - candidate_center_y);
             int distance = dx + dy * 2; // Weight vertical distance more
-            
+
             if (distance < min_distance) {
               min_distance = distance;
               best_index = i;
             }
           }
         }
-        
+
         if (best_index != -1) {
           selected_index = best_index;
         }
@@ -3169,28 +3182,33 @@ void previewindexwin() {
         int best_index = -1;
         int min_distance = INT_MAX;
         Client *current = clients_array[selected_index];
-        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
-        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
-        
+        int current_center_x =
+            current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y =
+            current->pre.y + current->pre.scaled_image->height / 2;
+
         for (i = 0; i < n; i++) {
-          if (i == selected_index) continue;
+          if (i == selected_index)
+            continue;
           Client *candidate = clients_array[i];
-          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
-          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
-          
+          int candidate_center_x =
+              candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y =
+              candidate->pre.y + candidate->pre.scaled_image->height / 2;
+
           // Only consider windows above
           if (candidate_center_y < current_center_y) {
             int dx = abs(current_center_x - candidate_center_x);
             int dy = current_center_y - candidate_center_y;
             int distance = dy + dx * 2; // Weight horizontal distance more
-            
+
             if (distance < min_distance) {
               min_distance = distance;
               best_index = i;
             }
           }
         }
-        
+
         if (best_index != -1) {
           selected_index = best_index;
         }
@@ -3199,28 +3217,33 @@ void previewindexwin() {
         int best_index = -1;
         int min_distance = INT_MAX;
         Client *current = clients_array[selected_index];
-        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
-        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
-        
+        int current_center_x =
+            current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y =
+            current->pre.y + current->pre.scaled_image->height / 2;
+
         for (i = 0; i < n; i++) {
-          if (i == selected_index) continue;
+          if (i == selected_index)
+            continue;
           Client *candidate = clients_array[i];
-          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
-          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
-          
+          int candidate_center_x =
+              candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y =
+              candidate->pre.y + candidate->pre.scaled_image->height / 2;
+
           // Only consider windows below
           if (candidate_center_y > current_center_y) {
             int dx = abs(current_center_x - candidate_center_x);
             int dy = candidate_center_y - current_center_y;
             int distance = dy + dx * 2; // Weight horizontal distance more
-            
+
             if (distance < min_distance) {
               min_distance = distance;
               best_index = i;
             }
           }
         }
-        
+
         if (best_index != -1) {
           selected_index = best_index;
         }
@@ -3392,13 +3415,13 @@ void previewallwin() {
 
   // Grab keyboard for input
   XGrabKeyboard(dpy, root, True, GrabModeAsync, GrabModeAsync, CurrentTime);
-  
+
   // Move cursor to selected window
   if (selected_index >= 0 && selected_index < n) {
     Client *sel_c = clients_array[selected_index];
-    XWarpPointer(dpy, None, sel_c->pre.win, 0, 0, 0, 0, 
-                sel_c->pre.scaled_image->width/2, 
-                sel_c->pre.scaled_image->height/2);
+    XWarpPointer(dpy, None, sel_c->pre.win, 0, 0, 0, 0,
+                 sel_c->pre.scaled_image->width / 2,
+                 sel_c->pre.scaled_image->height / 2);
   }
 
   XEvent event;
@@ -3418,28 +3441,33 @@ void previewallwin() {
         int best_index = -1;
         int min_distance = INT_MAX;
         Client *current = clients_array[selected_index];
-        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
-        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
-        
+        int current_center_x =
+            current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y =
+            current->pre.y + current->pre.scaled_image->height / 2;
+
         for (i = 0; i < n; i++) {
-          if (i == selected_index) continue;
+          if (i == selected_index)
+            continue;
           Client *candidate = clients_array[i];
-          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
-          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
-          
+          int candidate_center_x =
+              candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y =
+              candidate->pre.y + candidate->pre.scaled_image->height / 2;
+
           // Only consider windows to the left
           if (candidate_center_x < current_center_x) {
             int dx = current_center_x - candidate_center_x;
             int dy = abs(current_center_y - candidate_center_y);
             int distance = dx + dy * 2; // Weight vertical distance more
-            
+
             if (distance < min_distance) {
               min_distance = distance;
               best_index = i;
             }
           }
         }
-        
+
         if (best_index != -1) {
           selected_index = best_index;
         }
@@ -3448,28 +3476,33 @@ void previewallwin() {
         int best_index = -1;
         int min_distance = INT_MAX;
         Client *current = clients_array[selected_index];
-        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
-        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
-        
+        int current_center_x =
+            current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y =
+            current->pre.y + current->pre.scaled_image->height / 2;
+
         for (i = 0; i < n; i++) {
-          if (i == selected_index) continue;
+          if (i == selected_index)
+            continue;
           Client *candidate = clients_array[i];
-          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
-          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
-          
+          int candidate_center_x =
+              candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y =
+              candidate->pre.y + candidate->pre.scaled_image->height / 2;
+
           // Only consider windows to the right
           if (candidate_center_x > current_center_x) {
             int dx = candidate_center_x - current_center_x;
             int dy = abs(current_center_y - candidate_center_y);
             int distance = dx + dy * 2; // Weight vertical distance more
-            
+
             if (distance < min_distance) {
               min_distance = distance;
               best_index = i;
             }
           }
         }
-        
+
         if (best_index != -1) {
           selected_index = best_index;
         }
@@ -3478,28 +3511,33 @@ void previewallwin() {
         int best_index = -1;
         int min_distance = INT_MAX;
         Client *current = clients_array[selected_index];
-        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
-        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
-        
+        int current_center_x =
+            current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y =
+            current->pre.y + current->pre.scaled_image->height / 2;
+
         for (i = 0; i < n; i++) {
-          if (i == selected_index) continue;
+          if (i == selected_index)
+            continue;
           Client *candidate = clients_array[i];
-          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
-          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
-          
+          int candidate_center_x =
+              candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y =
+              candidate->pre.y + candidate->pre.scaled_image->height / 2;
+
           // Only consider windows above
           if (candidate_center_y < current_center_y) {
             int dx = abs(current_center_x - candidate_center_x);
             int dy = current_center_y - candidate_center_y;
             int distance = dy + dx * 2; // Weight horizontal distance more
-            
+
             if (distance < min_distance) {
               min_distance = distance;
               best_index = i;
             }
           }
         }
-        
+
         if (best_index != -1) {
           selected_index = best_index;
         }
@@ -3508,28 +3546,33 @@ void previewallwin() {
         int best_index = -1;
         int min_distance = INT_MAX;
         Client *current = clients_array[selected_index];
-        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
-        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
-        
+        int current_center_x =
+            current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y =
+            current->pre.y + current->pre.scaled_image->height / 2;
+
         for (i = 0; i < n; i++) {
-          if (i == selected_index) continue;
+          if (i == selected_index)
+            continue;
           Client *candidate = clients_array[i];
-          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
-          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
-          
+          int candidate_center_x =
+              candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y =
+              candidate->pre.y + candidate->pre.scaled_image->height / 2;
+
           // Only consider windows below
           if (candidate_center_y > current_center_y) {
             int dx = abs(current_center_x - candidate_center_x);
             int dy = candidate_center_y - current_center_y;
             int distance = dy + dx * 2; // Weight horizontal distance more
-            
+
             if (distance < min_distance) {
               min_distance = distance;
               best_index = i;
             }
           }
         }
-        
+
         if (best_index != -1) {
           selected_index = best_index;
         }
