@@ -3002,8 +3002,14 @@ void killorzoom(const Arg *arg) {
 
 void previewindexwin() {
   Monitor *m = selmon;
-  Client *c, *focus_c = NULL;
+  Client *c, *focus_c = NULL, *current_c = NULL;
   unsigned int n;
+
+  // Array to store all clients for keyboard navigation
+  Client **clients_array = NULL;
+  int selected_index = -1;
+
+  // First pass: count visible windows
   for (n = 0, c = nextpreview(m->clients); c; c = nextpreview(c->next), n++) {
     /* If you hit actualfullscreen patch Unlock the notes below */
     if (c->isfullscreen)
@@ -3012,12 +3018,39 @@ void previewindexwin() {
     if (HIDDEN(c))
       continue;
     c->pre.orig_image = getwindowximage(c);
+
+    // Record current selected window
+    if (c == selmon->sel)
+      current_c = c;
   }
+
   if (n == 0)
     return;
-  arrangeIndexPreviews(n, m, 60, 15);
-  XEvent event;
+
+  // Allocate clients array
+  clients_array = ecalloc(n, sizeof(Client *));
+
+  // Second pass: fill array
+  int i = 0;
   for (c = nextpreview(m->clients); c; c = nextpreview(c->next)) {
+    if (HIDDEN(c))
+      continue;
+    clients_array[i] = c;
+    if (c == current_c) {
+      selected_index = i; // Default to current window
+    }
+    i++;
+  }
+
+  // If current window not found, default to first
+  if (selected_index == -1 && n > 0)
+    selected_index = 0;
+
+  arrangeIndexPreviews(n, m, 60, 15);
+
+  // Create preview windows
+  for (i = 0; i < n; i++) {
+    c = clients_array[i];
     if (!c->pre.win)
       c->pre.win = XCreateSimpleWindow(
           dpy, root, c->pre.x, c->pre.y, c->pre.scaled_image->width,
@@ -3027,61 +3060,245 @@ void previewindexwin() {
       XMoveResizeWindow(dpy, c->pre.win, c->pre.x, c->pre.y,
                         c->pre.scaled_image->width,
                         c->pre.scaled_image->height);
-    XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+
+    // Set border color, selected window uses selected color
+    if (i == selected_index)
+      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+    else
+      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+
     XSetWindowBorderWidth(dpy, c->pre.win, borderpx);
     XUnmapWindow(dpy, c->win);
+
     if (c->pre.win) {
       XSelectInput(dpy, c->pre.win,
-                   ButtonPress | EnterWindowMask | LeaveWindowMask);
+                   ButtonPress | EnterWindowMask | LeaveWindowMask |
+                       KeyPressMask);
       XMapWindow(dpy, c->pre.win);
       GC gc = XCreateGC(dpy, c->pre.win, 0, NULL);
       XPutImage(dpy, c->pre.win, gc, c->pre.scaled_image, 0, 0, 0, 0,
                 c->pre.scaled_image->width, c->pre.scaled_image->height);
     }
   }
+
+  // Grab keyboard for input
+  XGrabKeyboard(dpy, root, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+  
+  // Move cursor to selected window
+  if (selected_index >= 0 && selected_index < n) {
+    Client *sel_c = clients_array[selected_index];
+    XWarpPointer(dpy, None, sel_c->pre.win, 0, 0, 0, 0, 
+                sel_c->pre.scaled_image->width/2, 
+                sel_c->pre.scaled_image->height/2);
+  }
+
+  XEvent event;
+  KeySym keysym;
+  int prev_selected = selected_index;
+
   while (1) {
     XNextEvent(dpy, &event);
-    if (event.type == ButtonPress)
-      if (event.xbutton.button == Button1) {
-        for (c = nextpreview(m->clients); c; c = nextpreview(c->next)) {
-          XUnmapWindow(dpy, c->pre.win);
-          if (event.xbutton.window == c->pre.win) {
-            selmon->seltags ^= 1; /* toggle sel tagset */
-            m->tagset[selmon->seltags] = c->tags;
-            focus_c = c;
-            focus(NULL);
-            /* If you hit awesomebar patch Unlock the notes below */
-            if (HIDDEN(c)) {
-              showwin(c);
-              continue;
+
+    if (event.type == KeyPress) {
+      keysym = XKeycodeToKeysym(dpy, event.xkey.keycode, 0);
+      prev_selected = selected_index;
+
+      // Position-based navigation logic
+      if (keysym == XK_h || keysym == XK_Left) {
+        // Move left: find nearest window to the left
+        int best_index = -1;
+        int min_distance = INT_MAX;
+        Client *current = clients_array[selected_index];
+        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
+        
+        for (i = 0; i < n; i++) {
+          if (i == selected_index) continue;
+          Client *candidate = clients_array[i];
+          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
+          
+          // Only consider windows to the left
+          if (candidate_center_x < current_center_x) {
+            int dx = current_center_x - candidate_center_x;
+            int dy = abs(current_center_y - candidate_center_y);
+            int distance = dx + dy * 2; // Weight vertical distance more
+            
+            if (distance < min_distance) {
+              min_distance = distance;
+              best_index = i;
             }
           }
-          /* If you hit awesomebar patch Unlock the notes below;
-           * And you should add the following line to "hidewin" Function
-           * c->pre.orig_image = getwindowximage(c);
-           * */
-          if (HIDDEN(c)) {
-            continue;
-          }
-          XMapWindow(dpy, c->win);
-          XDestroyImage(c->pre.orig_image);
-          XDestroyImage(c->pre.scaled_image);
         }
+        
+        if (best_index != -1) {
+          selected_index = best_index;
+        }
+      } else if (keysym == XK_l || keysym == XK_Right) {
+        // Move right: find nearest window to the right
+        int best_index = -1;
+        int min_distance = INT_MAX;
+        Client *current = clients_array[selected_index];
+        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
+        
+        for (i = 0; i < n; i++) {
+          if (i == selected_index) continue;
+          Client *candidate = clients_array[i];
+          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
+          
+          // Only consider windows to the right
+          if (candidate_center_x > current_center_x) {
+            int dx = candidate_center_x - current_center_x;
+            int dy = abs(current_center_y - candidate_center_y);
+            int distance = dx + dy * 2; // Weight vertical distance more
+            
+            if (distance < min_distance) {
+              min_distance = distance;
+              best_index = i;
+            }
+          }
+        }
+        
+        if (best_index != -1) {
+          selected_index = best_index;
+        }
+      } else if (keysym == XK_k || keysym == XK_Up) {
+        // Move up: find nearest window above
+        int best_index = -1;
+        int min_distance = INT_MAX;
+        Client *current = clients_array[selected_index];
+        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
+        
+        for (i = 0; i < n; i++) {
+          if (i == selected_index) continue;
+          Client *candidate = clients_array[i];
+          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
+          
+          // Only consider windows above
+          if (candidate_center_y < current_center_y) {
+            int dx = abs(current_center_x - candidate_center_x);
+            int dy = current_center_y - candidate_center_y;
+            int distance = dy + dx * 2; // Weight horizontal distance more
+            
+            if (distance < min_distance) {
+              min_distance = distance;
+              best_index = i;
+            }
+          }
+        }
+        
+        if (best_index != -1) {
+          selected_index = best_index;
+        }
+      } else if (keysym == XK_j || keysym == XK_Down) {
+        // Move down: find nearest window below
+        int best_index = -1;
+        int min_distance = INT_MAX;
+        Client *current = clients_array[selected_index];
+        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
+        
+        for (i = 0; i < n; i++) {
+          if (i == selected_index) continue;
+          Client *candidate = clients_array[i];
+          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
+          
+          // Only consider windows below
+          if (candidate_center_y > current_center_y) {
+            int dx = abs(current_center_x - candidate_center_x);
+            int dy = candidate_center_y - current_center_y;
+            int distance = dy + dx * 2; // Weight horizontal distance more
+            
+            if (distance < min_distance) {
+              min_distance = distance;
+              best_index = i;
+            }
+          }
+        }
+        
+        if (best_index != -1) {
+          selected_index = best_index;
+        }
+      } else if (keysym == XK_Return || keysym == XK_space) {
+        // Confirm selection
+        focus_c = clients_array[selected_index];
+        break;
+      } else if (keysym == XK_Escape) {
+        // Cancel and return
+        focus_c = current_c;
         break;
       }
-    if (event.type == EnterNotify)
-      for (c = nextpreview(m->clients); c; c = nextpreview(c->next))
-        if (event.xcrossing.window == c->pre.win) {
-          XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+
+      // Update border colors
+      if (prev_selected != selected_index) {
+        if (prev_selected >= 0 && prev_selected < n)
+          XSetWindowBorder(dpy, clients_array[prev_selected]->pre.win,
+                           scheme[SchemeNorm][ColBorder].pixel);
+
+        XSetWindowBorder(dpy, clients_array[selected_index]->pre.win,
+                         scheme[SchemeSel][ColBorder].pixel);
+      }
+    } else if (event.type == ButtonPress && event.xbutton.button == Button1) {
+      // Mouse click selection
+      for (i = 0; i < n; i++) {
+        if (event.xbutton.window == clients_array[i]->pre.win) {
+          focus_c = clients_array[i];
           break;
         }
-    if (event.type == LeaveNotify)
-      for (c = nextpreview(m->clients); c; c = nextpreview(c->next))
-        if (event.xcrossing.window == c->pre.win) {
-          XSetWindowBorder(dpy, c->pre.win,
+      }
+      if (focus_c)
+        break;
+    } else if (event.type == EnterNotify) {
+      // Mouse hover highlight
+      for (i = 0; i < n; i++) {
+        if (event.xcrossing.window == clients_array[i]->pre.win &&
+            i != selected_index) {
+          XSetWindowBorder(dpy, clients_array[i]->pre.win,
+                           scheme[SchemeSel][ColBorder].pixel);
+          break;
+        }
+      }
+    } else if (event.type == LeaveNotify) {
+      // Mouse leave restore color
+      for (i = 0; i < n; i++) {
+        if (event.xcrossing.window == clients_array[i]->pre.win &&
+            i != selected_index) {
+          XSetWindowBorder(dpy, clients_array[i]->pre.win,
                            scheme[SchemeNorm][ColBorder].pixel);
           break;
         }
+      }
+    }
+  }
+
+  // Release keyboard
+  XUngrabKeyboard(dpy, CurrentTime);
+
+  // Cleanup preview windows
+  for (i = 0; i < n; i++) {
+    c = clients_array[i];
+    XUnmapWindow(dpy, c->pre.win);
+    XMapWindow(dpy, c->win);
+    XDestroyImage(c->pre.orig_image);
+    XDestroyImage(c->pre.scaled_image);
+  }
+
+  // Free clients array
+  free(clients_array);
+
+  // Switch to selected window if any
+  if (focus_c) {
+    selmon->seltags ^= 1; /* toggle sel tagset */
+    m->tagset[selmon->seltags] = focus_c->tags;
+    focus(NULL);
+
+    if (HIDDEN(focus_c))
+      showwin(focus_c);
   }
 
   focus(focus_c);
@@ -3095,22 +3312,54 @@ void previewindexwin() {
 
 void previewallwin() {
   Monitor *m = selmon;
-  Client *c, *focus_c = NULL;
+  Client *c, *focus_c = NULL, *current_c = NULL;
   unsigned int n;
-  for (n = 0, c = m->clients; c; c = c->next, n++) {
-    /* If you hit actualfullscreen patch Unlock the notes below */
+
+  // Array to store all clients for keyboard navigation
+  Client **clients_array = NULL;
+  int selected_index = -1;
+
+  // First pass: count visible windows
+  for (n = 0, c = m->clients; c; c = c->next) {
     if (c->isfullscreen)
       togglefullscr(&(Arg){0});
-    /* If you hit awesomebar patch Unlock the notes below */
     if (HIDDEN(c))
       continue;
     c->pre.orig_image = getwindowximage(c);
+    n++;
+
+    // Record current selected window
+    if (c == selmon->sel)
+      current_c = c;
   }
+
   if (n == 0)
     return;
-  arrangePreviews(n, m, 60, 15);
-  XEvent event;
+
+  // Allocate clients array
+  clients_array = ecalloc(n, sizeof(Client *));
+
+  // Second pass: fill array
+  int i = 0;
   for (c = m->clients; c; c = c->next) {
+    if (c->isfullscreen || HIDDEN(c))
+      continue;
+    clients_array[i] = c;
+    if (c == current_c) {
+      selected_index = i; // Default to current window
+    }
+    i++;
+  }
+
+  // If current window not found, default to first
+  if (selected_index == -1 && n > 0)
+    selected_index = 0;
+
+  arrangePreviews(n, m, 60, 15);
+
+  // Create preview windows
+  for (i = 0; i < n; i++) {
+    c = clients_array[i];
     if (!c->pre.win)
       c->pre.win = XCreateSimpleWindow(
           dpy, root, c->pre.x, c->pre.y, c->pre.scaled_image->width,
@@ -3120,62 +3369,247 @@ void previewallwin() {
       XMoveResizeWindow(dpy, c->pre.win, c->pre.x, c->pre.y,
                         c->pre.scaled_image->width,
                         c->pre.scaled_image->height);
-    XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+
+    // Set border color, selected window uses selected color
+    if (i == selected_index)
+      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+    else
+      XSetWindowBorder(dpy, c->pre.win, scheme[SchemeNorm][ColBorder].pixel);
+
     XSetWindowBorderWidth(dpy, c->pre.win, borderpx);
     XUnmapWindow(dpy, c->win);
+
     if (c->pre.win) {
       XSelectInput(dpy, c->pre.win,
-                   ButtonPress | EnterWindowMask | LeaveWindowMask);
+                   ButtonPress | EnterWindowMask | LeaveWindowMask |
+                       KeyPressMask);
       XMapWindow(dpy, c->pre.win);
       GC gc = XCreateGC(dpy, c->pre.win, 0, NULL);
       XPutImage(dpy, c->pre.win, gc, c->pre.scaled_image, 0, 0, 0, 0,
                 c->pre.scaled_image->width, c->pre.scaled_image->height);
     }
   }
+
+  // Grab keyboard for input
+  XGrabKeyboard(dpy, root, True, GrabModeAsync, GrabModeAsync, CurrentTime);
+  
+  // Move cursor to selected window
+  if (selected_index >= 0 && selected_index < n) {
+    Client *sel_c = clients_array[selected_index];
+    XWarpPointer(dpy, None, sel_c->pre.win, 0, 0, 0, 0, 
+                sel_c->pre.scaled_image->width/2, 
+                sel_c->pre.scaled_image->height/2);
+  }
+
+  XEvent event;
+  KeySym keysym;
+  int prev_selected = selected_index;
+
   while (1) {
     XNextEvent(dpy, &event);
-    if (event.type == ButtonPress)
-      if (event.xbutton.button == Button1) {
-        for (c = m->clients; c; c = c->next) {
-          XUnmapWindow(dpy, c->pre.win);
-          if (event.xbutton.window == c->pre.win) {
-            selmon->seltags ^= 1; /* toggle sel tagset */
-            m->tagset[selmon->seltags] = c->tags;
-            focus_c = c;
-            focus(NULL);
-            /* If you hit awesomebar patch Unlock the notes below */
-            if (HIDDEN(c)) {
-              showwin(c);
-              continue;
+
+    if (event.type == KeyPress) {
+      keysym = XKeycodeToKeysym(dpy, event.xkey.keycode, 0);
+      prev_selected = selected_index;
+
+      // Position-based navigation logic
+      if (keysym == XK_h || keysym == XK_Left) {
+        // Move left: find nearest window to the left
+        int best_index = -1;
+        int min_distance = INT_MAX;
+        Client *current = clients_array[selected_index];
+        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
+        
+        for (i = 0; i < n; i++) {
+          if (i == selected_index) continue;
+          Client *candidate = clients_array[i];
+          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
+          
+          // Only consider windows to the left
+          if (candidate_center_x < current_center_x) {
+            int dx = current_center_x - candidate_center_x;
+            int dy = abs(current_center_y - candidate_center_y);
+            int distance = dx + dy * 2; // Weight vertical distance more
+            
+            if (distance < min_distance) {
+              min_distance = distance;
+              best_index = i;
             }
           }
-          /* If you hit awesomebar patch Unlock the notes below;
-           * And you should add the following line to "hidewin" Function
-           * c->pre.orig_image = getwindowximage(c);
-           * */
-          if (HIDDEN(c)) {
-            continue;
-          }
-          XMapWindow(dpy, c->win);
-          XDestroyImage(c->pre.orig_image);
-          XDestroyImage(c->pre.scaled_image);
         }
+        
+        if (best_index != -1) {
+          selected_index = best_index;
+        }
+      } else if (keysym == XK_l || keysym == XK_Right) {
+        // Move right: find nearest window to the right
+        int best_index = -1;
+        int min_distance = INT_MAX;
+        Client *current = clients_array[selected_index];
+        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
+        
+        for (i = 0; i < n; i++) {
+          if (i == selected_index) continue;
+          Client *candidate = clients_array[i];
+          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
+          
+          // Only consider windows to the right
+          if (candidate_center_x > current_center_x) {
+            int dx = candidate_center_x - current_center_x;
+            int dy = abs(current_center_y - candidate_center_y);
+            int distance = dx + dy * 2; // Weight vertical distance more
+            
+            if (distance < min_distance) {
+              min_distance = distance;
+              best_index = i;
+            }
+          }
+        }
+        
+        if (best_index != -1) {
+          selected_index = best_index;
+        }
+      } else if (keysym == XK_k || keysym == XK_Up) {
+        // Move up: find nearest window above
+        int best_index = -1;
+        int min_distance = INT_MAX;
+        Client *current = clients_array[selected_index];
+        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
+        
+        for (i = 0; i < n; i++) {
+          if (i == selected_index) continue;
+          Client *candidate = clients_array[i];
+          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
+          
+          // Only consider windows above
+          if (candidate_center_y < current_center_y) {
+            int dx = abs(current_center_x - candidate_center_x);
+            int dy = current_center_y - candidate_center_y;
+            int distance = dy + dx * 2; // Weight horizontal distance more
+            
+            if (distance < min_distance) {
+              min_distance = distance;
+              best_index = i;
+            }
+          }
+        }
+        
+        if (best_index != -1) {
+          selected_index = best_index;
+        }
+      } else if (keysym == XK_j || keysym == XK_Down) {
+        // Move down: find nearest window below
+        int best_index = -1;
+        int min_distance = INT_MAX;
+        Client *current = clients_array[selected_index];
+        int current_center_x = current->pre.x + current->pre.scaled_image->width / 2;
+        int current_center_y = current->pre.y + current->pre.scaled_image->height / 2;
+        
+        for (i = 0; i < n; i++) {
+          if (i == selected_index) continue;
+          Client *candidate = clients_array[i];
+          int candidate_center_x = candidate->pre.x + candidate->pre.scaled_image->width / 2;
+          int candidate_center_y = candidate->pre.y + candidate->pre.scaled_image->height / 2;
+          
+          // Only consider windows below
+          if (candidate_center_y > current_center_y) {
+            int dx = abs(current_center_x - candidate_center_x);
+            int dy = candidate_center_y - current_center_y;
+            int distance = dy + dx * 2; // Weight horizontal distance more
+            
+            if (distance < min_distance) {
+              min_distance = distance;
+              best_index = i;
+            }
+          }
+        }
+        
+        if (best_index != -1) {
+          selected_index = best_index;
+        }
+      } else if (keysym == XK_Return || keysym == XK_space) {
+        // Confirm selection
+        focus_c = clients_array[selected_index];
+        break;
+      } else if (keysym == XK_Escape) {
+        // Cancel and return
+        focus_c = current_c;
         break;
       }
-    if (event.type == EnterNotify)
-      for (c = m->clients; c; c = c->next)
-        if (event.xcrossing.window == c->pre.win) {
-          XSetWindowBorder(dpy, c->pre.win, scheme[SchemeSel][ColBorder].pixel);
+
+      // Update border colors
+      if (prev_selected != selected_index) {
+        if (prev_selected >= 0 && prev_selected < n)
+          XSetWindowBorder(dpy, clients_array[prev_selected]->pre.win,
+                           scheme[SchemeNorm][ColBorder].pixel);
+
+        XSetWindowBorder(dpy, clients_array[selected_index]->pre.win,
+                         scheme[SchemeSel][ColBorder].pixel);
+      }
+    } else if (event.type == ButtonPress && event.xbutton.button == Button1) {
+      // Mouse click selection
+      for (i = 0; i < n; i++) {
+        if (event.xbutton.window == clients_array[i]->pre.win) {
+          focus_c = clients_array[i];
           break;
         }
-    if (event.type == LeaveNotify)
-      for (c = m->clients; c; c = c->next)
-        if (event.xcrossing.window == c->pre.win) {
-          XSetWindowBorder(dpy, c->pre.win,
+      }
+      if (focus_c)
+        break;
+    } else if (event.type == EnterNotify) {
+      // Mouse hover highlight
+      for (i = 0; i < n; i++) {
+        if (event.xcrossing.window == clients_array[i]->pre.win &&
+            i != selected_index) {
+          XSetWindowBorder(dpy, clients_array[i]->pre.win,
+                           scheme[SchemeSel][ColBorder].pixel);
+          break;
+        }
+      }
+    } else if (event.type == LeaveNotify) {
+      // Mouse leave restore color
+      for (i = 0; i < n; i++) {
+        if (event.xcrossing.window == clients_array[i]->pre.win &&
+            i != selected_index) {
+          XSetWindowBorder(dpy, clients_array[i]->pre.win,
                            scheme[SchemeNorm][ColBorder].pixel);
           break;
         }
+      }
+    }
   }
+
+  // Release keyboard
+  XUngrabKeyboard(dpy, CurrentTime);
+
+  // Cleanup preview windows
+  for (i = 0; i < n; i++) {
+    c = clients_array[i];
+    XUnmapWindow(dpy, c->pre.win);
+    XMapWindow(dpy, c->win);
+    XDestroyImage(c->pre.orig_image);
+    XDestroyImage(c->pre.scaled_image);
+  }
+
+  // Free clients array
+  free(clients_array);
+
+  // Switch to selected window if any
+  if (focus_c) {
+    selmon->seltags ^= 1; /* toggle sel tagset */
+    m->tagset[selmon->seltags] = focus_c->tags;
+    focus(NULL);
+
+    if (HIDDEN(focus_c))
+      showwin(focus_c);
+  }
+
   focus(focus_c);
   arrangeClients(m);
   if (focus_c && !focus_c->isAtEdge) {
