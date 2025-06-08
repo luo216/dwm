@@ -332,6 +332,7 @@ static void updatetitle(Client *c);
 static void updatewindowtype(Client *c);
 static void updatewmhints(Client *c);
 static void view(const Arg *arg);
+static void switchtoclient(const Arg *arg);
 static void nview(const Arg *arg);
 static void pview(const Arg *arg);
 static Client *wintoclient(Window w);
@@ -1192,9 +1193,11 @@ void focusstackvis(const Arg *arg) {
 void focusstackedge(const Arg *arg) {
   if (selmon->sel) {
     focusstack(arg->i);
-    selmon->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
-    selmon->sel->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
-    selmon->sel->isAtEdge = !selmon->sel->isAtEdge;
+    if (!selmon->sel->isAtEdge) {
+      selmon->sel->mon->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
+      selmon->sel->isLeftEdgeLean = !selmon->sel->isLeftEdgeLean;
+      selmon->sel->isAtEdge = 1;
+    }
     arrange(selmon);
   }
 }
@@ -2809,6 +2812,28 @@ void view(const Arg *arg) {
   focus(NULL);
   arrangeClients(selmon);
   arrange(selmon);
+}
+
+void switchtoclient(const Arg *arg) {
+  Client *c;
+  XWindowAttributes wa;
+
+  if (!selmon->sel)
+    return;
+
+  for (c = selmon->sel->snext; c; c = c->snext) {
+    if (ISVISIBLE(c) && !HIDDEN(c) && XGetWindowAttributes(dpy, c->win, &wa) &&
+        wa.x < 0) {
+      focus(c);
+      if (!c->isAtEdge) {
+        c->mon->isLeftEdgeLean = !c->isLeftEdgeLean;
+        c->isLeftEdgeLean = !c->isLeftEdgeLean;
+        c->isAtEdge = 1;
+      }
+      arrange(selmon);
+      return;
+    }
+  }
 }
 
 void nview(const Arg *arg) {
