@@ -3316,8 +3316,11 @@ void previewindexwin() {
 
   // Switch to selected window if any
   if (focus_c) {
-    selmon->seltags ^= 1; /* toggle sel tagset */
-    m->tagset[selmon->seltags] = focus_c->tags;
+    // Check if target tags are different from current tags (like view function)
+    if (focus_c->tags != selmon->tagset[selmon->seltags]) {
+      selmon->seltags ^= 1; /* toggle sel tagset */
+      selmon->tagset[selmon->seltags] = focus_c->tags;
+    }
     focus(NULL);
 
     if (HIDDEN(focus_c))
@@ -3645,8 +3648,11 @@ void previewallwin() {
 
   // Switch to selected window if any
   if (focus_c) {
-    selmon->seltags ^= 1; /* toggle sel tagset */
-    m->tagset[selmon->seltags] = focus_c->tags;
+    // Check if target tags are different from current tags (like view function)
+    if (focus_c->tags != selmon->tagset[selmon->seltags]) {
+      selmon->seltags ^= 1; /* toggle sel tagset */
+      selmon->tagset[selmon->seltags] = focus_c->tags;
+    }
     focus(NULL);
 
     if (HIDDEN(focus_c))
