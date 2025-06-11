@@ -3043,9 +3043,17 @@ void previewindexwin() {
     if (c->isfullscreen)
       togglefullscr(&(Arg){0});
     /* If you hit awesomebar patch Unlock the notes below */
-    if (HIDDEN(c))
-      continue;
-    c->pre.orig_image = getwindowximage(c);
+    if (HIDDEN(c)) {
+      // For hidden windows, use the stored image if available
+      if (!c->pre.orig_image) {
+        // If no stored image, skip this window
+        n--;
+        continue;
+      }
+    } else {
+      // For visible windows, capture the current image
+      c->pre.orig_image = getwindowximage(c);
+    }
 
     // Record current selected window
     if (c == selmon->sel)
@@ -3061,7 +3069,7 @@ void previewindexwin() {
   // Second pass: fill array
   int i = 0;
   for (c = nextpreview(m->clients); c; c = nextpreview(c->next)) {
-    if (HIDDEN(c))
+    if (HIDDEN(c) && !c->pre.orig_image)
       continue;
     clients_array[i] = c;
     if (c == current_c) {
@@ -3331,8 +3339,11 @@ void previewindexwin() {
   for (i = 0; i < n; i++) {
     c = clients_array[i];
     XUnmapWindow(dpy, c->pre.win);
-    XMapWindow(dpy, c->win);
-    XDestroyImage(c->pre.orig_image);
+    if (!HIDDEN(c))
+      XMapWindow(dpy, c->win);
+    // Don't destroy orig_image for hidden windows as it's stored for reuse
+    if (!HIDDEN(c))
+      XDestroyImage(c->pre.orig_image);
     XDestroyImage(c->pre.scaled_image);
   }
 
@@ -3374,9 +3385,16 @@ void previewallwin() {
   for (n = 0, c = m->clients; c; c = c->next) {
     if (c->isfullscreen)
       togglefullscr(&(Arg){0});
-    if (HIDDEN(c))
-      continue;
-    c->pre.orig_image = getwindowximage(c);
+    if (HIDDEN(c)) {
+      // For hidden windows, use the stored image if available
+      if (!c->pre.orig_image) {
+        // If no stored image, skip this window
+        continue;
+      }
+    } else {
+      // For visible windows, capture the current image
+      c->pre.orig_image = getwindowximage(c);
+    }
     n++;
 
     // Record current selected window
@@ -3393,7 +3411,7 @@ void previewallwin() {
   // Second pass: fill array
   int i = 0;
   for (c = m->clients; c; c = c->next) {
-    if (c->isfullscreen || HIDDEN(c))
+    if (c->isfullscreen || (HIDDEN(c) && !c->pre.orig_image))
       continue;
     clients_array[i] = c;
     if (c == current_c) {
@@ -3663,8 +3681,11 @@ void previewallwin() {
   for (i = 0; i < n; i++) {
     c = clients_array[i];
     XUnmapWindow(dpy, c->pre.win);
-    XMapWindow(dpy, c->win);
-    XDestroyImage(c->pre.orig_image);
+    if (!HIDDEN(c))
+      XMapWindow(dpy, c->win);
+    // Don't destroy orig_image for hidden windows as it's stored for reuse
+    if (!HIDDEN(c))
+      XDestroyImage(c->pre.orig_image);
     XDestroyImage(c->pre.scaled_image);
   }
 
