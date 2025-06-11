@@ -352,6 +352,8 @@ static void arrangePreviews(unsigned int n, Monitor *m, unsigned int gappo,
 static void arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo,
                                  unsigned int gappi);
 static XImage *getwindowximage(Client *c);
+static XImage *getwindowximage_safe(Client *c);
+static XImage *create_placeholder_image(unsigned int w, unsigned int h);
 static XImage *scaledownimage(XImage *orig_image, unsigned int cw,
                               unsigned int ch);
 
@@ -1371,7 +1373,7 @@ void hidewin(Client *c) {
 
   Window w = c->win;
   static XWindowAttributes ra, ca;
-  c->pre.orig_image = getwindowximage(c);
+  c->pre.orig_image = getwindowximage_safe(c);
 
   // more or less taken directly from blackbox's hide() function
   XGrabServer(dpy);
@@ -1440,6 +1442,10 @@ void manage(Window w, XWindowAttributes *wa) {
   c->isAtEdge = selmon->isLeftEdgeLean ? 0 : 1;
   c->mfact = mfact;
   c->win = w;
+  // 初始化预览字段
+  c->pre.orig_image = NULL;
+  c->pre.scaled_image = NULL;
+  c->pre.win = 0;
   /* geometry */
   c->x = c->oldx = wa->x;
   c->y = c->oldy = wa->y;
@@ -2446,6 +2452,21 @@ void unmanage(Client *c, int destroyed) {
     XSetErrorHandler(xerror);
     XUngrabServer(dpy);
   }
+  
+  // 清理预览图像资源
+  if (c->pre.orig_image) {
+    XDestroyImage(c->pre.orig_image);
+    c->pre.orig_image = NULL;
+  }
+  if (c->pre.scaled_image) {
+    XDestroyImage(c->pre.scaled_image);
+    c->pre.scaled_image = NULL;
+  }
+  if (c->pre.win) {
+    XDestroyWindow(dpy, c->pre.win);
+    c->pre.win = 0;
+  }
+  
   free(c);
   focus(NULL);
   updateclientlist();
@@ -3043,9 +3064,17 @@ void previewindexwin() {
     if (c->isfullscreen)
       togglefullscr(&(Arg){0});
     /* If you hit awesomebar patch Unlock the notes below */
-    if (HIDDEN(c))
-      continue;
-    c->pre.orig_image = getwindowximage(c);
+    if (HIDDEN(c)) {
+      // For hidden windows, use the stored image if available
+      if (!c->pre.orig_image) {
+        // If no stored image, create a placeholder
+        c->pre.orig_image = create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
+      }
+    } else {
+      // For visible windows, capture the current image
+      c->pre.orig_image = getwindowximage_safe(c);
+      // getwindowximage_safe 现在总是返回一个图像（真实的或占位的）
+    }
 
     // Record current selected window
     if (c == selmon->sel)
@@ -3061,8 +3090,7 @@ void previewindexwin() {
   // Second pass: fill array
   int i = 0;
   for (c = nextpreview(m->clients); c; c = nextpreview(c->next)) {
-    if (HIDDEN(c))
-      continue;
+    // 现在所有客户端都应该有图像（真实的或占位的）
     clients_array[i] = c;
     if (c == current_c) {
       selected_index = i; // Default to current window
@@ -3331,8 +3359,11 @@ void previewindexwin() {
   for (i = 0; i < n; i++) {
     c = clients_array[i];
     XUnmapWindow(dpy, c->pre.win);
-    XMapWindow(dpy, c->win);
-    XDestroyImage(c->pre.orig_image);
+    if (!HIDDEN(c))
+      XMapWindow(dpy, c->win);
+    // Don't destroy orig_image for hidden windows as it's stored for reuse
+    if (!HIDDEN(c))
+      XDestroyImage(c->pre.orig_image);
     XDestroyImage(c->pre.scaled_image);
   }
 
@@ -3374,9 +3405,17 @@ void previewallwin() {
   for (n = 0, c = m->clients; c; c = c->next) {
     if (c->isfullscreen)
       togglefullscr(&(Arg){0});
-    if (HIDDEN(c))
-      continue;
-    c->pre.orig_image = getwindowximage(c);
+    if (HIDDEN(c)) {
+      // For hidden windows, use the stored image if available
+      if (!c->pre.orig_image) {
+        // If no stored image, create a placeholder
+        c->pre.orig_image = create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
+      }
+    } else {
+      // For visible windows, capture the current image
+      c->pre.orig_image = getwindowximage_safe(c);
+      // getwindowximage_safe 现在总是返回一个图像（真实的或占位的）
+    }
     n++;
 
     // Record current selected window
@@ -3393,8 +3432,9 @@ void previewallwin() {
   // Second pass: fill array
   int i = 0;
   for (c = m->clients; c; c = c->next) {
-    if (c->isfullscreen || HIDDEN(c))
+    if (c->isfullscreen)
       continue;
+    // 现在所有客户端都应该有图像（真实的或占位的）
     clients_array[i] = c;
     if (c == current_c) {
       selected_index = i; // Default to current window
@@ -3663,8 +3703,11 @@ void previewallwin() {
   for (i = 0; i < n; i++) {
     c = clients_array[i];
     XUnmapWindow(dpy, c->pre.win);
-    XMapWindow(dpy, c->win);
-    XDestroyImage(c->pre.orig_image);
+    if (!HIDDEN(c))
+      XMapWindow(dpy, c->win);
+    // Don't destroy orig_image for hidden windows as it's stored for reuse
+    if (!HIDDEN(c))
+      XDestroyImage(c->pre.orig_image);
     XDestroyImage(c->pre.scaled_image);
   }
 
@@ -3875,7 +3918,109 @@ XImage *getwindowximage(Client *c) {
   temp->green_mask = format2->direct.greenMask << format2->direct.green;
   temp->blue_mask = format2->direct.blueMask << format2->direct.blue;
   temp->depth = DefaultDepth(dpy, screen);
+  
+  // 清理创建的资源
+  XRenderFreePicture(dpy, picture);
+  XRenderFreePicture(dpy, pixmapPicture);
+  XFreePixmap(dpy, pixmap);
+  
   return temp;
+}
+
+XImage *getwindowximage_safe(Client *c) {
+  XImage *result = NULL;
+  XErrorHandler old_handler;
+  
+  // 设置错误处理器来捕获可能的X错误
+  old_handler = XSetErrorHandler(xerrordummy);
+  
+  // 检查窗口是否还存在
+  XWindowAttributes attr;
+  if (XGetWindowAttributes(dpy, c->win, &attr)) {
+    // 窗口存在，尝试获取图像
+    result = getwindowximage(c);
+  }
+  
+  // 恢复原来的错误处理器
+  XSetErrorHandler(old_handler);
+  
+  // 如果无法获取图像，创建占位图像
+  if (!result) {
+    result = create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
+  }
+  
+  return result;
+}
+
+XImage *create_placeholder_image(unsigned int w, unsigned int h) {
+  // 确保最小尺寸
+  if (w < 200) w = 200;
+  if (h < 150) h = 150;
+  
+  XImage *placeholder = XCreateImage(
+      dpy, DefaultVisual(dpy, DefaultScreen(dpy)), 24, ZPixmap,
+      0, NULL, w, h, 32, 0);
+  
+  if (!placeholder) {
+    return NULL;
+  }
+  
+  placeholder->data = malloc(placeholder->height * placeholder->bytes_per_line);
+  if (!placeholder->data) {
+    XDestroyImage(placeholder);
+    return NULL;
+  }
+  
+  // 创建渐变背景 (从深灰到浅灰)
+  for (unsigned int y = 0; y < h; y++) {
+    for (unsigned int x = 0; x < w; x++) {
+      unsigned char gray_value = 60 + (y * 40 / h); // 从60到100的灰度值
+      unsigned long pixel = (gray_value << 16) | (gray_value << 8) | gray_value;
+      XPutPixel(placeholder, x, y, pixel);
+    }
+  }
+  
+  // 绘制边框
+  unsigned long border_color = 0x808080; // 中等灰色
+  for (unsigned int x = 0; x < w; x++) {
+    XPutPixel(placeholder, x, 0, border_color);         // 上边框
+    XPutPixel(placeholder, x, h-1, border_color);       // 下边框
+  }
+  for (unsigned int y = 0; y < h; y++) {
+    XPutPixel(placeholder, 0, y, border_color);         // 左边框
+    XPutPixel(placeholder, w-1, y, border_color);       // 右边框
+  }
+  
+  // 绘制中央的 "X" 标记表示无法获取图像
+  unsigned long x_color = 0xFFFFFF; // 白色
+  unsigned int center_x = w / 2;
+  unsigned int center_y = h / 2;
+  unsigned int size = MIN(w, h) / 4; // X的大小
+  
+  // 绘制对角线 "X"
+  for (int i = -size/2; i <= size/2; i++) {
+    // 主对角线
+    if (center_x + i >= 0 && center_x + i < w && 
+        center_y + i >= 0 && center_y + i < h) {
+      XPutPixel(placeholder, center_x + i, center_y + i, x_color);
+      if (i > -size/2 && i < size/2) { // 加粗线条
+        XPutPixel(placeholder, center_x + i + 1, center_y + i, x_color);
+        XPutPixel(placeholder, center_x + i, center_y + i + 1, x_color);
+      }
+    }
+    // 反对角线
+    if (center_x + i >= 0 && center_x + i < w && 
+        center_y - i >= 0 && center_y - i < h) {
+      XPutPixel(placeholder, center_x + i, center_y - i, x_color);
+      if (i > -size/2 && i < size/2) { // 加粗线条
+        XPutPixel(placeholder, center_x + i + 1, center_y - i, x_color);
+        XPutPixel(placeholder, center_x + i, center_y - i - 1, x_color);
+      }
+    }
+  }
+  
+  placeholder->depth = DefaultDepth(dpy, screen);
+  return placeholder;
 }
 
 XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch) {
