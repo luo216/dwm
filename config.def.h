@@ -1,5 +1,20 @@
 /* See LICENSE file for copyright and license details. */
 
+/* Color scheme - Gruvbox Material */
+#define COLOR_BG_PRIMARY    "#1d2021"    /* main background */
+#define COLOR_BG_SECONDARY  "#282828"    /* secondary background */
+#define COLOR_BG_ACCENT     "#3c3836"    /* accent background */
+#define COLOR_FG_PRIMARY    "#d4be98"    /* main text */
+#define COLOR_FG_SECONDARY  "#a89984"    /* secondary text */
+#define COLOR_ACCENT_BLUE   "#7daea3"    /* blue accent */
+#define COLOR_ACCENT_GREEN  "#a9b665"    /* green accent */
+#define COLOR_ACCENT_ORANGE "#e78a4e"    /* orange accent */
+#define COLOR_ACCENT_RED    "#ea6962"    /* red accent */
+#define COLOR_ACCENT_PURPLE "#d3869b"    /* purple accent */
+#define COLOR_ACCENT_YELLOW "#d8a657"    /* yellow accent */
+#define COLOR_BORDER_NORMAL COLOR_BG_ACCENT
+#define COLOR_BORDER_FOCUS  COLOR_ACCENT_ORANGE
+
 static const char supericon[] = "   ";
 static const char logotext[] = "Arch-linux";
 /* status bar */
@@ -12,7 +27,7 @@ static const char dwmdir[] = "dwm";
 static const char dotconfig[] = ".config";
 /* appearance */
 static const unsigned int borderpx  = 3;        /* border pixel of windows */
-static const unsigned int gappx     = 6;       /* gap pixel between windows */
+static const unsigned int gappx     = 8;        /* gap pixel between windows */
 static const unsigned int snap      = 32;       /* snap pixel */
 static const unsigned int systrayiconsizeredunce = 15;   /* Let the icon not be completely attached to the systray-window, leaving some space */
 static const unsigned int systrayicony = systrayiconsizeredunce / 2;   /* Let the icon not be completely attached to the systray-window, leaving some space */
@@ -22,17 +37,17 @@ static const int systraypinningfailfirst = 1;   /* 1: if pinning fails, display 
 static const int showsystray        = 1;     /* 0 means no systray */
 static const int showbar            = 1;     /* 0 means no bar */
 static const int topbar             = 1;     /* 0 means bottom bar */
-static const char *fonts[] = {"Hack Nerd Font:size=14", "WenQuanYi Zen Hei:size=9"};
-static const unsigned int baralpha = 0xd0;
+static const char *fonts[] = {"Hack Nerd Font:size=13", "WenQuanYi Zen Hei:size=9"};
+static const unsigned int baralpha = 0xe0;
 static const unsigned int borderalpha = OPAQUE;
 static const char *colors[][3]      = {
-  /*               fg           bg          border   */
-  [SchemeNorm]   = {"#eeeeee",  "#325d9b",  "#325d9b"},
-  [SchemeSel]    = {"#eeeeee",  "#2c4a7e",  "Orange"},
-  [SchemeBlue]   = {"#0078d7",  "#325d9b",  "#0078d7"},
-  [SchemeGreen]  = {"#64DD17",  "#64DD17",  "#64DD17"},
-  [SchemeOrange] = {"Orange",   "Orange",   "Orange"},
-  [SchemeRed]    = {"Red",      "Red",      "Red"},
+  /*               fg                    bg                   border   */
+  [SchemeNorm]   = {COLOR_FG_PRIMARY,   COLOR_BG_PRIMARY,    COLOR_BORDER_NORMAL},
+  [SchemeSel]    = {COLOR_FG_PRIMARY,   COLOR_BG_SECONDARY,  COLOR_BORDER_FOCUS},
+  [SchemeBlue]   = {COLOR_ACCENT_BLUE,  COLOR_BG_PRIMARY,    COLOR_ACCENT_BLUE},
+  [SchemeGreen]  = {COLOR_ACCENT_GREEN, COLOR_BG_PRIMARY,    COLOR_ACCENT_GREEN},
+  [SchemeOrange] = {COLOR_ACCENT_ORANGE,COLOR_BG_PRIMARY,    COLOR_ACCENT_ORANGE},
+  [SchemeRed]    = {COLOR_ACCENT_RED,   COLOR_BG_PRIMARY,    COLOR_ACCENT_RED},
 };
 static const unsigned int alphas[][3]      = {
     /*               fg      bg        border*/
