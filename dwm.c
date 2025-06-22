@@ -3134,6 +3134,7 @@ void previewindexwin() {
       GC gc = XCreateGC(dpy, c->pre.win, 0, NULL);
       XPutImage(dpy, c->pre.win, gc, c->pre.scaled_image, 0, 0, 0, 0,
                 c->pre.scaled_image->width, c->pre.scaled_image->height);
+      XFreeGC(dpy, gc);
     }
   }
 
@@ -3478,6 +3479,7 @@ void previewallwin() {
       GC gc = XCreateGC(dpy, c->pre.win, 0, NULL);
       XPutImage(dpy, c->pre.win, gc, c->pre.scaled_image, 0, 0, 0, 0,
                 c->pre.scaled_image->width, c->pre.scaled_image->height);
+      XFreeGC(dpy, gc);
     }
   }
 
@@ -4032,8 +4034,15 @@ XImage *scaledownimage(XImage *orig_image, unsigned int cw, unsigned int ch) {
   XImage *scaled_image = XCreateImage(
       dpy, DefaultVisual(dpy, DefaultScreen(dpy)), orig_image->depth, ZPixmap,
       0, NULL, scaled_width, scaled_height, 32, 0);
+  if (!scaled_image) {
+    return NULL;
+  }
   scaled_image->data =
       malloc(scaled_image->height * scaled_image->bytes_per_line);
+  if (!scaled_image->data) {
+    XDestroyImage(scaled_image);
+    return NULL;
+  }
   for (int y = 0; y < scaled_height; y++) {
     for (int x = 0; x < scaled_width; x++) {
       int orig_x = x * scale_factor;
