@@ -37,6 +37,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <pthread.h>
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
@@ -45,6 +46,9 @@
 
 #include "drw.h"
 #include "util.h"
+
+/* External declaration of status bar mutex */
+extern pthread_mutex_t status_mutex;
 
 /* macros */
 #define BUTTONMASK (ButtonPressMask | ButtonReleaseMask)
@@ -981,6 +985,11 @@ void drawbar(Monitor *m) {
   if (!m->showbar)
     return;
 
+  // Lock mutex to protect status bar area if this is the selected monitor
+  if (m == selmon) {
+    pthread_mutex_lock(&status_mutex);
+  }
+
   if (showsystray && m == systraytomon(m))
     stw = systandstat;
 
@@ -1079,6 +1088,11 @@ void drawbar(Monitor *m) {
   m->bt = n;
   m->btw = w;
   drw_map(drw, m->barwin, 0, 0, m->ww - stw, bh);
+  
+  // Release mutex if this is the selected monitor
+  if (m == selmon) {
+    pthread_mutex_unlock(&status_mutex);
+  }
 }
 
 void drawbars(void) {
@@ -1442,7 +1456,7 @@ void manage(Window w, XWindowAttributes *wa) {
   c->isAtEdge = selmon->isLeftEdgeLean ? 0 : 1;
   c->mfact = mfact;
   c->win = w;
-  // 初始化预览字段
+  // Initialize preview fields
   c->pre.orig_image = NULL;
   c->pre.scaled_image = NULL;
   c->pre.win = 0;
@@ -2453,7 +2467,7 @@ void unmanage(Client *c, int destroyed) {
     XUngrabServer(dpy);
   }
   
-  // 清理预览图像资源
+  // Clean up preview image resources
   if (c->pre.orig_image) {
     XDestroyImage(c->pre.orig_image);
     c->pre.orig_image = NULL;
@@ -3073,7 +3087,7 @@ void previewindexwin() {
     } else {
       // For visible windows, capture the current image
       c->pre.orig_image = getwindowximage_safe(c);
-      // getwindowximage_safe 现在总是返回一个图像（真实的或占位的）
+      // getwindowximage_safe now always returns an image (real or placeholder)
     }
 
     // Record current selected window
@@ -3090,7 +3104,7 @@ void previewindexwin() {
   // Second pass: fill array
   int i = 0;
   for (c = nextpreview(m->clients); c; c = nextpreview(c->next)) {
-    // 现在所有客户端都应该有图像（真实的或占位的）
+    // Now all clients should have an image (real or placeholder)
     clients_array[i] = c;
     if (c == current_c) {
       selected_index = i; // Default to current window
@@ -3418,7 +3432,7 @@ void previewallwin() {
     } else {
       // For visible windows, capture the current image
       c->pre.orig_image = getwindowximage_safe(c);
-      // getwindowximage_safe 现在总是返回一个图像（真实的或占位的）
+      // getwindowximage_safe now always returns an image (real or placeholder)
     }
     n++;
 
@@ -3438,7 +3452,7 @@ void previewallwin() {
   for (c = m->clients; c; c = c->next) {
     if (c->isfullscreen)
       continue;
-    // 现在所有客户端都应该有图像（真实的或占位的）
+    // Now all clients should have an image (real or placeholder)
     clients_array[i] = c;
     if (c == current_c) {
       selected_index = i; // Default to current window
@@ -3927,7 +3941,7 @@ XImage *getwindowximage(Client *c) {
   temp->blue_mask = format2->direct.blueMask << format2->direct.blue;
   temp->depth = DefaultDepth(dpy, screen);
   
-  // 清理创建的资源
+  // Clean up created resources
   XRenderFreePicture(dpy, picture);
   XRenderFreePicture(dpy, pixmapPicture);
   XFreePixmap(dpy, pixmap);
@@ -3939,20 +3953,20 @@ XImage *getwindowximage_safe(Client *c) {
   XImage *result = NULL;
   XErrorHandler old_handler;
   
-  // 设置错误处理器来捕获可能的X错误
+  // Set error handler to catch possible X errors
   old_handler = XSetErrorHandler(xerrordummy);
   
-  // 检查窗口是否还存在
+  // Check if window still exists
   XWindowAttributes attr;
   if (XGetWindowAttributes(dpy, c->win, &attr)) {
-    // 窗口存在，尝试获取图像
+    // Window exists, try to get image
     result = getwindowximage(c);
   }
   
-  // 恢复原来的错误处理器
+  // Restore original error handler
   XSetErrorHandler(old_handler);
   
-  // 如果无法获取图像，创建占位图像
+  // If unable to get image, create placeholder image
   if (!result) {
     result = create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
   }
@@ -3961,7 +3975,7 @@ XImage *getwindowximage_safe(Client *c) {
 }
 
 XImage *create_placeholder_image(unsigned int w, unsigned int h) {
-  // 确保最小尺寸
+  // Ensure minimum size
   if (w < 200) w = 200;
   if (h < 150) h = 150;
   

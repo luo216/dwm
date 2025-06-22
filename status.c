@@ -3,6 +3,9 @@
 /* macros */
 #define NODE_NUM 90
 
+/* External declaration of mutex for use by dwm.c */
+extern pthread_mutex_t status_mutex;
+
 /* enum */
 enum {
   Notify,
@@ -78,6 +81,7 @@ static void init_statusbar();
 
 /* variables */
 static pthread_t draw_status_thread;
+pthread_mutex_t status_mutex = PTHREAD_MUTEX_INITIALIZER; // Define mutex
 static Node Nodes[NODE_NUM];
 static int numCores;
 static int cores_cwidth;
@@ -666,40 +670,68 @@ void init_statusbar() {
 }
 
 void clean_status_pthread() {
-  // TODO: status pthread free meomory
+  // Cancel thread
   pthread_cancel(draw_status_thread);
-  // cpu cores
-  free(storage_cores.curr);
-  free(storage_cores.prev);
-  // cpu nodes
-  free(storage_cpu.curr);
-  free(storage_cpu.prev);
-  for (int i = 0; i < 10; i++) {
-    free(Nodes[i].data);
+  pthread_join(draw_status_thread, NULL);
+  
+  // Destroy mutex
+  pthread_mutex_destroy(&status_mutex);
+  
+  // Free memory
+  if (storage_cores.curr) {
+    free(storage_cores.curr);
+    storage_cores.curr = NULL;
+  }
+  if (storage_cores.prev) {
+    free(storage_cores.prev);
+    storage_cores.prev = NULL;
+  }
+  
+  if (storage_cpu.curr) {
+    free(storage_cpu.curr);
+    storage_cpu.curr = NULL;
+  }
+  if (storage_cpu.prev) {
+    free(storage_cpu.prev);
+    storage_cpu.prev = NULL;
+  }
+  
+  // Fix: should free all NODE_NUM nodes, not just 10
+  for (int i = 0; i < NODE_NUM; i++) {
+    if (Nodes[i].data) {
+      free(Nodes[i].data);
+      Nodes[i].data = NULL;
+    }
   }
 }
 
 void *drawstatusbar() {
   init_statusbar();
+  
   while (1) {
-    // Traverse mons and draw on selmon
-    for (Monitor *m = mons; m; m = m->next) {
+    // Use mutex to protect drawing operations
+    pthread_mutex_lock(&status_mutex);
+    
+    // Only draw on the selected monitor
+    if (selmon) {
       systrayw = getsystraywidth();
       systandstat = getstatuswidth() + systrayw;
-      if (m == selmon) {
-        int x = m->ww - systrayw;
-        drw_setscheme(drw, scheme[SchemeNorm]);
-        drw_rect(drw, m->ww - systandstat, 0, systandstat, bh, 1, 1);
+      
+      int x = selmon->ww - systrayw;
+      drw_setscheme(drw, scheme[SchemeNorm]);
+      drw_rect(drw, selmon->ww - systandstat, 0, systandstat, bh, 1, 1);
 
-        for (int i = 0; i < LENGTH(Blocks); i++) {
-          x = Blocks[i].draw(x, &Blocks[i]);
-        }
-
-        drw_map(drw, m->barwin, m->ww - systandstat, 0, systandstat, bh);
+      for (int i = 0; i < LENGTH(Blocks); i++) {
+        x = Blocks[i].draw(x, &Blocks[i]);
       }
 
-      sleep(1);
+      drw_map(drw, selmon->barwin, selmon->ww - systandstat, 0, systandstat, bh);
     }
+    
+    pthread_mutex_unlock(&status_mutex);
+    
+    // Move sleep outside loop to avoid sleeping for each monitor
+    sleep(1);
   }
-  return 0;
+  return NULL;
 }
