@@ -3363,9 +3363,12 @@ void previewindexwin() {
     if (!HIDDEN(c))
       XMapWindow(dpy, c->win);
     // Don't destroy orig_image for hidden windows as it's stored for reuse
-    if (!HIDDEN(c))
+    if (!HIDDEN(c)) {
       XDestroyImage(c->pre.orig_image);
+      c->pre.orig_image = NULL;
+    }
     XDestroyImage(c->pre.scaled_image);
+    c->pre.scaled_image = NULL;
   }
 
   // Free clients array
@@ -3708,9 +3711,12 @@ void previewallwin() {
     if (!HIDDEN(c))
       XMapWindow(dpy, c->win);
     // Don't destroy orig_image for hidden windows as it's stored for reuse
-    if (!HIDDEN(c))
+    if (!HIDDEN(c)) {
       XDestroyImage(c->pre.orig_image);
+      c->pre.orig_image = NULL;
+    }
     XDestroyImage(c->pre.scaled_image);
+    c->pre.scaled_image = NULL;
   }
 
   // Free clients array
