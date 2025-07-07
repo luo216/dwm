@@ -28,6 +28,7 @@
 #include <X11/keysym.h>
 #include <dirent.h>
 #include <locale.h>
+#include <pthread.h>
 #include <signal.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -37,7 +38,6 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <pthread.h>
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif /* XINERAMA */
@@ -1088,7 +1088,7 @@ void drawbar(Monitor *m) {
   m->bt = n;
   m->btw = w;
   drw_map(drw, m->barwin, 0, 0, m->ww - stw, bh);
-  
+
   // Release mutex if this is the selected monitor
   if (m == selmon) {
     pthread_mutex_unlock(&status_mutex);
@@ -1132,6 +1132,9 @@ void expose(XEvent *e) {
 }
 
 void transferFocusAttributes(Client *unfocus, Client *focus) {
+  if (unfocus && unfocus->isfloating) {
+    return;
+  }
   if (unfocus && focus && focus->tags == unfocus->tags && unfocus != focus) {
     focus->isLeftEdgeLean = unfocus->isLeftEdgeLean;
     for (Client *c = nexttiled(focus->mon->clients); c;
@@ -2466,7 +2469,7 @@ void unmanage(Client *c, int destroyed) {
     XSetErrorHandler(xerror);
     XUngrabServer(dpy);
   }
-  
+
   // Clean up preview image resources
   if (c->pre.orig_image) {
     XDestroyImage(c->pre.orig_image);
@@ -2480,7 +2483,7 @@ void unmanage(Client *c, int destroyed) {
     XDestroyWindow(dpy, c->pre.win);
     c->pre.win = 0;
   }
-  
+
   free(c);
   focus(NULL);
   updateclientlist();
@@ -3082,7 +3085,8 @@ void previewindexwin() {
       // For hidden windows, use the stored image if available
       if (!c->pre.orig_image) {
         // If no stored image, create a placeholder
-        c->pre.orig_image = create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
+        c->pre.orig_image = create_placeholder_image(c->w > 0 ? c->w : 200,
+                                                     c->h > 0 ? c->h : 150);
       }
     } else {
       // For visible windows, capture the current image
@@ -3427,7 +3431,8 @@ void previewallwin() {
       // For hidden windows, use the stored image if available
       if (!c->pre.orig_image) {
         // If no stored image, create a placeholder
-        c->pre.orig_image = create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
+        c->pre.orig_image = create_placeholder_image(c->w > 0 ? c->w : 200,
+                                                     c->h > 0 ? c->h : 150);
       }
     } else {
       // For visible windows, capture the current image
@@ -3940,59 +3945,62 @@ XImage *getwindowximage(Client *c) {
   temp->green_mask = format2->direct.greenMask << format2->direct.green;
   temp->blue_mask = format2->direct.blueMask << format2->direct.blue;
   temp->depth = DefaultDepth(dpy, screen);
-  
+
   // Clean up created resources
   XRenderFreePicture(dpy, picture);
   XRenderFreePicture(dpy, pixmapPicture);
   XFreePixmap(dpy, pixmap);
-  
+
   return temp;
 }
 
 XImage *getwindowximage_safe(Client *c) {
   XImage *result = NULL;
   XErrorHandler old_handler;
-  
+
   // Set error handler to catch possible X errors
   old_handler = XSetErrorHandler(xerrordummy);
-  
+
   // Check if window still exists
   XWindowAttributes attr;
   if (XGetWindowAttributes(dpy, c->win, &attr)) {
     // Window exists, try to get image
     result = getwindowximage(c);
   }
-  
+
   // Restore original error handler
   XSetErrorHandler(old_handler);
-  
+
   // If unable to get image, create placeholder image
   if (!result) {
-    result = create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
+    result =
+        create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
   }
-  
+
   return result;
 }
 
 XImage *create_placeholder_image(unsigned int w, unsigned int h) {
   // Ensure minimum size
-  if (w < 200) w = 200;
-  if (h < 150) h = 150;
-  
-  XImage *placeholder = XCreateImage(
-      dpy, DefaultVisual(dpy, DefaultScreen(dpy)), 24, ZPixmap,
-      0, NULL, w, h, 32, 0);
-  
+  if (w < 200)
+    w = 200;
+  if (h < 150)
+    h = 150;
+
+  XImage *placeholder =
+      XCreateImage(dpy, DefaultVisual(dpy, DefaultScreen(dpy)), 24, ZPixmap, 0,
+                   NULL, w, h, 32, 0);
+
   if (!placeholder) {
     return NULL;
   }
-  
+
   placeholder->data = malloc(placeholder->height * placeholder->bytes_per_line);
   if (!placeholder->data) {
     XDestroyImage(placeholder);
     return NULL;
   }
-  
+
   // 创建渐变背景 (从深灰到浅灰)
   for (unsigned int y = 0; y < h; y++) {
     for (unsigned int x = 0; x < w; x++) {
@@ -4001,46 +4009,46 @@ XImage *create_placeholder_image(unsigned int w, unsigned int h) {
       XPutPixel(placeholder, x, y, pixel);
     }
   }
-  
+
   // 绘制边框
   unsigned long border_color = 0x808080; // 中等灰色
   for (unsigned int x = 0; x < w; x++) {
-    XPutPixel(placeholder, x, 0, border_color);         // 上边框
-    XPutPixel(placeholder, x, h-1, border_color);       // 下边框
+    XPutPixel(placeholder, x, 0, border_color);     // 上边框
+    XPutPixel(placeholder, x, h - 1, border_color); // 下边框
   }
   for (unsigned int y = 0; y < h; y++) {
-    XPutPixel(placeholder, 0, y, border_color);         // 左边框
-    XPutPixel(placeholder, w-1, y, border_color);       // 右边框
+    XPutPixel(placeholder, 0, y, border_color);     // 左边框
+    XPutPixel(placeholder, w - 1, y, border_color); // 右边框
   }
-  
+
   // 绘制中央的 "X" 标记表示无法获取图像
   unsigned long x_color = 0xFFFFFF; // 白色
   unsigned int center_x = w / 2;
   unsigned int center_y = h / 2;
   unsigned int size = MIN(w, h) / 4; // X的大小
-  
+
   // 绘制对角线 "X"
-  for (int i = -size/2; i <= size/2; i++) {
+  for (int i = -size / 2; i <= size / 2; i++) {
     // 主对角线
-    if (center_x + i >= 0 && center_x + i < w && 
-        center_y + i >= 0 && center_y + i < h) {
+    if (center_x + i >= 0 && center_x + i < w && center_y + i >= 0 &&
+        center_y + i < h) {
       XPutPixel(placeholder, center_x + i, center_y + i, x_color);
-      if (i > -size/2 && i < size/2) { // 加粗线条
+      if (i > -size / 2 && i < size / 2) { // 加粗线条
         XPutPixel(placeholder, center_x + i + 1, center_y + i, x_color);
         XPutPixel(placeholder, center_x + i, center_y + i + 1, x_color);
       }
     }
     // 反对角线
-    if (center_x + i >= 0 && center_x + i < w && 
-        center_y - i >= 0 && center_y - i < h) {
+    if (center_x + i >= 0 && center_x + i < w && center_y - i >= 0 &&
+        center_y - i < h) {
       XPutPixel(placeholder, center_x + i, center_y - i, x_color);
-      if (i > -size/2 && i < size/2) { // 加粗线条
+      if (i > -size / 2 && i < size / 2) { // 加粗线条
         XPutPixel(placeholder, center_x + i + 1, center_y - i, x_color);
         XPutPixel(placeholder, center_x + i, center_y - i - 1, x_color);
       }
     }
   }
-  
+
   placeholder->depth = DefaultDepth(dpy, screen);
   return placeholder;
 }
