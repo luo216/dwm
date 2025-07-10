@@ -696,7 +696,7 @@ void clean_status_pthread() {
     storage_cpu.prev = NULL;
   }
   
-  // Fix: should free all NODE_NUM nodes, not just 10
+  /* Fix: should free all NODE_NUM nodes */
   for (int i = 0; i < NODE_NUM; i++) {
     if (Nodes[i].data) {
       free(Nodes[i].data);

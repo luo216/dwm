@@ -721,6 +721,7 @@ void cleanup(void) {
     free(scheme[i]);
   free(scheme);
   XDestroyWindow(dpy, wmcheckwin);
+  clean_status_pthread();
   drw_free(drw);
   XSync(dpy, False);
   XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
