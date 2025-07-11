@@ -23,7 +23,7 @@ typedef struct Block Block;
 struct Block {
   int bw;
   void *storage;
-  int (*draw)(int x, Block *block);
+  int (*draw)(int x, Block *block, unsigned int timer);
   void (*click)(const Arg *arg);
 };
 
@@ -62,14 +62,14 @@ static void click_cpu(const Arg *arg);
 static void click_cores(const Arg *arg);
 static void *drawstatusbar();
 static void clean_status_pthread();
-static int draw_clock(int x, Block *block);
-static int draw_net(int x, Block *block);
-static int draw_battery(int x, Block *block);
-static int draw_notify(int x, Block *block);
-static int draw_cpu(int x, Block *block);
-static int draw_cores(int x, Block *block);
-static int draw_temp(int x, Block *block);
-static int draw_more(int x, Block *block);
+static int draw_clock(int x, Block *block, unsigned int timer);
+static int draw_net(int x, Block *block, unsigned int timer);
+static int draw_battery(int x, Block *block, unsigned int timer);
+static int draw_notify(int x, Block *block, unsigned int timer);
+static int draw_cpu(int x, Block *block, unsigned int timer);
+static int draw_cores(int x, Block *block, unsigned int timer);
+static int draw_temp(int x, Block *block, unsigned int timer);
+static int draw_more(int x, Block *block, unsigned int timer);
 static int getstatuswidth();
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
@@ -215,7 +215,7 @@ void click_notify(const Arg *arg) {
   }
 }
 
-int draw_cores(int x, Block *block) {
+int draw_cores(int x, Block *block, unsigned int timer) {
   FILE *fp;
   CoreBlock *storage = block->storage;
   fp = fopen("/proc/stat", "r");
@@ -295,7 +295,7 @@ int draw_cores(int x, Block *block) {
   return x;
 }
 
-int draw_cpu(int x, Block *block) {
+int draw_cpu(int x, Block *block, unsigned int timer) {
   FILE *fp;
   CpuBlock *storage = block->storage;
   fp = fopen("/proc/stat", "r");
@@ -385,20 +385,24 @@ int draw_cpu(int x, Block *block) {
   return x;
 }
 
-int draw_temp(int x, Block *block) {
-  char temp[18];
-  char temp_addr[40];
-  sprintf(temp_addr, "/sys/class/thermal/thermal_zone%d/temp",
-          thermal_zone_index);
-  FILE *fp = fopen(temp_addr, "r");
-  if (fp == NULL) {
-    return x;
+int draw_temp(int x, Block *block, unsigned int timer) {
+  static char temp[18];
+
+  if (timer % 5 == 0) {
+    char temp_addr[40];
+    sprintf(temp_addr, "/sys/class/thermal/thermal_zone%d/temp",
+            thermal_zone_index);
+    FILE *fp = fopen(temp_addr, "r");
+    if (fp == NULL) {
+      return x;
+    }
+    int tmp;
+    fscanf(fp, "%d", &tmp);
+    fclose(fp);
+    tmp = tmp / 1000;
+    sprintf(temp, "%d", tmp);
   }
-  int tmp;
-  fscanf(fp, "%d", &tmp);
-  fclose(fp);
-  tmp = tmp / 1000;
-  sprintf(temp, "%d", tmp);
+
   block->bw = TEXTW(temp);
   x -= block->bw;
   drw_text(drw, x, 0, block->bw, bh, 0, temp, 0);
@@ -406,7 +410,7 @@ int draw_temp(int x, Block *block) {
   return x;
 }
 
-int draw_notify(int x, Block *block) {
+int draw_notify(int x, Block *block, unsigned int timer) {
   char tag[] = " ";
   block->bw = TEXTW(tag);
   x -= block->bw;
@@ -415,7 +419,7 @@ int draw_notify(int x, Block *block) {
   return x;
 }
 
-int draw_more(int x, Block *block) {
+int draw_more(int x, Block *block, unsigned int timer) {
   char tag[] = "󰍻 ";
   block->bw = TEXTW(tag);
   x -= block->bw;
@@ -424,31 +428,38 @@ int draw_more(int x, Block *block) {
   return x;
 }
 
-int draw_battery(int x, Block *block) {
-  char capacity[4];
-  int int_cap;
-  char status[20];
-  char capacitypatch[] = "/sys/class/power_supply/BAT0/capacity";
-  char statuspatch[] = "/sys/class/power_supply/BAT0/status";
+int draw_battery(int x, Block *block, unsigned int timer) {
+  static char bat_perc[5];
+  static char bat_status[20];
 
-  // read capacity and status
-  FILE *fp = fopen(capacitypatch, "r");
-  if (fp == NULL) {
-    return x;
-  }
-  fscanf(fp, "%s", capacity);
-  fclose(fp);
-  fp = fopen(statuspatch, "r");
-  if (fp == NULL) {
-    return x;
-  }
-  fscanf(fp, "%s", status);
-  fclose(fp);
-  int_cap = atoi(capacity);
+  if (timer % 10 == 0) {
+    char capacity[4];
+    char status[20];
+    char capacitypatch[] = "/sys/class/power_supply/BAT0/capacity";
+    char statuspatch[] = "/sys/class/power_supply/BAT0/status";
 
-  block->bw = TEXTW(capacity);
+    // read capacity and status
+    FILE *fp = fopen(capacitypatch, "r");
+    if (fp == NULL) {
+      return x;
+    }
+    fscanf(fp, "%s", capacity);
+    fclose(fp);
+    fp = fopen(statuspatch, "r");
+    if (fp == NULL) {
+      return x;
+    }
+    fscanf(fp, "%s", status);
+    fclose(fp);
+    strcpy(bat_perc, capacity);
+    strcpy(bat_status, status);
+  }
+
+  int int_cap = atoi(bat_perc);
+
+  block->bw = TEXTW(bat_perc);
   x -= block->bw;
-  drw_text(drw, x, 0, block->bw, bh, lrpad, capacity, 0);
+  drw_text(drw, x, 0, block->bw, bh, lrpad, bat_perc, 0);
 
   // Draw the battery case
   const int tpad = 4;
@@ -462,7 +473,7 @@ int draw_battery(int x, Block *block) {
   drw_rect(drw, x, tpad + battery_sh, battery_w, battery_h, 1, 1);
   drw_rect(drw, x + battery_sw / 2, tpad, battery_sw, battery_sh, 1, 1);
 
-  if (status[0] == 'C' || status[0] == 'F') {
+  if (bat_status[0] == 'C' || bat_status[0] == 'F') {
     drw_setscheme(drw, scheme[SchemeGreen]);
   } else if (int_cap >= 45) {
     drw_setscheme(drw, scheme[SchemeBlue]);
@@ -487,7 +498,7 @@ int draw_battery(int x, Block *block) {
   return x;
 }
 
-int draw_net(int x, Block *block) {
+int draw_net(int x, Block *block, unsigned int timer) {
   char rx[20], tx[20];
   char txpath[50];
   char rxpath[50];
@@ -560,7 +571,7 @@ int draw_net(int x, Block *block) {
   return x;
 }
 
-int draw_clock(int x, Block *block) {
+int draw_clock(int x, Block *block, unsigned int timer) {
   time_t currentTime = time(NULL);
   struct tm *tm = localtime(&currentTime);
   int hour = tm->tm_hour;
@@ -707,6 +718,7 @@ void clean_status_pthread() {
 
 void *drawstatusbar() {
   init_statusbar();
+  unsigned int timer = 0;
   
   while (1) {
     // Use mutex to protect drawing operations
@@ -722,7 +734,7 @@ void *drawstatusbar() {
       drw_rect(drw, selmon->ww - systandstat, 0, systandstat, bh, 1, 1);
 
       for (int i = 0; i < LENGTH(Blocks); i++) {
-        x = Blocks[i].draw(x, &Blocks[i]);
+        x = Blocks[i].draw(x, &Blocks[i], timer);
       }
 
       drw_map(drw, selmon->barwin, selmon->ww - systandstat, 0, systandstat, bh);
@@ -732,6 +744,7 @@ void *drawstatusbar() {
     
     // Move sleep outside loop to avoid sleeping for each monitor
     sleep(1);
+    timer++;
   }
   return NULL;
 }
