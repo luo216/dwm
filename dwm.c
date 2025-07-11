@@ -86,9 +86,10 @@ enum {
   SchemeNorm,
   SchemeSel,
   SchemeBlue,
-  SchemeGreen,
+  SchemePurple,
   SchemeOrange,
-  SchemeRed
+  SchemeRed,
+  SchemeFG
 }; /* color schemes */
 enum {
   NetSupported,

@@ -41,22 +41,24 @@ static const char *fonts[] = {"Hack Nerd Font:size=13", "WenQuanYi Zen Hei:size=
 static const unsigned int baralpha = 0xe0;
 static const unsigned int borderalpha = OPAQUE;
 static const char *colors[][3]      = {
-  /*               fg                    bg                   border   */
-  [SchemeNorm]   = {COLOR_FG_PRIMARY,   COLOR_BG_PRIMARY,    COLOR_BORDER_NORMAL},
-  [SchemeSel]    = {COLOR_FG_PRIMARY,   COLOR_BG_SECONDARY,  COLOR_BORDER_FOCUS},
-  [SchemeBlue]   = {COLOR_ACCENT_BLUE,  COLOR_BG_PRIMARY,    COLOR_ACCENT_BLUE},
-  [SchemeGreen]  = {COLOR_ACCENT_GREEN, COLOR_BG_PRIMARY,    COLOR_ACCENT_GREEN},
-  [SchemeOrange] = {COLOR_ACCENT_ORANGE,COLOR_BG_PRIMARY,    COLOR_ACCENT_ORANGE},
-  [SchemeRed]    = {COLOR_ACCENT_RED,   COLOR_BG_PRIMARY,    COLOR_ACCENT_RED},
+  /*                fg                     bg                    border   */
+  [SchemeNorm]    = {COLOR_FG_PRIMARY,     COLOR_BG_PRIMARY,     COLOR_BORDER_NORMAL},
+  [SchemeSel]     = {COLOR_FG_PRIMARY,     COLOR_BG_SECONDARY,   COLOR_BORDER_FOCUS},
+  [SchemeBlue]    = {COLOR_ACCENT_BLUE,    COLOR_ACCENT_BLUE,    COLOR_ACCENT_BLUE},
+  [SchemePurple]  = {COLOR_ACCENT_PURPLE,  COLOR_ACCENT_PURPLE,  COLOR_ACCENT_PURPLE},
+  [SchemeOrange]  = {COLOR_ACCENT_ORANGE,  COLOR_ACCENT_ORANGE,  COLOR_ACCENT_ORANGE},
+  [SchemeRed]     = {COLOR_ACCENT_RED,     COLOR_ACCENT_RED,     COLOR_ACCENT_RED},
+  [SchemeFG]      = {COLOR_FG_PRIMARY,     COLOR_FG_PRIMARY,     COLOR_FG_PRIMARY},
 };
 static const unsigned int alphas[][3]      = {
     /*               fg      bg        border*/
     [SchemeNorm] = { OPAQUE, baralpha, borderalpha },
 	  [SchemeSel]  = { OPAQUE, baralpha, borderalpha },
-    [SchemeBlue]   = { OPAQUE, baralpha, borderalpha },
-    [SchemeGreen]  = { OPAQUE, baralpha, borderalpha },
-    [SchemeOrange] = { OPAQUE, baralpha, borderalpha },
-    [SchemeRed]    = { OPAQUE, baralpha, borderalpha },
+    [SchemeBlue]   = { OPAQUE, OPAQUE, borderalpha },
+    [SchemePurple]  = { OPAQUE, OPAQUE, borderalpha },
+    [SchemeOrange] = { OPAQUE, OPAQUE, borderalpha },
+    [SchemeRed]    = { OPAQUE, OPAQUE, borderalpha },
+    [SchemeFG]    =  { OPAQUE, OPAQUE, borderalpha },
 };
 
 /* tagging */

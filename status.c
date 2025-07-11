@@ -70,6 +70,8 @@ static int draw_cpu(int x, Block *block, unsigned int timer);
 static int draw_cores(int x, Block *block, unsigned int timer);
 static int draw_temp(int x, Block *block, unsigned int timer);
 static int draw_more(int x, Block *block, unsigned int timer);
+static void draw_digit_segments(int digit, int x, int y, int w, int h);
+static void draw_number_segments(int number, int x, int y, int w, int h);
 static int getstatuswidth();
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
@@ -212,6 +214,61 @@ void click_notify(const Arg *arg) {
       execvp(((char **)history_close)[0], (char **)history_close);
       die("dwm: execvp '%s' failed:", ((char **)history_close)[0]);
     }
+  }
+}
+
+void draw_digit_segments(int digit, int x, int y, int w, int h) {
+  int line_w = 2;
+  // Segments: 0=top, 1=top-left, 2=top-right, 3=middle, 4=bottom-left,
+  // 5=bottom-right, 6=bottom
+  int segments[10][7] = {
+      {1, 1, 1, 0, 1, 1, 1}, // 0
+      {0, 0, 1, 0, 0, 1, 0}, // 1
+      {1, 0, 1, 1, 1, 0, 1}, // 2
+      {1, 0, 1, 1, 0, 1, 1}, // 3
+      {0, 1, 1, 1, 0, 1, 0}, // 4
+      {1, 1, 0, 1, 0, 1, 1}, // 5
+      {1, 1, 0, 1, 1, 1, 1}, // 6
+      {1, 0, 1, 0, 0, 1, 0}, // 7
+      {1, 1, 1, 1, 1, 1, 1}, // 8
+      {1, 1, 1, 1, 0, 1, 1}  // 9
+  };
+
+  if (digit < 0 || digit > 9)
+    return;
+
+  if (segments[digit][0])
+    drw_rect(drw, x, y, w, line_w, 1, 1); // Top
+  if (segments[digit][1])
+    drw_rect(drw, x, y, line_w, h / 2, 1, 1); // Top-left
+  if (segments[digit][2])
+    drw_rect(drw, x + w - line_w, y, line_w, h / 2, 1, 1); // Top-right
+  if (segments[digit][3])
+    drw_rect(drw, x, y + h / 2 - line_w / 2, w, line_w, 1, 1); // Middle
+  if (segments[digit][4])
+    drw_rect(drw, x, y + h / 2, line_w, h / 2, 1, 1); // Bottom-left
+  if (segments[digit][5])
+    drw_rect(drw, x + w - line_w, y + h / 2, line_w, h / 2, 1,
+             1); // Bottom-right
+  if (segments[digit][6])
+    drw_rect(drw, x, y + h - line_w, w, line_w, 1, 1); // Bottom
+}
+
+void draw_number_segments(int number, int x, int y, int w, int h) {
+  if (number == 100)
+    number = 99;
+  char num_str[4];
+  sprintf(num_str, "%02d", number);
+  int num_digits = strlen(num_str);
+  int digit_w =
+      h * 0.8; // Make digit width proportional to height for a 'fatter' look
+  int total_w =
+      digit_w * num_digits + (num_digits - 1) * 2; // Total width with spacing
+  int current_x = x + (w - total_w) / 2;           // Center the whole number
+
+  for (int i = 0; i < num_digits; i++) {
+    draw_digit_segments(num_str[i] - '0', current_x, y, digit_w, h);
+    current_x += digit_w + 2; // Add spacing between digits
   }
 }
 
@@ -457,44 +514,48 @@ int draw_battery(int x, Block *block, unsigned int timer) {
 
   int int_cap = atoi(bat_perc);
 
-  block->bw = TEXTW(bat_perc);
-  x -= block->bw;
-  drw_text(drw, x, 0, block->bw, bh, lrpad, bat_perc, 0);
-
   // Draw the battery case
-  const int tpad = 4;
   const int border = 1;
-  const int battery_sw = 6;
-  const int battery_sh = 3;
-  const int battery_w = 2 * battery_sw;
-  const int battery_h = bh - battery_sh - 2 * tpad;
-  x -= battery_w;
-  drw_setscheme(drw, scheme[SchemeSel]);
-  drw_rect(drw, x, tpad + battery_sh, battery_w, battery_h, 1, 1);
-  drw_rect(drw, x + battery_sw / 2, tpad, battery_sw, battery_sh, 1, 1);
+  const int battery_h = drw->fonts->h - 6;
+  const int battery_w = battery_h * 2;
+  const int battery_x = x - battery_w + lrpad / 2 - 3;
+  const int battery_y = (bh - battery_h) / 2;
 
+  drw_setscheme(drw, scheme[SchemeFG]);
+  drw_rect(drw, battery_x, battery_y, battery_w, battery_h, 0, 1);
+  drw_rect(drw, battery_x + battery_w, battery_y + 4, 2, battery_h - 8, 1,
+           1); // Positive terminal (solid)
+
+  // Set color based on status and capacity
   if (bat_status[0] == 'C' || bat_status[0] == 'F') {
-    drw_setscheme(drw, scheme[SchemeGreen]);
-  } else if (int_cap >= 45) {
-    drw_setscheme(drw, scheme[SchemeBlue]);
-  } else if (int_cap > 20) {
+    drw_setscheme(drw, scheme[SchemePurple]);
+  } else if (int_cap <= 20) {
+    drw_setscheme(drw, scheme[SchemeRed]);
+  } else if (int_cap <= 50) {
     drw_setscheme(drw, scheme[SchemeOrange]);
   } else {
-    drw_setscheme(drw, scheme[SchemeRed]);
+    drw_setscheme(drw, scheme[SchemeBlue]);
   }
 
-  const int battery_cap_x = x + border;
-  int battery_cap_y = battery_sh + tpad;
-  const int battery_cap_w = battery_w - 2 * border;
-  int battery_cap_h = battery_h - 2 * border;
-  battery_cap_h = battery_cap_h * int_cap / 100;
-  battery_cap_y = battery_cap_y + (battery_h - border - battery_cap_h);
-  drw_rect(drw, battery_cap_x, battery_cap_y, battery_cap_w, battery_cap_h, 1,
-           0);
-  x -= lrpad;
-  block->bw += battery_w + lrpad;
+  // Draw the battery level (10-step quantization)
+  int drawable_w = battery_w - 2 * border;
+  int num_segments = (int_cap + 9) / 10;
+  if (int_cap > 0 && num_segments == 0)
+    num_segments = 1;
+  int battery_cap_w = num_segments * drawable_w / 10;
+  drw_rect(drw, battery_x + border, battery_y + border, battery_cap_w,
+           battery_h - 2 * border, 1, 1);
+
+  // Draw the percentage number using segments
+  drw_setscheme(drw, scheme[SchemeFG]);
+  draw_number_segments(int_cap, battery_x + 3, battery_y + 2, battery_w - 8,
+                       battery_h - 6);
+
+  x -= battery_w + 5;
+  block->bw = battery_w + 5;
 
   drw_setscheme(drw, scheme[SchemeNorm]);
+
   return x;
 }
 
@@ -684,10 +745,10 @@ void clean_status_pthread() {
   // Cancel thread
   pthread_cancel(draw_status_thread);
   pthread_join(draw_status_thread, NULL);
-  
+
   // Destroy mutex
   pthread_mutex_destroy(&status_mutex);
-  
+
   // Free memory
   if (storage_cores.curr) {
     free(storage_cores.curr);
@@ -697,7 +758,7 @@ void clean_status_pthread() {
     free(storage_cores.prev);
     storage_cores.prev = NULL;
   }
-  
+
   if (storage_cpu.curr) {
     free(storage_cpu.curr);
     storage_cpu.curr = NULL;
@@ -706,7 +767,7 @@ void clean_status_pthread() {
     free(storage_cpu.prev);
     storage_cpu.prev = NULL;
   }
-  
+
   /* Fix: should free all NODE_NUM nodes */
   for (int i = 0; i < NODE_NUM; i++) {
     if (Nodes[i].data) {
@@ -719,16 +780,16 @@ void clean_status_pthread() {
 void *drawstatusbar() {
   init_statusbar();
   unsigned int timer = 0;
-  
+
   while (1) {
     // Use mutex to protect drawing operations
     pthread_mutex_lock(&status_mutex);
-    
+
     // Only draw on the selected monitor
     if (selmon) {
       systrayw = getsystraywidth();
       systandstat = getstatuswidth() + systrayw;
-      
+
       int x = selmon->ww - systrayw;
       drw_setscheme(drw, scheme[SchemeNorm]);
       drw_rect(drw, selmon->ww - systandstat, 0, systandstat, bh, 1, 1);
@@ -737,11 +798,12 @@ void *drawstatusbar() {
         x = Blocks[i].draw(x, &Blocks[i], timer);
       }
 
-      drw_map(drw, selmon->barwin, selmon->ww - systandstat, 0, systandstat, bh);
+      drw_map(drw, selmon->barwin, selmon->ww - systandstat, 0, systandstat,
+              bh);
     }
-    
+
     pthread_mutex_unlock(&status_mutex);
-    
+
     // Move sleep outside loop to avoid sleeping for each monitor
     sleep(1);
     timer++;
