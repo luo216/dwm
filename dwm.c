@@ -89,6 +89,7 @@ enum {
   SchemePurple,
   SchemeGreen,
   SchemeOrange,
+  SchemeYellow,
   SchemeRed,
   SchemeFG
 }; /* color schemes */

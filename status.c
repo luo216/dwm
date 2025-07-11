@@ -12,6 +12,7 @@ enum {
   Battery,
   Clock,
   Net,
+  Mem,
   Cpu,
   Cores,
   Temp,
@@ -55,6 +56,7 @@ typedef struct {
 
 /* function declarations */
 static void click_more(const Arg *arg);
+static void click_mem(const Arg *arg);
 static void click_temp(const Arg *arg);
 static void click_net(const Arg *arg);
 static void click_notify(const Arg *arg);
@@ -69,6 +71,7 @@ static int draw_notify(int x, Block *block, unsigned int timer);
 static int draw_cpu(int x, Block *block, unsigned int timer);
 static int draw_cores(int x, Block *block, unsigned int timer);
 static int draw_temp(int x, Block *block, unsigned int timer);
+static int draw_mem(int x, Block *block, unsigned int timer);
 static int draw_more(int x, Block *block, unsigned int timer);
 static void draw_digit_segments(int digit, int x, int y, int w, int h);
 static void draw_number_segments(int number, int x, int y, int w, int h);
@@ -101,6 +104,7 @@ static Block Blocks[] = {
     [Cpu] = {0, &storage_cpu, draw_cpu, click_cpu},
     [Cores] = {0, &storage_cores, draw_cores, click_cores},
     [Temp] = {0, NULL, draw_temp, click_temp},
+    [Mem] = {0, NULL, draw_mem, click_mem},
     [More] = {0, NULL, draw_more, click_more},
 };
 /* configuration, allows nested code to access above variables */
@@ -133,6 +137,13 @@ void click_temp(const Arg *arg) {
 void click_more(const Arg *arg) {
   if (arg->i == 1) {
     const Arg v = {.v = script_menu};
+    spawn(&v);
+  }
+}
+
+void click_mem(const Arg *arg) {
+  if (arg->i == 1) {
+    const Arg v = {.v = sys_monitor};
     spawn(&v);
   }
 }
@@ -557,6 +568,78 @@ int draw_battery(int x, Block *block, unsigned int timer) {
   drw_setscheme(drw, scheme[SchemeNorm]);
 
   return x;
+}
+
+int draw_mem(int x, Block *block, unsigned int timer) {
+    static long mem_total = 0, mem_free = 0, mem_active = 0, mem_inactive = 0, mem_cached = 0;
+
+    if (timer % 2 == 0) { // Update every 2 seconds
+        char line[256];
+        FILE *fp = fopen("/proc/meminfo", "r");
+        if (fp == NULL) {
+            perror("fopen /proc/meminfo");
+            return x;
+        }
+        
+        while (fgets(line, sizeof(line), fp)) {
+            if (sscanf(line, "MemTotal: %ld kB", &mem_total) == 1) continue;
+            if (sscanf(line, "MemFree: %ld kB", &mem_free) == 1) continue;
+            if (sscanf(line, "Active: %ld kB", &mem_active) == 1) continue;
+            if (sscanf(line, "Inactive: %ld kB", &mem_inactive) == 1) continue;
+            if (sscanf(line, "Cached: %ld kB", &mem_cached) == 1) continue;
+        }
+        fclose(fp);
+    }
+
+    if (mem_total == 0) { // Avoid division by zero on first run
+        return x;
+    }
+
+    // Drawing logic
+    const int bar_w = 100;
+    const int bar_h = bh - 6;
+    const int bar_x = x - bar_w;
+    const int bar_y = (bh - bar_h) / 2;
+    int current_x = bar_x;
+
+    float free_perc = (float)mem_free / mem_total;
+    float active_perc = (float)mem_active / mem_total;
+    float inactive_perc = (float)mem_inactive / mem_total;
+    // float cached_perc = (float)mem_cached / mem_total;
+
+    int free_w = free_perc * bar_w;
+    int active_w = active_perc * bar_w;
+    int inactive_w = inactive_perc * bar_w;
+    // int cached_w = cached_perc * bar_w;
+
+    // Green: Free
+    drw_setscheme(drw, scheme[SchemeGreen]);
+    drw_rect(drw, current_x, bar_y, free_w, bar_h, 1, 1);
+    current_x += free_w;
+
+    // Red: Inactive
+    drw_setscheme(drw, scheme[SchemeRed]);
+    drw_rect(drw, current_x, bar_y, inactive_w, bar_h, 1, 1);
+    current_x += inactive_w;
+
+    // Orange: Active
+    drw_setscheme(drw, scheme[SchemeOrange]);
+    drw_rect(drw, current_x, bar_y, active_w, bar_h, 1, 1);
+    current_x += active_w;
+
+    // Blue: Cached
+    drw_setscheme(drw, scheme[SchemeBlue]);
+    drw_rect(drw, current_x, bar_y, bar_w - (current_x - bar_x), bar_h, 1, 1);
+    
+    // Draw a border around the whole bar
+    drw_setscheme(drw, scheme[SchemeFG]);
+    drw_rect(drw, bar_x, bar_y, bar_w, bar_h, 0, 1);
+
+    x -= (bar_w + lrpad);
+    block->bw = bar_w + lrpad;
+
+    drw_setscheme(drw, scheme[SchemeNorm]);
+    return x;
 }
 
 int draw_net(int x, Block *block, unsigned int timer) {
