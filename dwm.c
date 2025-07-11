@@ -87,6 +87,7 @@ enum {
   SchemeSel,
   SchemeBlue,
   SchemePurple,
+  SchemeGreen,
   SchemeOrange,
   SchemeRed,
   SchemeFG
