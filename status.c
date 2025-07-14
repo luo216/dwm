@@ -605,30 +605,28 @@ int draw_mem(int x, Block *block, unsigned int timer) {
     float free_perc = (float)mem_free / mem_total;
     float active_perc = (float)mem_active / mem_total;
     float inactive_perc = (float)mem_inactive / mem_total;
-    // float cached_perc = (float)mem_cached / mem_total;
 
     int free_w = free_perc * bar_w;
     int active_w = active_perc * bar_w;
     int inactive_w = inactive_perc * bar_w;
-    // int cached_w = cached_perc * bar_w;
 
     // Green: Free
     drw_setscheme(drw, scheme[SchemeGreen]);
     drw_rect(drw, current_x, bar_y, free_w, bar_h, 1, 1);
     current_x += free_w;
 
-    // Red: Inactive
-    drw_setscheme(drw, scheme[SchemeRed]);
-    drw_rect(drw, current_x, bar_y, inactive_w, bar_h, 1, 1);
-    current_x += inactive_w;
-
-    // Orange: Active
-    drw_setscheme(drw, scheme[SchemeOrange]);
+    // Yellow: Active
+    drw_setscheme(drw, scheme[SchemeOrange]); // Assuming SchemeOrange is yellow
     drw_rect(drw, current_x, bar_y, active_w, bar_h, 1, 1);
     current_x += active_w;
 
-    // Blue: Cached
+    // Blue: Inactive
     drw_setscheme(drw, scheme[SchemeBlue]);
+    drw_rect(drw, current_x, bar_y, inactive_w, bar_h, 1, 1);
+    current_x += inactive_w;
+
+    // Red: Unaccounted (includes cached, etc.)
+    drw_setscheme(drw, scheme[SchemeRed]);
     drw_rect(drw, current_x, bar_y, bar_w - (current_x - bar_x), bar_h, 1, 1);
     
     // Draw a border around the whole bar
