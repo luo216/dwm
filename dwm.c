@@ -1394,6 +1394,13 @@ void hidewin(Client *c) {
 
   Window w = c->win;
   static XWindowAttributes ra, ca;
+  
+  // Clean up existing preview image before creating a new one
+  if (c->pre.orig_image) {
+    XDestroyImage(c->pre.orig_image);
+    c->pre.orig_image = NULL;
+  }
+  
   c->pre.orig_image = getwindowximage_safe(c);
 
   // more or less taken directly from blackbox's hide() function
@@ -3095,6 +3102,11 @@ void previewindexwin() {
       }
     } else {
       // For visible windows, capture the current image
+      // Clean up existing image first to prevent memory leak
+      if (c->pre.orig_image) {
+        XDestroyImage(c->pre.orig_image);
+        c->pre.orig_image = NULL;
+      }
       c->pre.orig_image = getwindowximage_safe(c);
       // getwindowximage_safe now always returns an image (real or placeholder)
     }
@@ -3441,6 +3453,11 @@ void previewallwin() {
       }
     } else {
       // For visible windows, capture the current image
+      // Clean up existing image first to prevent memory leak
+      if (c->pre.orig_image) {
+        XDestroyImage(c->pre.orig_image);
+        c->pre.orig_image = NULL;
+      }
       c->pre.orig_image = getwindowximage_safe(c);
       // getwindowximage_safe now always returns an image (real or placeholder)
     }
@@ -3780,6 +3797,11 @@ void arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo,
     c = nextpreview(m->clients);
     unsigned int cw = (m->ww - 2 * gappo) * 8 / 10;
     unsigned int ch = (m->wh - 2 * gappo) * 9 / 10;
+    // Clean up existing scaled image before creating new one
+    if (c->pre.scaled_image) {
+      XDestroyImage(c->pre.scaled_image);
+      c->pre.scaled_image = NULL;
+    }
     c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
     c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width) / 2;
     c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
@@ -3793,6 +3815,11 @@ void arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo,
 
     unsigned int total_width = 0;
     for (c = nextpreview(m->clients); c; c = nextpreview(c->next)) {
+      // Clean up existing scaled image before creating new one
+      if (c->pre.scaled_image) {
+        XDestroyImage(c->pre.scaled_image);
+        c->pre.scaled_image = NULL;
+      }
       c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
       total_width += c->pre.scaled_image->width;
     }
@@ -3823,6 +3850,11 @@ void arrangeIndexPreviews(unsigned int n, Monitor *m, unsigned int gappo,
     for (int j = 0; j < cols; j++) {
       if (!c)
         break;
+      // Clean up existing scaled image before creating new one
+      if (c->pre.scaled_image) {
+        XDestroyImage(c->pre.scaled_image);
+        c->pre.scaled_image = NULL;
+      }
       c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
       c->pre.x = cx;
       cmaxh = c->pre.scaled_image->height > cmaxh ? c->pre.scaled_image->height
@@ -3857,6 +3889,11 @@ void arrangePreviews(unsigned int n, Monitor *m, unsigned int gappo,
     c = m->clients;
     unsigned int cw = (m->ww - 2 * gappo) * 8 / 10;
     unsigned int ch = (m->wh - 2 * gappo) * 9 / 10;
+    // Clean up existing scaled image before creating new one
+    if (c->pre.scaled_image) {
+      XDestroyImage(c->pre.scaled_image);
+      c->pre.scaled_image = NULL;
+    }
     c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
     c->pre.x = m->mx + (m->mw - c->pre.scaled_image->width) / 2;
     c->pre.y = m->my + (m->mh - c->pre.scaled_image->height) / 2;
@@ -3870,6 +3907,11 @@ void arrangePreviews(unsigned int n, Monitor *m, unsigned int gappo,
 
     unsigned int total_width = 0;
     for (c = m->clients; c; c = c->next) {
+      // Clean up existing scaled image before creating new one
+      if (c->pre.scaled_image) {
+        XDestroyImage(c->pre.scaled_image);
+        c->pre.scaled_image = NULL;
+      }
       c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
       total_width += c->pre.scaled_image->width;
     }
@@ -3900,6 +3942,11 @@ void arrangePreviews(unsigned int n, Monitor *m, unsigned int gappo,
     for (int j = 0; j < cols; j++) {
       if (!c)
         break;
+      // Clean up existing scaled image before creating new one
+      if (c->pre.scaled_image) {
+        XDestroyImage(c->pre.scaled_image);
+        c->pre.scaled_image = NULL;
+      }
       c->pre.scaled_image = scaledownimage(c->pre.orig_image, cw, ch);
       c->pre.x = cx;
       cmaxh = c->pre.scaled_image->height > cmaxh ? c->pre.scaled_image->height
