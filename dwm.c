@@ -1394,13 +1394,13 @@ void hidewin(Client *c) {
 
   Window w = c->win;
   static XWindowAttributes ra, ca;
-  
+
   // Clean up existing preview image before creating a new one
   if (c->pre.orig_image) {
     XDestroyImage(c->pre.orig_image);
     c->pre.orig_image = NULL;
   }
-  
+
   c->pre.orig_image = getwindowximage_safe(c);
 
   // more or less taken directly from blackbox's hide() function
@@ -2873,7 +2873,7 @@ void switchtoclient(const Arg *arg) {
 
   for (c = selmon->sel->snext; c; c = c->snext) {
     if (ISVISIBLE(c) && !HIDDEN(c) && XGetWindowAttributes(dpy, c->win, &wa) &&
-        wa.x < 0) {
+        (wa.x + wa.width) < 0) {
       focus(c);
       if (!c->isAtEdge) {
         c->mon->isLeftEdgeLean = !c->isLeftEdgeLean;
