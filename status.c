@@ -73,8 +73,7 @@ static int draw_cores(int x, Block *block, unsigned int timer);
 static int draw_temp(int x, Block *block, unsigned int timer);
 static int draw_mem(int x, Block *block, unsigned int timer);
 static int draw_more(int x, Block *block, unsigned int timer);
-static void draw_digit_segments(int digit, int x, int y, int w, int h);
-static void draw_number_segments(int number, int x, int y, int w, int h);
+
 static int getstatuswidth();
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
@@ -228,60 +227,7 @@ void click_notify(const Arg *arg) {
   }
 }
 
-void draw_digit_segments(int digit, int x, int y, int w, int h) {
-  int line_w = 2;
-  // Segments: 0=top, 1=top-left, 2=top-right, 3=middle, 4=bottom-left,
-  // 5=bottom-right, 6=bottom
-  int segments[10][7] = {
-      {1, 1, 1, 0, 1, 1, 1}, // 0
-      {0, 0, 1, 0, 0, 1, 0}, // 1
-      {1, 0, 1, 1, 1, 0, 1}, // 2
-      {1, 0, 1, 1, 0, 1, 1}, // 3
-      {0, 1, 1, 1, 0, 1, 0}, // 4
-      {1, 1, 0, 1, 0, 1, 1}, // 5
-      {1, 1, 0, 1, 1, 1, 1}, // 6
-      {1, 0, 1, 0, 0, 1, 0}, // 7
-      {1, 1, 1, 1, 1, 1, 1}, // 8
-      {1, 1, 1, 1, 0, 1, 1}  // 9
-  };
 
-  if (digit < 0 || digit > 9)
-    return;
-
-  if (segments[digit][0])
-    drw_rect(drw, x, y, w, line_w, 1, 1); // Top
-  if (segments[digit][1])
-    drw_rect(drw, x, y, line_w, h / 2, 1, 1); // Top-left
-  if (segments[digit][2])
-    drw_rect(drw, x + w - line_w, y, line_w, h / 2, 1, 1); // Top-right
-  if (segments[digit][3])
-    drw_rect(drw, x, y + h / 2 - line_w / 2, w, line_w, 1, 1); // Middle
-  if (segments[digit][4])
-    drw_rect(drw, x, y + h / 2, line_w, h / 2, 1, 1); // Bottom-left
-  if (segments[digit][5])
-    drw_rect(drw, x + w - line_w, y + h / 2, line_w, h / 2, 1,
-             1); // Bottom-right
-  if (segments[digit][6])
-    drw_rect(drw, x, y + h - line_w, w, line_w, 1, 1); // Bottom
-}
-
-void draw_number_segments(int number, int x, int y, int w, int h) {
-  if (number == 100)
-    number = 99;
-  char num_str[4];
-  sprintf(num_str, "%02d", number);
-  int num_digits = strlen(num_str);
-  int digit_w =
-      h * 0.8; // Make digit width proportional to height for a 'fatter' look
-  int total_w =
-      digit_w * num_digits + (num_digits - 1) * 2; // Total width with spacing
-  int current_x = x + (w - total_w) / 2;           // Center the whole number
-
-  for (int i = 0; i < num_digits; i++) {
-    draw_digit_segments(num_str[i] - '0', current_x, y, digit_w, h);
-    current_x += digit_w + 2; // Add spacing between digits
-  }
-}
 
 int draw_cores(int x, Block *block, unsigned int timer) {
   FILE *fp;
@@ -289,16 +235,29 @@ int draw_cores(int x, Block *block, unsigned int timer) {
   fp = fopen("/proc/stat", "r");
   if (fp == NULL) {
     printf("Failed to open /proc/stat\n");
-    return 1;
+    block->bw = 0;
+    return x;
   }
   // Read data line by line from fp
   char line[256];
-  fgets(line, sizeof(line), fp);
+  if (!fgets(line, sizeof(line), fp)) {
+    fclose(fp);
+    block->bw = 0;
+    return x;
+  }
   for (int i = 0; i < numCores; i++) {
-    fgets(line, sizeof(line), fp);
-    sscanf(line, "cpu%*d %lu %lu %lu %lu", &storage->curr[i].user,
+    if (!fgets(line, sizeof(line), fp)) {
+      fclose(fp);
+      block->bw = 0;
+      return x;
+    }
+    if (sscanf(line, "cpu%*d %lu %lu %lu %lu", &storage->curr[i].user,
            &storage->curr[i].nice, &storage->curr[i].system,
-           &storage->curr[i].idle);
+           &storage->curr[i].idle) != 4) {
+      fclose(fp);
+      block->bw = 0;
+      return x;
+    }
   }
   fclose(fp);
 
@@ -369,12 +328,17 @@ int draw_cpu(int x, Block *block, unsigned int timer) {
   fp = fopen("/proc/stat", "r");
   if (fp == NULL) {
     printf("Failed to open /proc/stat\n");
-    return 1;
+    block->bw = 0;
+    return x;
   }
 
   // Read cpu usage information
-  fscanf(fp, "cpu %lu %lu %lu %lu", &storage->curr->user, &storage->curr->nice,
-         &storage->curr->system, &storage->curr->idle);
+  if (fscanf(fp, "cpu %lu %lu %lu %lu", &storage->curr->user, &storage->curr->nice,
+         &storage->curr->system, &storage->curr->idle) != 4) {
+    fclose(fp);
+    block->bw = 0;
+    return x;
+  }
   fclose(fp);
 
   // Calculate the cpu usage time difference
@@ -465,7 +429,10 @@ int draw_temp(int x, Block *block, unsigned int timer) {
       return x;
     }
     int tmp;
-    fscanf(fp, "%d", &tmp);
+    if (fscanf(fp, "%d", &tmp) != 1) {
+      fclose(fp);
+      return x;  // Keep previous value on error
+    }
     fclose(fp);
     tmp = tmp / 1000;
     sprintf(temp, "%d", tmp);
@@ -497,8 +464,8 @@ int draw_more(int x, Block *block, unsigned int timer) {
 }
 
 int draw_battery(int x, Block *block, unsigned int timer) {
-  static char bat_perc[5];
-  static char bat_status[20];
+  static char bat_perc[5] = "??";
+  static char bat_status[20] = "Unknown";
 
   if (timer % 10 == 0) {
     char capacity[4];
@@ -511,13 +478,19 @@ int draw_battery(int x, Block *block, unsigned int timer) {
     if (fp == NULL) {
       return x;
     }
-    fscanf(fp, "%s", capacity);
+    if (fscanf(fp, "%3s", capacity) != 1) {
+      fclose(fp);
+      return x;  // Keep previous values on error
+    }
     fclose(fp);
     fp = fopen(statuspatch, "r");
     if (fp == NULL) {
       return x;
     }
-    fscanf(fp, "%s", status);
+    if (fscanf(fp, "%19s", status) != 1) {
+      fclose(fp);
+      return x;  // Keep previous values on error
+    }
     fclose(fp);
     strcpy(bat_perc, capacity);
     strcpy(bat_status, status);
@@ -525,12 +498,18 @@ int draw_battery(int x, Block *block, unsigned int timer) {
 
   int int_cap = atoi(bat_perc);
 
+  // Draw percentage text first (on the left)
+  char battery_text[8];
+  snprintf(battery_text, sizeof(battery_text), "%s%%", bat_perc);
+  int text_width = TEXTW(battery_text);
+  
   // Draw the battery case
   const int border = 1;
   const int battery_h = drw->fonts->h - 6;
   const int battery_w = battery_h * 2;
-  const int battery_x = x - battery_w + lrpad / 2 - 3;
+  const int battery_x = x - battery_w - 5;
   const int battery_y = (bh - battery_h) / 2;
+  const int text_x = battery_x - text_width - 3;
 
   drw_setscheme(drw, scheme[SchemeFG]);
   drw_rect(drw, battery_x, battery_y, battery_w, battery_h, 0, 1);
@@ -539,12 +518,19 @@ int draw_battery(int x, Block *block, unsigned int timer) {
 
   // Set color based on status and capacity
   if (bat_status[0] == 'C' || bat_status[0] == 'F') {
-    drw_setscheme(drw, scheme[SchemePurple]);
-  } else if (int_cap <= 20) {
+    // Charging or Full - use green
+    drw_setscheme(drw, scheme[SchemeGreen]);
+  } else if (int_cap <= 15) {
+    // Critical low - use red
     drw_setscheme(drw, scheme[SchemeRed]);
-  } else if (int_cap <= 50) {
+  } else if (int_cap <= 30) {
+    // Low - use orange
     drw_setscheme(drw, scheme[SchemeOrange]);
+  } else if (int_cap <= 60) {
+    // Medium - use yellow
+    drw_setscheme(drw, scheme[SchemeYellow]);
   } else {
+    // High - use blue
     drw_setscheme(drw, scheme[SchemeBlue]);
   }
 
@@ -557,15 +543,12 @@ int draw_battery(int x, Block *block, unsigned int timer) {
   drw_rect(drw, battery_x + border, battery_y + border, battery_cap_w,
            battery_h - 2 * border, 1, 1);
 
-  // Draw the percentage number using segments
-  drw_setscheme(drw, scheme[SchemeFG]);
-  draw_number_segments(int_cap, battery_x + 3, battery_y + 2, battery_w - 8,
-                       battery_h - 6);
-
-  x -= battery_w + 5;
-  block->bw = battery_w + 5;
-
+  // Draw percentage text to the left of battery
   drw_setscheme(drw, scheme[SchemeNorm]);
+  drw_text(drw, text_x, 0, text_width, bh, lrpad, battery_text, 0);
+
+  block->bw = text_width + 3 + battery_w + 5;
+  x -= block->bw;
 
   return x;
 }
@@ -657,7 +640,12 @@ int draw_net(int x, Block *block, unsigned int timer) {
     block->bw = null_width;
     return x;
   }
-  fscanf(fp, "%s", tx);
+  if (fscanf(fp, "%19s", tx) != 1) {
+    fclose(fp);
+    x -= null_width;
+    block->bw = null_width;
+    return x;
+  }
   fclose(fp);
   fp = fopen(rxpath, "r");
   if (fp == NULL) {
@@ -665,7 +653,12 @@ int draw_net(int x, Block *block, unsigned int timer) {
     block->bw = null_width;
     return x;
   }
-  fscanf(fp, "%s", rx);
+  if (fscanf(fp, "%19s", rx) != 1) {
+    fclose(fp);
+    x -= null_width;
+    block->bw = null_width;
+    return x;
+  }
   fclose(fp);
 
   float txi = atof(tx);
