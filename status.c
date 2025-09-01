@@ -696,8 +696,18 @@ int draw_net(int x, Block *block, unsigned int timer) {
 
   drw_setfontset(drw, smallfont);
 
-  drw_text(drw, x - TEXTW(tx), 4, TEXTW(tx), bh / 2, lrpad, tx, 0);
-  drw_text(drw, x - TEXTW(rx), bh / 2, TEXTW(rx), bh / 2 - 4, lrpad, rx, 0);
+  // Get small font height for proper centering
+  unsigned int font_w, font_h;
+  drw_font_getexts(smallfont, "M", 1, &font_w, &font_h);
+  
+  // Calculate centered positions for two tightly packed lines
+  int line_spacing = -4;  // Negative spacing to overlap and eliminate gaps
+  int total_text_height = font_h * 2 + line_spacing;
+  int start_y = (bh - total_text_height) / 2;
+  
+  // Draw with dynamic width (original design) but centered vertically
+  drw_text(drw, x - TEXTW(tx), start_y, TEXTW(tx), font_h, lrpad, tx, 0);
+  drw_text(drw, x - TEXTW(rx), start_y + font_h + line_spacing, TEXTW(rx), font_h, lrpad, rx, 0);
   x -= TEXTW("999.99 KB/s");
   block->bw = TEXTW("999.99 KB/s");
 
