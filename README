@@ -1,48 +1,101 @@
-dwm - dynamic window manager
-============================
-dwm is an extremely fast, small, and dynamic window manager for X.
-
+dwm (scroll fork)
+=================
+This fork keeps the minimal core of dwm but replaces the standard master/stack
+tiling with a horizontal scroll layout and a custom status bar. It ships a
+gruvbox-material palette, Nerd Font glyphs, a tuned system tray, and several
+built-in status widgets (CPU, per-core load, memory, network, temperature,
+battery, clock, notifications and a user menu).
 
 Requirements
 ------------
-In order to build dwm you need the Xlib header files.
-
+- Xlib/Xft/Xinerama headers and libraries, fontconfig, freetype, pthreads
+- Nerd Font that contains the symbols used by the bar (defaults to Hack Nerd Font)
+- Runtime tools used by keybindings and the bar: rofi, nixGLIntel + kitty,
+  pactl (PulseAudio/PipeWire), brightnessctl, dunstctl, mate-system-monitor,
+  script-menu.sh in $PATH, notify-send, and the WenQuanYi Zen Hei font for CJK
+  fallback
 
 Installation
 ------------
-Edit config.mk to match your local setup (dwm is installed into
-the /usr/local namespace by default).
-
-Afterwards enter the following command to build and install dwm (if
-necessary as root):
+Edit `config.mk` to match your system, then build and install (root may be
+required):
 
     make clean install
 
+You can also spin up a Xephyr test session if `Xephyr` is installed:
 
-Running dwm
------------
-Add the following line to your .xinitrc to start dwm using startx:
+    make test
+
+Running
+-------
+Add the following to `.xinitrc`:
 
     exec dwm
 
-In order to connect dwm to a specific display, make sure that
-the DISPLAY environment variable is set correctly, e.g.:
+Tags and layouts
+----------------
+- Nine tags (1-9). Each client belongs to exactly one tag; one tag is shown per
+  monitor.
+- Layouts: a horizontal scroll layout (default) and floating.
+- Scroll layout: tiled clients are placed in a horizontal strip. Use `Mod+j/k`
+  to focus the next/previous tiled client (floats are skipped); use the mouse
+  wheel on the tab area/title to pan. Floating clients stay on top. When only
+  one tiled client is present, `Mod+space` toggles between full fill and a
+  centered 3:2 window. With multiple tiled clients, each client uses its own
+  `mfact` value (tuned with `Mod+h/l`) to set its width.
 
-    DISPLAY=foo.bar:1 exec dwm
+Status bar and tray
+-------------------
+- Left side: super icon, focused window class (fallback text when unfocused),
+  tags, layout glyph, and per-client tabs for the active tag.
+- Right side: custom status widgets (notify/battery/clock/net/cpu/cores/temp/
+  mem/more) and a scaled system tray (icon height is a fraction of bar height).
+- Status drawing runs in its own thread and does not use `xsetroot`.
 
-(This will start dwm on display :1 of the host foo.bar.)
+Key bindings (Mod1 == Alt by default)
+-------------------------------------
+- `Mod+p`               launch rofi
+- `Mod+Shift+Return`    launch terminal (nixGLIntel + kitty)
+- `Mod+b`               toggle bar
+- `Mod+Tab`             view tag 1
+- `Mod+Shift+c`         kill focused client
+- `Mod+h` / `Mod+l`     adjust per-client mfact value
+- `Mod+j` / `Mod+k`     focus next/prev tiled client in current tag (skip floats)
+- `Mod+Shift+j/k`       focus next/prev tiled client and ensure it is visible
+- `Mod+Return`          ensure focused client is scrolled into view
+- `Mod+space`           toggle single-window fill mode (scroll layout)
+- `Mod+Shift+space`     toggle floating for focused client
+- `Mod+[1..9]`          view tag
+- `Mod+Shift+[1..9]`    move focused client to tag
+- `Mod+Shift+q`         quit dwm
 
-In order to display status info in the bar, you can do something
-like this in your .xinitrc:
+Mouse bindings
+--------------
+- Super icon: Button1 toggles highlight.
+- Window class label: Button1 opens rofi; Button3 opens the terminal.
+- Tags: Button1 view tag; Mod+Button1 move focused client to tag.
+- Layout symbol: Button1 toggles between scroll and floating.
+- Client tabs/title: Button1 focus client; Button4/5 pan the scroll layout.
+- Status area: each widget handles Button1-Button5 (see below).
+- Client window: Mod+Button1 move, Mod+Button2 toggle floating,
+  Mod+Button3 resize.
 
-    while xsetroot -name "`date` `uptime | sed 's/.*,//'`"
-    do
-    	sleep 1
-    done &
-    exec dwm
-
+Status widget actions
+---------------------
+- Notify: Button1 pops last 5 notifications; Button3 clears; Button4 pops one;
+  Button5 closes.
+- Battery: display only.
+- Clock: display only (12h with AM/PM).
+- Net: Button1 cycles interfaces in `interface_name` and shows a notification.
+- CPU graph: Button1/5 volume down 5%/1%; Button3 volume up 5%; Button4 volume
+  up 1%; Button2 toggle mute.
+- Cores bar: Button1 brightness -5%; Button3 brightness +5%;
+  Button4 brightness +1%; Button5 brightness -1%.
+- Temp: Button1 cycles thermal zones and notifies.
+- Mem: Button1 opens `mate-system-monitor`.
+- More: Button1 runs `script-menu.sh`.
 
 Configuration
 -------------
-The configuration of dwm is done by creating a custom config.h
-and (re)compiling the source code.
+Adjust colors, fonts, commands, gaps, tray sizing and helpers in
+`config.def.h`, then rebuild to apply changes.
