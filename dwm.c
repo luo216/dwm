@@ -910,7 +910,7 @@ focusstepvisible(const Arg *arg)
 }
 
 static XImage *
-scaleimage(XImage *src, unsigned int nw, unsigned int nh)
+scaleimage_sw(XImage *src, unsigned int nw, unsigned int nh)
 {
 	if (!src || nw == 0 || nh == 0)
 		return NULL;
@@ -930,6 +930,69 @@ scaleimage(XImage *src, unsigned int nw, unsigned int nh)
 		}
 	}
 
+	return dst;
+}
+
+static XImage *
+scaleimage(XImage *src, unsigned int nw, unsigned int nh)
+{
+	if (!src || nw == 0 || nh == 0)
+		return NULL;
+
+	XRenderPictFormat *vfmt = XRenderFindVisualFormat(dpy, DefaultVisual(dpy, screen));
+	if (!vfmt)
+		return scaleimage_sw(src, nw, nh);
+
+	Pixmap spix = XCreatePixmap(dpy, root, src->width, src->height, DefaultDepth(dpy, screen));
+	if (!spix)
+		return scaleimage_sw(src, nw, nh);
+
+	GC gc = XCreateGC(dpy, spix, 0, NULL);
+	if (!gc) {
+		XFreePixmap(dpy, spix);
+		return scaleimage_sw(src, nw, nh);
+	}
+	XPutImage(dpy, spix, gc, src, 0, 0, 0, 0, src->width, src->height);
+
+	Pixmap dpix = XCreatePixmap(dpy, root, nw, nh, DefaultDepth(dpy, screen));
+	if (!dpix) {
+		XFreeGC(dpy, gc);
+		XFreePixmap(dpy, spix);
+		return scaleimage_sw(src, nw, nh);
+	}
+
+	Picture sp = XRenderCreatePicture(dpy, spix, vfmt, 0, NULL);
+	Picture dp = XRenderCreatePicture(dpy, dpix, vfmt, 0, NULL);
+	if (!sp || !dp) {
+		if (sp)
+			XRenderFreePicture(dpy, sp);
+		if (dp)
+			XRenderFreePicture(dpy, dp);
+		XFreePixmap(dpy, dpix);
+		XFreeGC(dpy, gc);
+		XFreePixmap(dpy, spix);
+		return scaleimage_sw(src, nw, nh);
+	}
+
+	XTransform xform = {{
+		{ XDoubleToFixed((double)src->width / (double)nw), 0, 0 },
+		{ 0, XDoubleToFixed((double)src->height / (double)nh), 0 },
+		{ 0, 0, XDoubleToFixed(1.0) }
+	}};
+	XRenderSetPictureTransform(dpy, sp, &xform);
+	XRenderSetPictureFilter(dpy, sp, "bilinear", NULL, 0);
+	XRenderComposite(dpy, PictOpSrc, sp, None, dp, 0, 0, 0, 0, 0, 0, nw, nh);
+
+	XImage *dst = XGetImage(dpy, dpix, 0, 0, nw, nh, AllPlanes, ZPixmap);
+
+	XRenderFreePicture(dpy, sp);
+	XRenderFreePicture(dpy, dp);
+	XFreePixmap(dpy, dpix);
+	XFreeGC(dpy, gc);
+	XFreePixmap(dpy, spix);
+
+	if (!dst)
+		return scaleimage_sw(src, nw, nh);
 	return dst;
 }
 
@@ -1037,10 +1100,9 @@ thumbindex(PreviewItem *items, int n, Client *c)
 }
 
 static void
-drawpreview(Window win, GC gc, PreviewItem *items, int n, Client **stacklist, int scount,
+drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **stacklist, int scount,
 	int offset, int pad, int previeww, int previewh, int *order, int selected, int totalw)
 {
-	Pixmap buf = XCreatePixmap(dpy, win, previeww, previewh, DefaultDepth(dpy, screen));
 	XSetForeground(dpy, gc, scheme[SchemeNorm][ColBg].pixel);
 	XFillRectangle(dpy, buf, gc, 0, 0, previeww, previewh);
 
@@ -1114,7 +1176,6 @@ drawpreview(Window win, GC gc, PreviewItem *items, int n, Client **stacklist, in
 	}
 
 	XCopyArea(dpy, buf, win, gc, 0, 0, previeww, previewh, 0, 0);
-	XFreePixmap(dpy, buf);
 }
 
 static void
@@ -1240,11 +1301,18 @@ previewscroll(const Arg *arg)
 
 	int running = 1, confirmed = 0;
 	int lastselected = selected;
-	drawpreview(pwin, gc, items, n, stacklist, scount, offset, pad, previeww, previewh, order, selected, totalw);
+	Pixmap buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
+	int needredraw = 1;
+	int needblit = 0;
+	int drawn = 0;
+	drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, pad, previeww, previewh, order, selected, totalw);
+	drawn = 1;
+	needredraw = 0;
 
 	while (running) {
 		XEvent ev;
 		XNextEvent(dpy, &ev);
+		needblit = 0;
 
 		if (ev.type == KeyPress) {
 			KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev.xkey.keycode, 0);
@@ -1258,26 +1326,34 @@ previewscroll(const Arg *arg)
 				offset -= previeww / 8;
 				if (offset < 0)
 					offset = 0;
+				needredraw = 1;
 			} else if (ks == XK_l || ks == XK_Right) {
 				offset += previeww / 8;
 				if (offset > maxoffset)
 					offset = maxoffset;
+				needredraw = 1;
 			} else if (ks == XK_j || ks == XK_Down) {
-				if (selected < n - 1)
+				if (selected < n - 1) {
 					selected++;
+					needredraw = 1;
+				}
 			} else if (ks == XK_k || ks == XK_Up) {
-				if (selected > 0)
+				if (selected > 0) {
 					selected--;
+					needredraw = 1;
+				}
 			}
 		} else if (ev.type == ButtonPress) {
 			if (ev.xbutton.button == Button4) {
 				offset -= previeww / 8;
 				if (offset < 0)
 					offset = 0;
+				needredraw = 1;
 			} else if (ev.xbutton.button == Button5) {
 				offset += previeww / 8;
 				if (offset > maxoffset)
 					offset = maxoffset;
+				needredraw = 1;
 			} else if (ev.xbutton.button == Button1 && ev.xbutton.window == pwin) {
 				int cx = ev.xbutton.x + offset - pad;
 				int cy = ev.xbutton.y - pad;
@@ -1309,34 +1385,43 @@ previewscroll(const Arg *arg)
 							running = 0;
 						} else {
 							selected = hitorder;
+							needredraw = 1;
 						}
 					}
 				}
 			}
 		} else if (ev.type == Expose && ev.xexpose.window == pwin) {
-				/* no-op, redraw below */
-			}
-
-			/* keep newly selected item visible */
-			if (selected != lastselected) {
-				int sx = items[order[selected]].x;
-				if (sx - offset < pad)
-					offset = sx - pad;
-				if (items[order[selected]].x + items[order[selected]].w - offset > previeww - pad)
-					offset = items[order[selected]].x + items[order[selected]].w - (previeww - pad);
-				if (offset < 0)
-					offset = 0;
-				if (offset > maxoffset)
-					offset = maxoffset;
-				lastselected = selected;
-			}
-
-			drawpreview(pwin, gc, items, n, stacklist, scount, offset, pad, previeww, previewh, order, selected, totalw);
+			needblit = 1;
 		}
+
+		/* keep newly selected item visible */
+		if (selected != lastselected) {
+			int sx = items[order[selected]].x;
+			if (sx - offset < pad)
+				offset = sx - pad;
+			if (items[order[selected]].x + items[order[selected]].w - offset > previeww - pad)
+				offset = items[order[selected]].x + items[order[selected]].w - (previeww - pad);
+			if (offset < 0)
+				offset = 0;
+			if (offset > maxoffset)
+				offset = maxoffset;
+			lastselected = selected;
+			needredraw = 1;
+		}
+
+		if (needredraw) {
+			drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, pad, previeww, previewh, order, selected, totalw);
+			drawn = 1;
+			needredraw = 0;
+		} else if (needblit && drawn) {
+			XCopyArea(dpy, buf, pwin, gc, 0, 0, previeww, previewh, 0, 0);
+		}
+	}
 
 	XUngrabKeyboard(dpy, CurrentTime);
 	XUngrabPointer(dpy, CurrentTime);
 	XFreeGC(dpy, gc);
+	XFreePixmap(dpy, buf);
 	XDestroyWindow(dpy, pwin);
 	XDestroyWindow(dpy, overlay);
 
