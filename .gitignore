@@ -1,3 +1,5 @@
 *.o
+*.log
 dwm
 patches
+examples
