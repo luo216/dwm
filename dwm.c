@@ -1559,6 +1559,26 @@ configurenotify(XEvent *e)
 			focus(NULL);
 			arrange(NULL);
 		}
+	} else if (shape_supported) {
+		XWindowAttributes wa;
+		int isbar = 0;
+
+		if (ev->window == borderwin || wintoclient(ev->window) || wintosystrayicon(ev->window))
+			return;
+
+		for (m = mons; m; m = m->next) {
+			if (ev->window == m->barwin || ev->window == m->container) {
+				isbar = 1;
+				break;
+			}
+		}
+		if (isbar)
+			return;
+
+		if (!XGetWindowAttributes(dpy, ev->window, &wa))
+			return;
+		if (wa.override_redirect)
+			setroundedfromattrs(ev->window, &wa);
 	}
 }
 
