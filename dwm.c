@@ -4299,7 +4299,7 @@ clicktemp(const Arg *arg)
     }
     char thermal_str[30];
     sprintf(thermal_str, "Thermal Zone: %d", thermalzoneindex);
-    const char *notify[] = {"notify-send", thermal_str, NULL};
+    const char *notify[] = {"dunstify", thermal_str, NULL};
     const Arg v = {.v = notify};
     spawn(&v);
   }
@@ -4334,7 +4334,7 @@ clicknet(const Arg *arg)
     }
     char thermal_str[30];
     sprintf(thermal_str, "Interface: %s", interface_name[interfaceindex]);
-    const char *notify[] = {"notify-send", thermal_str, NULL};
+    const char *notify[] = {"dunstify", thermal_str, NULL};
     const Arg v = {.v = notify};
     spawn(&v);
   }

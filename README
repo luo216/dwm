@@ -11,8 +11,8 @@ Requirements
 - Xlib/Xft/Xinerama headers and libraries, fontconfig, freetype, pthreads
 - Nerd Font that contains the symbols used by the bar (defaults to Hack Nerd Font)
 - Runtime tools used by keybindings and the bar: rofi, nixGLIntel + kitty,
-  pactl (PulseAudio/PipeWire), brightnessctl, dunstctl, mate-system-monitor,
-  script-menu.sh in $PATH, notify-send, and the WenQuanYi Zen Hei font for CJK
+  pactl (PulseAudio/PipeWire), brightnessctl, dunstctl, dunstify, mate-system-monitor,
+  script-menu.sh in $PATH, and the WenQuanYi Zen Hei font for CJK
   fallback
 
 Installation
