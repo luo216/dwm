@@ -91,7 +91,7 @@ static const Layout layouts[] = {
 
 /* commands */
 static const char *roficmd[]      = {"rofi", "-mousable", "-show", NULL};
-static const char *termcmd[]      = {"nixGLIntel", "kitty", NULL};
+static const char *termcmd[]      = {"kitty", NULL};
 
 static const Key keys[] = {
 	/* modifier                     key        function        argument */
