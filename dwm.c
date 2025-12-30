@@ -300,6 +300,7 @@ static void resizemouse(const Arg *arg);
 static void resizerequest(XEvent *e);
 static void restack(Monitor *m);
 static void run(void);
+static void runautostart(void);
 static void scan(void);
 static int sendevent(Window w, Atom proto, int m, long d0, long d1, long d2, long d3, long d4);
 static void sendmon(Client *c, Monitor *m);
@@ -2632,6 +2633,39 @@ run(void)
 	while (running && !XNextEvent(dpy, &ev))
 		if (handler[ev.type])
 			handler[ev.type](&ev); /* call handler */
+}
+
+void
+runautostart(void)
+{
+	char *home, *path;
+
+	if (!autostartscript || !*autostartscript)
+		return;
+
+	if (!(home = getenv("HOME")))
+		return;
+
+	/* Expand ~ to home directory */
+	if (autostartscript[0] == '~') {
+		size_t pathlen = strlen(home) + strlen(autostartscript);
+		path = ecalloc(1, pathlen);
+		snprintf(path, pathlen, "%s%s", home, autostartscript + 1);
+	} else {
+		path = strdup(autostartscript);
+		if (!path)
+			return;
+	}
+
+	/* Run script in background */
+	if (access(path, X_OK) == 0) {
+		if (fork() == 0) {
+			execl(path, path, (char *)NULL);
+			_exit(1);
+		}
+	}
+
+	free(path);
 }
 
 void
@@ -5127,21 +5161,7 @@ main(int argc, char *argv[])
 		die("pledge");
 #endif /* __OpenBSD__ */
 	scan();
-	
-	/* Run autostart script */
-	if (autostartscript && autostartscript[0] != '\0') {
-		char *home = getenv("HOME");
-		if (home && autostartscript[0] == '~') {
-			char path[512];
-			snprintf(path, sizeof(path), "%s%s", home, autostartscript + 1);
-			if (access(path, X_OK) == 0) {
-				system(path);
-			}
-		} else if (access(autostartscript, X_OK) == 0) {
-			system(autostartscript);
-		}
-	}
-	
+	runautostart();
 	run();
 	cleanup();
 	XCloseDisplay(dpy);
