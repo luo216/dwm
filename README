@@ -26,6 +26,18 @@ You can also spin up a Xephyr test session if `Xephyr` is installed:
 
     make test
 
+Nix Development
+---------------
+For Nix users, a `flake.nix` is provided to set up a complete development
+environment:
+
+    nix develop
+
+To compile and run tests in the Nix environment:
+
+    nix develop -c make clean install
+    nix develop -c make test  # Start Xephyr virtual display for testing
+
 Running
 -------
 Add the following to `.xinitrc`:
