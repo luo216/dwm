@@ -3893,7 +3893,6 @@ updatesystray(void)
 		/* center icon vertically */
 		i->y = (bh - i->h) / 2;
 		XMoveResizeWindow(dpy, i->win, i->x, i->y, i->w, i->h);
-		applyroundedcorners(i->win);
 		w += i->w;
 		if (i->next)
 			w += systrayspacing;  /* Only add spacing between icons */
@@ -3912,7 +3911,6 @@ updatesystray(void)
 	XConfigureWindow(dpy, systray->win, CWX|CWY|CWWidth|CWHeight|CWSibling|CWStackMode, &wc);
 	XMapWindow(dpy, systray->win);
 	XMapSubwindows(dpy, systray->win);
-	applyroundedcorners(systray->win);
 	/* redraw background */
 	XSetForeground(dpy, drw->gc, scheme[SchemeNorm][ColBg].pixel);
 	XFillRectangle(dpy, systray->win, drw->gc, 0, 0, w, bh);
