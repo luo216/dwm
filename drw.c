@@ -2,8 +2,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <X11/Xlib.h>
 #include <X11/Xft/Xft.h>
+#include <X11/Xcursor/Xcursor.h>
 
 #include "drw.h"
 #include "util.h"
@@ -468,4 +470,36 @@ drw_cur_free(Drw *drw, Cur *cursor)
 
 	XFreeCursor(drw->dpy, cursor->cursor);
 	free(cursor);
+}
+
+Cur *
+drw_cur_create_from_theme(Drw *drw, const char *cursor_name)
+{
+	Cur *cur = NULL;
+	XcursorImages *images = NULL;
+	int size;
+
+	if (!drw || !cursor_name)
+		return NULL;
+
+	/* Get system cursor size */
+	size = XcursorGetDefaultSize(drw->dpy);
+	if (size <= 0)
+		size = 16; /* fallback to default size */
+
+	/* Try Xcursor library with theme name */
+	images = XcursorLibraryLoadImages(cursor_name, NULL, size);
+
+	if (images && images->nimage > 0) {
+		if ((cur = ecalloc(1, sizeof(Cur)))) {
+			cur->cursor = XcursorImagesLoadCursor(drw->dpy, images);
+			if (!cur->cursor) {
+				free(cur);
+				cur = NULL;
+			}
+		}
+		XcursorImagesDestroy(images);
+	}
+
+	return cur;
 }

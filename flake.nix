@@ -20,6 +20,7 @@
           xorg.libXrender
           xorg.libXcomposite
           xorg.libXext
+          xorg.libXcursor
 
           # 字体相关
           fontconfig

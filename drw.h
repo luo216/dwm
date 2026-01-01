@@ -46,6 +46,7 @@ void drw_scm_free(Drw *drw, Clr *scm, size_t clrcount);
 
 /* Cursor abstraction */
 Cur *drw_cur_create(Drw *drw, int shape);
+Cur *drw_cur_create_from_theme(Drw *drw, const char *cursor_name);
 void drw_cur_free(Drw *drw, Cur *cursor);
 
 /* Drawing context manipulation */

@@ -23,7 +23,7 @@ FREETYPEINC = /usr/include/freetype2
 
 # includes and libs
 INCS = -I${X11INC} -I${FREETYPEINC}
-LIBS = -L${X11LIB} -lX11 -lXrender -lXcomposite -lXext ${XINERAMALIBS} ${FREETYPELIBS} -lpthread
+LIBS = -L${X11LIB} -lX11 -lXrender -lXcomposite -lXext ${XINERAMALIBS} ${FREETYPELIBS} -lXcursor -lpthread
 
 # flags
 CPPFLAGS = -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_XOPEN_SOURCE=700L -DVERSION=\"${VERSION}\" ${XINERAMAFLAGS}

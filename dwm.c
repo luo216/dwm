@@ -2900,9 +2900,13 @@ netatom[NetClientList] = XInternAtom(dpy, "_NET_CLIENT_LIST", False);
 	xatom[XRootPmap] = XInternAtom(dpy, "_XROOTPMAP_ID", False);
 	xatom[XSetRoot] = XInternAtom(dpy, "_XSETROOT_ID", False);
 	/* init cursors */
-	cursor[CurNormal] = drw_cur_create(drw, XC_left_ptr);
-	cursor[CurResize] = drw_cur_create(drw, XC_sizing);
-	cursor[CurMove] = drw_cur_create(drw, XC_fleur);
+	/* Try to load from system cursor theme first, fallback to default cursors */
+	if (!(cursor[CurNormal] = drw_cur_create_from_theme(drw, "left_ptr")))
+		cursor[CurNormal] = drw_cur_create(drw, XC_left_ptr);
+	if (!(cursor[CurResize] = drw_cur_create_from_theme(drw, "nwse-resize")))
+		cursor[CurResize] = drw_cur_create(drw, XC_sizing);
+	if (!(cursor[CurMove] = drw_cur_create_from_theme(drw, "move")))
+		cursor[CurMove] = drw_cur_create(drw, XC_fleur);
 	/* init appearance */
 	scheme = ecalloc(LENGTH(colors), sizeof(Clr *));
 	for (i = 0; i < LENGTH(colors); i++)
