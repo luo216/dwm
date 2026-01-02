@@ -916,17 +916,46 @@ scaleimage_sw(XImage *src, unsigned int nw, unsigned int nh)
 	if (!src || nw == 0 || nh == 0)
 		return NULL;
 
+	/* 防止源图像尺寸为0 */
+	if (src->width == 0 || src->height == 0)
+		return NULL;
+
+	/* 防止过大的目标尺寸导致内存问题 */
+	const unsigned int MAX_DIM = 16384;
+	if (nw > MAX_DIM || nh > MAX_DIM)
+		return NULL;
+
+	/* 检查缩放比例是否合理，防止极端情况 */
+	if (nw > src->width * 10 || nh > src->height * 10)
+		return NULL;
+
 	XImage *dst = XCreateImage(dpy, DefaultVisual(dpy, screen),
 		DefaultDepth(dpy, screen), ZPixmap, 0, NULL, nw, nh, 32, 0);
 	if (!dst)
 		return NULL;
 
-	dst->data = ecalloc(1, nh * dst->bytes_per_line);
+	/* 检查 bytes_per_line 是否合理 */
+	if (dst->bytes_per_line == 0 || dst->bytes_per_line > 65536) {
+		XDestroyImage(dst);
+		return NULL;
+	}
 
+	/* 分配内存，检查是否成功 */
+	dst->data = ecalloc(1, nh * dst->bytes_per_line);
+	if (!dst->data) {
+		XDestroyImage(dst);
+		return NULL;
+	}
+
+	/* 执行缩放，添加边界检查 */
 	for (unsigned int y = 0; y < nh; y++) {
 		unsigned int sy = (unsigned int)((uint64_t)y * src->height / nh);
+		if (sy >= src->height)
+			sy = src->height - 1;
 		for (unsigned int x = 0; x < nw; x++) {
 			unsigned int sx = (unsigned int)((uint64_t)x * src->width / nw);
+			if (sx >= src->width)
+				sx = src->width - 1;
 			XPutPixel(dst, x, y, XGetPixel(src, sx, sy));
 		}
 	}
@@ -940,10 +969,25 @@ scaleimage(XImage *src, unsigned int nw, unsigned int nh)
 	if (!src || nw == 0 || nh == 0)
 		return NULL;
 
+	/* 防止源图像尺寸为0 */
+	if (src->width == 0 || src->height == 0)
+		return NULL;
+
+	/* 防止过大的目标尺寸 */
+	const unsigned int MAX_DIM = 16384;
+	if (nw > MAX_DIM || nh > MAX_DIM)
+		return scaleimage_sw(src, nw, nh);
+
+	/* 检查缩放比例是否合理 */
+	if (nw > src->width * 10 || nh > src->height * 10)
+		return scaleimage_sw(src, nw, nh);
+
+	/* 尝试使用 XRender 硬件加速缩放 */
 	XRenderPictFormat *vfmt = XRenderFindVisualFormat(dpy, DefaultVisual(dpy, screen));
 	if (!vfmt)
 		return scaleimage_sw(src, nw, nh);
 
+	/* 创建源 Pixmap */
 	Pixmap spix = XCreatePixmap(dpy, root, src->width, src->height, DefaultDepth(dpy, screen));
 	if (!spix)
 		return scaleimage_sw(src, nw, nh);
@@ -955,6 +999,7 @@ scaleimage(XImage *src, unsigned int nw, unsigned int nh)
 	}
 	XPutImage(dpy, spix, gc, src, 0, 0, 0, 0, src->width, src->height);
 
+	/* 创建目标 Pixmap */
 	Pixmap dpix = XCreatePixmap(dpy, root, nw, nh, DefaultDepth(dpy, screen));
 	if (!dpix) {
 		XFreeGC(dpy, gc);
@@ -962,6 +1007,7 @@ scaleimage(XImage *src, unsigned int nw, unsigned int nh)
 		return scaleimage_sw(src, nw, nh);
 	}
 
+	/* 创建 Picture 对象 */
 	Picture sp = XRenderCreatePicture(dpy, spix, vfmt, 0, NULL);
 	Picture dp = XRenderCreatePicture(dpy, dpix, vfmt, 0, NULL);
 	if (!sp || !dp) {
@@ -975,6 +1021,7 @@ scaleimage(XImage *src, unsigned int nw, unsigned int nh)
 		return scaleimage_sw(src, nw, nh);
 	}
 
+	/* 设置变换矩阵和滤镜 */
 	XTransform xform = {{
 		{ XDoubleToFixed((double)src->width / (double)nw), 0, 0 },
 		{ 0, XDoubleToFixed((double)src->height / (double)nh), 0 },
@@ -984,14 +1031,17 @@ scaleimage(XImage *src, unsigned int nw, unsigned int nh)
 	XRenderSetPictureFilter(dpy, sp, "bilinear", NULL, 0);
 	XRenderComposite(dpy, PictOpSrc, sp, None, dp, 0, 0, 0, 0, 0, 0, nw, nh);
 
+	/* 获取结果图像 */
 	XImage *dst = XGetImage(dpy, dpix, 0, 0, nw, nh, AllPlanes, ZPixmap);
 
+	/* 清理资源 */
 	XRenderFreePicture(dpy, sp);
 	XRenderFreePicture(dpy, dp);
 	XFreePixmap(dpy, dpix);
 	XFreeGC(dpy, gc);
 	XFreePixmap(dpy, spix);
 
+	/* 如果 XRender 失败，降级到软件缩放 */
 	if (!dst)
 		return scaleimage_sw(src, nw, nh);
 	return dst;
@@ -1066,20 +1116,39 @@ static XImage *
 getwindowximage_safe(Client *c)
 {
 	XImage *res = NULL;
-	if (!c)
-		return create_placeholder_image(c && c->w > 0 ? (unsigned int)c->w : 200,
-		                                c && c->h > 0 ? (unsigned int)c->h : 150);
+	
+	/* 检查客户端有效性 */
+	if (!c || !c->mon) {
+		return create_placeholder_image(200, 150);
+	}
 
+	/* 检查窗口尺寸是否合理 */
+	unsigned int w = c->w > 0 ? (unsigned int)c->w : 200;
+	unsigned int h = c->h > 0 ? (unsigned int)c->h : 150;
+	
+	/* 防止极端尺寸 */
+	if (w > 8192) w = 8192;
+	if (h > 8192) h = 8192;
+
+	/* 设置错误处理器以捕获X错误 */
 	XErrorHandler old = XSetErrorHandler(xerrordummy);
 
+	/* 尝试获取窗口图像 */
 	XWindowAttributes attr;
-	if (XGetWindowAttributes(dpy, c->win, &attr))
-		res = getwindowximage(c);
+	if (XGetWindowAttributes(dpy, c->win, &attr)) {
+		/* 检查窗口属性是否有效 */
+		if (attr.width > 0 && attr.height > 0 && attr.width < 8192 && attr.height < 8192) {
+			res = getwindowximage(c);
+		}
+	}
 
+	/* 恢复原来的错误处理器 */
 	XSetErrorHandler(old);
 
-	if (!res)
-		res = create_placeholder_image(c->w > 0 ? c->w : 200, c->h > 0 ? c->h : 150);
+	/* 如果获取失败，使用占位图像 */
+	if (!res) {
+		res = create_placeholder_image(w, h);
+	}
 
 	return res;
 }
@@ -1104,6 +1173,10 @@ static void
 drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **stacklist, int scount,
 	int offset, int pad, int previeww, int previewh, int *order, int selected, int totalw)
 {
+	/* 参数检查 */
+	if (!items || n <= 0 || !order || previeww <= 0 || previewh <= 0)
+		return;
+
 	XSetForeground(dpy, gc, scheme[SchemeNorm][ColBg].pixel);
 	XFillRectangle(dpy, buf, gc, 0, 0, previeww, previewh);
 
@@ -1119,35 +1192,39 @@ drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **s
 		int dy = items[idx].y + pad;
 		if (dx + items[idx].w < 0 || dx > previeww || dy + items[idx].h < 0 || dy > previewh)
 			continue;
-		if (items[idx].scaled)
+		if (items[idx].scaled && items[idx].w > 0 && items[idx].h > 0)
 			XPutImage(dpy, buf, gc, items[idx].scaled, 0, 0, dx, dy, items[idx].w, items[idx].h);
 	}
 
 	/* then draw floating windows following stack z-order */
-	for (int i = scount - 1; i >= 0; i--) {
-		Client *c = stacklist[i];
-		if (!c || !c->isfloating)
-			continue;
-		int idx = thumbindex(items, n, c);
-		if (idx < 0)
-			continue;
-		int dx = items[idx].x - offset + pad;
-		int dy = items[idx].y + pad;
-		if (dx + items[idx].w < 0 || dx > previeww || dy + items[idx].h < 0 || dy > previewh)
-			continue;
-		if (items[idx].scaled)
-			XPutImage(dpy, buf, gc, items[idx].scaled, 0, 0, dx, dy, items[idx].w, items[idx].h);
+	if (stacklist && scount > 0) {
+		for (int i = scount - 1; i >= 0; i--) {
+			Client *c = stacklist[i];
+			if (!c || !c->isfloating)
+				continue;
+			int idx = thumbindex(items, n, c);
+			if (idx < 0)
+				continue;
+			int dx = items[idx].x - offset + pad;
+			int dy = items[idx].y + pad;
+			if (dx + items[idx].w < 0 || dx > previeww || dy + items[idx].h < 0 || dy > previewh)
+				continue;
+			if (items[idx].scaled && items[idx].w > 0 && items[idx].h > 0)
+				XPutImage(dpy, buf, gc, items[idx].scaled, 0, 0, dx, dy, items[idx].w, items[idx].h);
+		}
 	}
 
 	/* draw selected border */
-	int sidx = order[selected];
-	if (sidx >= 0 && sidx < n) {
-		int dx = items[sidx].x - offset + pad;
-		int dy = items[sidx].y + pad;
-		if (!(dx + items[sidx].w < 0 || dx > previeww || dy + items[sidx].h < 0 || dy > previewh)) {
-			if (items[sidx].w > 0 && items[sidx].h > 0) {
-				XSetForeground(dpy, gc, scheme[SchemeSel][ColBorder].pixel);
-				XDrawRectangle(dpy, buf, gc, dx, dy, items[sidx].w-1, items[sidx].h-1);
+	if (selected >= 0 && selected < n) {
+		int sidx = order[selected];
+		if (sidx >= 0 && sidx < n) {
+			int dx = items[sidx].x - offset + pad;
+			int dy = items[sidx].y + pad;
+			if (!(dx + items[sidx].w < 0 || dx > previeww || dy + items[sidx].h < 0 || dy > previewh)) {
+				if (items[sidx].w > 0 && items[sidx].h > 0) {
+					XSetForeground(dpy, gc, scheme[SchemeSel][ColBorder].pixel);
+					XDrawRectangle(dpy, buf, gc, dx, dy, items[sidx].w-1, items[sidx].h-1);
+				}
 			}
 		}
 	}
@@ -1216,12 +1293,19 @@ previewscroll(const Arg *arg)
 	int previeww = (m->ww * 3) / 4;
 	int pad = gappx * 2;
 
+	/* 确保预览窗口尺寸合理 */
+	if (previewh < 100) previewh = 100;
+	if (previeww < 200) previeww = 200;
+	if (previewh > 2048) previewh = 2048;
+	if (previeww > 4096) previeww = 4096;
+
 	int boundsh = maxb - miny;
 	if (boundsh < 1)
 		boundsh = 1;
 
+	/* 计算缩放比例，防止除零和极端值 */
 	float scale = (float)(previewh - 2 * pad) / (float)boundsh;
-	if (scale <= 0.0f)
+	if (scale <= 0.0f || scale > 10.0f)
 		scale = 0.1f;
 
 	Client *selbefore = selmon->sel;
@@ -1229,17 +1313,47 @@ previewscroll(const Arg *arg)
 	for (int i = 0; i < n; i++) {
 		c = items[i].c;
 		items[i].img = getwindowximage_safe(c);
-		int sw = (int)((c->w) * scale);
-		int sh = (int)((c->h) * scale);
-		if (sw < 10)
-			sw = 10;
-		if (sh < 10)
-			sh = 10;
-		items[i].scaled = scaleimage(items[i].img, sw, sh);
-		items[i].x = (int)((c->x - minx) * scale);
-		items[i].y = (int)((c->y - miny) * scale);
+		
+		/* 计算缩放后的尺寸，防止溢出 */
+		int sw = (int)((float)(c->w) * scale);
+		int sh = (int)((float)(c->h) * scale);
+		
+		/* 确保最小尺寸 */
+		if (sw < 10) sw = 10;
+		if (sh < 10) sh = 10;
+		
+		/* 限制最大尺寸，防止内存问题 */
+		if (sw > previeww) sw = previeww;
+		if (sh > previewh) sh = previewh;
+		
+		/* 执行缩放，检查结果 */
+		items[i].scaled = scaleimage(items[i].img, (unsigned int)sw, (unsigned int)sh);
+		if (!items[i].scaled) {
+			/* 如果缩放失败，使用原始图像（如果尺寸合适）或创建占位符 */
+			if (items[i].img && (unsigned int)sw <= items[i].img->width && 
+			    (unsigned int)sh <= items[i].img->height) {
+				/* 使用原始图像 */
+				items[i].scaled = items[i].img;
+				items[i].img = NULL;
+			} else {
+				/* 创建占位符 */
+				if (items[i].img) {
+					XDestroyImage(items[i].img);
+					items[i].img = NULL;
+				}
+				items[i].scaled = create_placeholder_image((unsigned int)sw, (unsigned int)sh);
+			}
+		}
+		
+		/* 计算位置，防止溢出 */
+		items[i].x = (int)((float)(c->x - minx) * scale);
+		items[i].y = (int)((float)(c->y - miny) * scale);
 		items[i].w = sw;
 		items[i].h = sh;
+		
+		/* 限制位置范围 */
+		if (items[i].x < -previeww) items[i].x = -previeww;
+		if (items[i].y < -previewh) items[i].y = -previewh;
 	}
 
 	int totalw = 0;
@@ -1433,16 +1547,32 @@ previewscroll(const Arg *arg)
 	}
 	(void)selbefore;
 
+	/* 安全清理资源 */
 	for (int i = 0; i < n; i++) {
+		/* 检查指针是否有效，避免双重释放 */
 		if (items[i].scaled) {
 			XDestroyImage(items[i].scaled);
+			items[i].scaled = NULL;
 		}
-		if (items[i].img)
+		if (items[i].img) {
 			XDestroyImage(items[i].img);
+			items[i].img = NULL;
+		}
 	}
-	free(stacklist);
-	free(order);
-	free(items);
+	
+	/* 清理数组前先清空指针 */
+	if (stacklist) {
+		free(stacklist);
+		stacklist = NULL;
+	}
+	if (order) {
+		free(order);
+		order = NULL;
+	}
+	if (items) {
+		free(items);
+		items = NULL;
+	}
 }
 
 void
