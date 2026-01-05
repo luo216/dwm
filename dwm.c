@@ -429,6 +429,7 @@ static int supericonw;
 static int systandstat; /* right padding for systray */
 static int systrayw;
 static int supericonflag = 1;
+static int modkey_enabled = 1;
 static int (*xerrorxlib)(Display *, XErrorEvent *);
 static unsigned int numlockmask = 0;
 
@@ -2224,6 +2225,9 @@ keypress(XEvent *e)
 	KeySym keysym;
 	XKeyEvent *ev;
 
+	if (!modkey_enabled)
+		return;
+
 	ev = &e->xkey;
 	keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
 	for (i = 0; i < LENGTH(keys); i++)
@@ -3471,7 +3475,7 @@ void
 drawsupericon(Monitor *m, int *x)
 {
 	supericonw = TEXTW(supericon);
-	drw_setscheme(drw, (supericonflag) ? scheme[SchemeNorm] : scheme[SchemeSel]);
+	drw_setscheme(drw, (modkey_enabled) ? scheme[SchemeNorm] : scheme[SchemeSel]);
 	drw_text(drw, *x, 0, supericonw, bh, lrpad, supericon, 0);
 	*x += supericonw;
 }
@@ -4259,6 +4263,7 @@ void
 togglesupericon(const Arg *arg)
 {
 	supericonflag = !supericonflag;
+	modkey_enabled = !supericonflag;
 	drawbars();
 }
 
