@@ -180,6 +180,7 @@ struct Monitor {
 	Scroll *scrolls;
 	Scroll *scrollindex;
 	int prevtag; /* 上次使用的tag索引 */
+	int logotitlew; /* logotitle的实际宽度 */
 };
 
 
@@ -424,7 +425,6 @@ static int screen;
 static int sw, sh;           /* X display screen geometry width, height */
 static int bh;               /* bar height */
 static int lrpad;            /* sum of left and right padding for text */
-static int logotitlew;
 static int supericonw;
 static int systandstat; /* right padding for systray */
 static int systrayw;
@@ -701,13 +701,13 @@ buttonpress(XEvent *e)
 	}
 	if (ev->window == selmon->barwin) {
 		i = 0;
-		x = supericonw + logotitlew;
+		x = supericonw + selmon->logotitlew;
 		do
 			x += TEXTW(tags[i]);
 		while (ev->x >= x && ++i < LENGTH(tags));
 		if (ev->x < supericonw) {
 			click = ClkSuperIcon;
-		} else if (ev->x < supericonw + logotitlew) {
+		} else if (ev->x < supericonw + selmon->logotitlew) {
 			click = ClkWinClass;
 		} else if (i < LENGTH(tags)) {
 			click = ClkTagBar;
@@ -3484,23 +3484,23 @@ void
 drawlogotitle(Monitor *m, int *x)
 {
 	drw_setscheme(drw, scheme[SchemeNorm]);
-	
+
 	if (m->sel) {
 		const char *winclass;
 		XClassHint ch = {NULL, NULL};
 		XGetClassHint(dpy, m->sel->win, &ch);
 		winclass = ch.res_class ? ch.res_class : broken;
-		logotitlew = TEXTW(winclass) + lrpad;
-		drw_text(drw, *x, 0, logotitlew, bh, lrpad, winclass, 0);
+		m->logotitlew = TEXTW(winclass) + lrpad;
+		drw_text(drw, *x, 0, m->logotitlew, bh, lrpad, winclass, 0);
 		if (ch.res_class)
 			XFree(ch.res_class);
 		if (ch.res_name)
 			XFree(ch.res_name);
 	} else {
-		logotitlew = TEXTW(logotext) + lrpad;
-		drw_text(drw, *x, 0, logotitlew, bh, lrpad, logotext, 0);
+		m->logotitlew = TEXTW(logotext) + lrpad;
+		drw_text(drw, *x, 0, m->logotitlew, bh, lrpad, logotext, 0);
 	}
-	*x += logotitlew;
+	*x += m->logotitlew;
 }
 
 void
