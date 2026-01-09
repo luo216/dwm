@@ -1224,7 +1224,10 @@ drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **s
 			if (!(dx + items[sidx].w < 0 || dx > previeww || dy + items[sidx].h < 0 || dy > previewh)) {
 				if (items[sidx].w > 0 && items[sidx].h > 0) {
 					XSetForeground(dpy, gc, scheme[SchemeSel][ColBorder].pixel);
-					XDrawRectangle(dpy, buf, gc, dx, dy, items[sidx].w-1, items[sidx].h-1);
+					XSetLineAttributes(dpy, gc, borderpx, LineSolid, CapButt, JoinMiter);
+					XDrawRectangle(dpy, buf, gc, dx + borderpx/2, dy + borderpx/2,
+						items[sidx].w - borderpx, items[sidx].h - borderpx);
+					XSetLineAttributes(dpy, gc, 0, LineSolid, CapButt, JoinMiter);
 				}
 			}
 		}
