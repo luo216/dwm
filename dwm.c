@@ -65,7 +65,7 @@
 
 #define TEXTW(X)                (drw_fontset_getwidth(drw, (X)) + lrpad)
 #define TEXTWSTATUS(X)          (drw_fontset_getwidth(statusdrw, (X)) + lrpad)
-#define ISVISIBLE(C)            ((C)->mon->scrollindex && (C)->tagindex >= 0 && (C)->tagindex < LENGTH(tags) && (C)->mon->scrollindex == &(C)->mon->scrolls[(C)->tagindex])
+#define ISVISIBLE(C)            ((C) && (C)->mon && (C)->mon->scrollindex && (C)->tagindex >= 0 && (C)->tagindex < LENGTH(tags) && (C)->mon->scrollindex == &(C)->mon->scrolls[(C)->tagindex])
 
 #define SYSTEM_TRAY_REQUEST_DOCK    0
 /* XEMBED messages */
@@ -646,8 +646,8 @@ attach(Client *c)
 {
 	Client *last;
 	int i = c->tagindex;
-	
-	if (i < 0 || i >= LENGTH(tags))
+
+	if (i < 0 || i >= LENGTH(tags) || !c->mon)
 		return;
 	
 	/* Insert after current selection when possible (non-floating preference) */
@@ -1907,6 +1907,9 @@ detachstack(Client *c)
 {
 	Client **tc, *t;
 
+	if (!c->mon)
+		return;
+
 	for (tc = &c->mon->stack; *tc && *tc != c; tc = &(*tc)->snext);
 	*tc = c->snext;
 
@@ -2541,6 +2544,9 @@ reorderbyx(Scroll *s)
 		return;
 
 	Monitor *m = s->head->mon;
+	if (!m)
+		return;
+
 	Client *sorted = NULL;
 	for (Client *c = s->head; c; ) {
 		Client *next = c->next;
