@@ -409,6 +409,7 @@ static void handleStatus2(const Arg *arg);
 static void handleStatus3(const Arg *arg);
 static void handleStatus4(const Arg *arg);
 static void handleStatus5(const Arg *arg);
+static void sendnotify(const char *msg, const char *urgency, int timeout);
 static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
 static Client *wintosystrayicon(Window w);
@@ -4219,9 +4220,21 @@ wintomon(Window w)
 /* There's no way to check accesses to destroyed windows, thus those cases are
  * ignored (especially on UnmapNotify's). Other types of errors call Xlibs
  * default error handler, which may call exit. */
+void
+sendnotify(const char *msg, const char *urgency, int timeout)
+{
+	char timeout_str[16];
+	snprintf(timeout_str, sizeof(timeout_str), "%d", timeout);
+
+	const char *notify[] = {"dunstify", "-u", urgency, "-t", timeout_str, msg, NULL};
+	const Arg v = {.v = notify};
+	spawn(&v);
+}
+
 int
 xerror(Display *dpy, XErrorEvent *ee)
 {
+	/* 忽略常见的无害错误 */
 	if (ee->error_code == BadWindow
 	|| (ee->request_code == X_SetInputFocus && ee->error_code == BadMatch)
 	|| (ee->request_code == X_PolyText8 && ee->error_code == BadDrawable)
@@ -4232,9 +4245,18 @@ xerror(Display *dpy, XErrorEvent *ee)
 	|| (ee->request_code == X_GrabKey && ee->error_code == BadAccess)
 	|| (ee->request_code == X_CopyArea && ee->error_code == BadDrawable))
 		return 0;
-	fprintf(stderr, "dwm: fatal error: request code=%d, error code=%d\n",
-		ee->request_code, ee->error_code);
-	return xerrorxlib(dpy, ee); /* may call exit */
+
+	/* 对于其他错误，使用 dunstify 通知而不是直接退出 */
+	char msg[512];
+	snprintf(msg, sizeof(msg), "dwm: X error - request=%d, error=%d, resource=0x%lx",
+	         ee->request_code, ee->error_code, ee->resourceid);
+	fprintf(stderr, "%s\n", msg);
+
+	/* 使用 dunstify 发送通知 */
+	sendnotify(msg, "critical", 5000);
+
+	/* 不调用 xerrorxlib，避免 dwm 退出 */
+	return 0;
 }
 
 int
@@ -4479,9 +4501,7 @@ clicktemp(const Arg *arg)
     }
     char thermal_str[30];
     sprintf(thermal_str, "Thermal Zone: %d", thermalzoneindex);
-    const char *notify[] = {"dunstify", thermal_str, NULL};
-    const Arg v = {.v = notify};
-    spawn(&v);
+    sendnotify(thermal_str, "normal", 3000);
   }
 }
 
@@ -4514,9 +4534,7 @@ clicknet(const Arg *arg)
     }
     char thermal_str[30];
     sprintf(thermal_str, "Interface: %s", interface_name[interfaceindex]);
-    const char *notify[] = {"dunstify", thermal_str, NULL};
-    const Arg v = {.v = notify};
-    spawn(&v);
+    sendnotify(thermal_str, "normal", 3000);
   }
 }
 
