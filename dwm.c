@@ -95,6 +95,12 @@ enum { WMProtocols, WMDelete, WMState, WMTakeFocus, WMLast }; /* default atoms *
 enum { ClkTagBar, ClkLtSymbol, ClkStatusText, ClkWinTitle, ClkNullWinTitle,
        ClkWinClass, ClkSuperIcon, ClkClientWin, ClkRootWin, ClkLast }; /* clicks */
 
+/* preview layout mode enum */
+enum {
+  PREVIEW_SCROLL,
+  PREVIEW_GRID,
+};
+
 /* status bar blocks enum */
 enum {
   Notify,
@@ -493,6 +499,9 @@ static int cachew = 0;
 static int cacheh = 0;
 static int cachevalid = 0;
 static time_t lastupdate = 0;
+
+/* preview mode */
+static int previewmode = PREVIEW_SCROLL;  /* will be initialized from config */
 
 /* configuration, allows nested code to access above variables */
 #include "config.h"
@@ -1172,8 +1181,93 @@ thumbindex(PreviewItem *items, int n, Client *c)
 }
 
 static void
+arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
+{
+	if (n == 1) {
+		int sw = items[0].scaled ? items[0].scaled->width : 0;
+		int sh = items[0].scaled ? items[0].scaled->height : 0;
+		items[0].x = (previeww - sw) / 2;
+		items[0].y = (previewh - sh) / 2;
+		if (totalh) *totalh = sh;
+		if (totalw) *totalw = sw;
+		return;
+	}
+
+	if (n <= 4) {
+		unsigned int total_gapi = pad * (n - 1);
+		unsigned int row_width = 0;
+		int maxh = 0;
+		for (int i = 0; i < n; i++) {
+			int sw = items[i].scaled ? items[i].scaled->width : 0;
+			int sh = items[i].scaled ? items[i].scaled->height : 0;
+			row_width += sw;
+			if (sh > maxh) maxh = sh;
+		}
+		row_width += total_gapi;
+
+		int cx = (previeww - row_width) / 2;
+		int cy = (previewh - maxh) / 2;
+
+		for (int i = 0; i < n; i++) {
+			int sw = items[i].scaled ? items[i].scaled->width : 0;
+			int sh = items[i].scaled ? items[i].scaled->height : 0;
+			items[i].x = cx;
+			items[i].y = cy + (maxh - sh) / 2;
+			cx += sw + pad;
+		}
+		if (totalh) *totalh = maxh;
+		if (totalw) *totalw = row_width;
+		return;
+	}
+
+	unsigned int cols, rows;
+	for (cols = 0; cols <= n / 2; cols++)
+		if (cols * cols >= n)
+			break;
+	rows = (cols && (cols - 1) * cols >= n) ? cols - 1 : cols;
+
+	int idx = 0;
+	int cy = 0;
+	int maxh = 0;
+	int maxw = 0;
+
+	for (unsigned int i = 0; i < rows; i++) {
+		int cx = 0;
+		int row_maxh = 0;
+		int start_idx = idx;
+
+		for (unsigned int j = 0; j < cols; j++) {
+			if (idx >= n)
+				break;
+			int sw = items[idx].scaled ? items[idx].scaled->width : 0;
+			int sh = items[idx].scaled ? items[idx].scaled->height : 0;
+			items[idx].x = cx;
+			if (sh > row_maxh) row_maxh = sh;
+			if (sw > maxw) maxw = sw;
+			cx += sw + pad;
+			idx++;
+		}
+
+		int row_width = cx - pad;
+		cx = (previeww - row_width) / 2;
+		for (unsigned int j = 0; j < cols && start_idx < n; j++) {
+			items[start_idx].x += cx;
+			items[start_idx].y = cy;
+			start_idx++;
+		}
+
+		cy += row_maxh + pad;
+		if (row_maxh > maxh) maxh = row_maxh;
+	}
+
+	if (totalh) *totalh = cy - pad;
+	if (totalw) *totalw = maxw;
+}
+
+static void
 drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **stacklist, int scount,
-	int offset, int pad, int previeww, int previewh, int *order, int selected, int totalw)
+	int offset, int offsety, int pad, int previeww, int previewh, int *order, int selected,
+	int totalw, int totalh, int mode)
 {
 	/* 参数检查 */
 	if (!items || n <= 0 || !order || previeww <= 0 || previewh <= 0)
@@ -1191,7 +1285,7 @@ drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **s
 		if (!c || c->isfloating)
 			continue;
 		int dx = items[idx].x - offset + pad;
-		int dy = items[idx].y + pad;
+		int dy = items[idx].y - offsety + pad;
 		if (dx + items[idx].w < 0 || dx > previeww || dy + items[idx].h < 0 || dy > previewh)
 			continue;
 		if (items[idx].scaled && items[idx].w > 0 && items[idx].h > 0)
@@ -1208,7 +1302,7 @@ drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **s
 			if (idx < 0)
 				continue;
 			int dx = items[idx].x - offset + pad;
-			int dy = items[idx].y + pad;
+			int dy = items[idx].y - offsety + pad;
 			if (dx + items[idx].w < 0 || dx > previeww || dy + items[idx].h < 0 || dy > previewh)
 				continue;
 			if (items[idx].scaled && items[idx].w > 0 && items[idx].h > 0)
@@ -1221,7 +1315,7 @@ drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **s
 		int sidx = order[selected];
 		if (sidx >= 0 && sidx < n) {
 			int dx = items[sidx].x - offset + pad;
-			int dy = items[sidx].y + pad;
+			int dy = items[sidx].y - offsety + pad;
 			if (!(dx + items[sidx].w < 0 || dx > previeww || dy + items[sidx].h < 0 || dy > previewh)) {
 				if (items[sidx].w > 0 && items[sidx].h > 0) {
 					XSetForeground(dpy, gc, scheme[SchemeSel][ColBorder].pixel);
@@ -1234,28 +1328,58 @@ drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **s
 		}
 	}
 
-	/* Draw scrollbar at bottom */
-	if (totalw > previeww) {
-		int scrollbar_height = 3;
-		int scrollbar_y = previewh - scrollbar_height - 2;
-		int scrollbar_width = previeww - 4;
-		int scrollbar_x = 2;
-		
-		/* Draw scrollbar track */
-		XSetForeground(dpy, gc, scheme[SchemeNorm][ColBorder].pixel);
-		XFillRectangle(dpy, buf, gc, scrollbar_x, scrollbar_y, scrollbar_width, scrollbar_height);
-		
-		/* Calculate thumb position and size */
-		float ratio = (float)previeww / (float)totalw;
-		int thumb_width = (int)(scrollbar_width * ratio);
-		if (thumb_width < 10) thumb_width = 10; /* Minimum thumb width */
-		
-		float offset_ratio = (float)offset / (float)(totalw - previeww);
-		int thumb_x = scrollbar_x + (int)((scrollbar_width - thumb_width) * offset_ratio);
-		
-		/* Draw scrollbar thumb */
-		XSetForeground(dpy, gc, scheme[SchemeSel][ColBorder].pixel);
-		XFillRectangle(dpy, buf, gc, thumb_x, scrollbar_y, thumb_width, scrollbar_height);
+	/* Draw mode indicator */
+	(void)mode;
+
+	/* Draw scrollbar - horizontal for scroll mode, vertical for grid mode */
+	if (mode == PREVIEW_SCROLL) {
+		/* Draw scrollbar at bottom (horizontal) */
+		if (totalw > previeww) {
+			int scrollbar_height = 3;
+			int scrollbar_y = previewh - scrollbar_height - 2;
+			int scrollbar_width = previeww - 4;
+			int scrollbar_x = 2;
+
+			/* Draw scrollbar track */
+			XSetForeground(dpy, gc, scheme[SchemeNorm][ColBorder].pixel);
+			XFillRectangle(dpy, buf, gc, scrollbar_x, scrollbar_y, scrollbar_width, scrollbar_height);
+
+			/* Calculate thumb position and size */
+			float ratio = (float)previeww / (float)totalw;
+			int thumb_width = (int)(scrollbar_width * ratio);
+			if (thumb_width < 10) thumb_width = 10;
+
+			float offset_ratio = (float)offset / (float)(totalw - previeww);
+			int thumb_x = scrollbar_x + (int)((scrollbar_width - thumb_width) * offset_ratio);
+
+			/* Draw scrollbar thumb */
+			XSetForeground(dpy, gc, scheme[SchemeSel][ColBorder].pixel);
+			XFillRectangle(dpy, buf, gc, thumb_x, scrollbar_y, thumb_width, scrollbar_height);
+		}
+	} else {
+		/* Draw scrollbar at right (vertical) for grid mode */
+		if (totalh > previewh) {
+			int scrollbar_width = 3;
+			int scrollbar_x = previeww - scrollbar_width - 2;
+			int scrollbar_height = previewh - 4;
+			int scrollbar_y = 2;
+
+			/* Draw scrollbar track */
+			XSetForeground(dpy, gc, scheme[SchemeNorm][ColBorder].pixel);
+			XFillRectangle(dpy, buf, gc, scrollbar_x, scrollbar_y, scrollbar_width, scrollbar_height);
+
+			/* Calculate thumb position and size */
+			float ratio = (float)previewh / (float)totalh;
+			int thumb_height = (int)(scrollbar_height * ratio);
+			if (thumb_height < 10) thumb_height = 10;
+
+			float offset_ratio = (float)offsety / (float)(totalh - previewh);
+			int thumb_y = scrollbar_y + (int)((scrollbar_height - thumb_height) * offset_ratio);
+
+			/* Draw scrollbar thumb */
+			XSetForeground(dpy, gc, scheme[SchemeSel][ColBorder].pixel);
+			XFillRectangle(dpy, buf, gc, scrollbar_x, thumb_y, scrollbar_width, thumb_height);
+		}
 	}
 
 	XCopyArea(dpy, buf, win, gc, 0, 0, previeww, previewh, 0, 0);
@@ -1294,22 +1418,24 @@ previewscroll(const Arg *arg)
 		return;
 	}
 
-	int previewh = m->wh / 4;
 	int previeww = (m->ww * 3) / 4;
 	int pad = gappx * 2;
 
 	/* 确保预览窗口尺寸合理 */
-	if (previewh < 100) previewh = 100;
 	if (previeww < 200) previeww = 200;
-	if (previewh > 2048) previewh = 2048;
 	if (previeww > 4096) previeww = 4096;
 
 	int boundsh = maxb - miny;
 	if (boundsh < 1)
 		boundsh = 1;
 
+	/* 始终使用滚动模式的高度（m->wh / 4）来计算缩放比例 */
+	int scale_previewh = m->wh / 4;
+	if (scale_previewh < 100) scale_previewh = 100;
+	if (scale_previewh > 2048) scale_previewh = 2048;
+
 	/* 计算缩放比例，防止除零和极端值 */
-	float scale = (float)(previewh - 2 * pad) / (float)boundsh;
+	float scale = (float)(scale_previewh - 2 * pad) / (float)boundsh;
 	if (scale <= 0.0f || scale > 10.0f)
 		scale = 0.1f;
 
@@ -1322,20 +1448,20 @@ previewscroll(const Arg *arg)
 		/* 计算缩放后的尺寸，防止溢出 */
 		int sw = (int)((float)(c->w) * scale);
 		int sh = (int)((float)(c->h) * scale);
-		
+
 		/* 确保最小尺寸 */
 		if (sw < 10) sw = 10;
 		if (sh < 10) sh = 10;
-		
+
 		/* 限制最大尺寸，防止内存问题 */
 		if (sw > previeww) sw = previeww;
-		if (sh > previewh) sh = previewh;
+		if (sh > scale_previewh) sh = scale_previewh;
 		
 		/* 执行缩放，检查结果 */
 		items[i].scaled = scaleimage(items[i].img, (unsigned int)sw, (unsigned int)sh);
 		if (!items[i].scaled) {
 			/* 如果缩放失败，使用原始图像（如果尺寸合适）或创建占位符 */
-			if (items[i].img && (unsigned int)sw <= items[i].img->width && 
+			if (items[i].img && (unsigned int)sw <= items[i].img->width &&
 			    (unsigned int)sh <= items[i].img->height) {
 				/* 使用原始图像 */
 				items[i].scaled = items[i].img;
@@ -1349,23 +1475,42 @@ previewscroll(const Arg *arg)
 				items[i].scaled = create_placeholder_image((unsigned int)sw, (unsigned int)sh);
 			}
 		}
-		
-		/* 计算位置，防止溢出 */
-		items[i].x = (int)((float)(c->x - minx) * scale);
-		items[i].y = (int)((float)(c->y - miny) * scale);
+
+		/* 计算滚动模式的位置（保存用于切换回滚动模式） */
+		int scroll_x = (int)((float)(c->x - minx) * scale);
+		int scroll_y = (int)((float)(c->y - miny) * scale);
+
+		items[i].x = scroll_x;
+		items[i].y = scroll_y;
 		items[i].w = sw;
 		items[i].h = sh;
-		
+
 		/* 限制位置范围 */
 		if (items[i].x < -previeww) items[i].x = -previeww;
-		if (items[i].y < -previewh) items[i].y = -previewh;
+		if (items[i].y < -scale_previewh) items[i].y = -scale_previewh;
 	}
+
+	/* 保存缩放参数，用于切换回滚动模式 */
+	float saved_scale = scale;
+	int saved_minx = minx;
+	int saved_miny = miny;
 
 	int totalw = 0;
 	for (int i = 0; i < n; i++)
 		if (items[i].x + items[i].w > totalw)
 			totalw = items[i].x + items[i].w;
 	totalw += pad * 2;
+
+	/* 根据模式决定实际的预览窗口高度 */
+	int previewh = (previewmode == PREVIEW_GRID) ? (m->wh - bh) : scale_previewh;
+	/* 网格模式同时调整宽度 */
+	if (previewmode == PREVIEW_GRID) {
+		previeww = m->ww - 2 * bh;
+		if (previeww < 200) previeww = 200;
+	}
+	/* 确保预览窗口尺寸合理 */
+	if (previewh < 100) previewh = 100;
+	if (previewh > 2048) previewh = 2048;
 
 	int *order = ecalloc(n, sizeof(int));
 	for (int i = 0; i < n; i++)
@@ -1380,24 +1525,36 @@ previewscroll(const Arg *arg)
 	if (selected == -1)
 		selected = n / 2;
 
+	int totalh = previewh;
 	int maxoffset = totalw > previeww ? totalw - previeww : 0;
+	int maxoffsety;
 	int offset = 0;
-	int selx = items[order[selected]].x;
-	int selw = items[order[selected]].w;
-	offset = selx + selw / 2 - previeww / 2;
-	if (offset < 0)
+	int offsety = 0;
+
+	if (previewmode == PREVIEW_GRID) {
+		arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
+		maxoffset = 0;
 		offset = 0;
-	if (offset > maxoffset)
-		offset = maxoffset;
+		offsety = 0;
+		maxoffsety = totalh > previewh ? totalh - previewh : 0;
+	} else {
+		maxoffsety = 0;
+		int selx = items[order[selected]].x;
+		int selw = items[order[selected]].w;
+		offset = selx + selw / 2 - previeww / 2;
+		if (offset < 0)
+			offset = 0;
+		if (offset > maxoffset)
+			offset = maxoffset;
+	}
 
 	Window overlay = XCreateSimpleWindow(dpy, root, 0, 0, sw, sh, 0,
 		scheme[SchemeSel][ColBg].pixel, scheme[SchemeSel][ColBg].pixel);
 	XSelectInput(dpy, overlay, KeyPressMask | ButtonPressMask | ExposureMask);
 	XMapRaised(dpy, overlay);
 
-	int px = m->wx + (m->ww - previeww) / 2;
-	/* place preview so top gap is 1/4 wh and bottom gap is 2/4 wh */
-	int py = m->wy + m->wh / 4;
+	int px = m->wx + ((previewmode == PREVIEW_GRID) ? bh : (m->ww - previeww) / 2);
+	int py = m->wy + ((previewmode == PREVIEW_GRID) ? 0 : (m->wh / 4));
 	Window pwin = XCreateSimpleWindow(dpy, overlay, px, py, previeww, previewh, 1,
 		scheme[SchemeSel][ColBorder].pixel, scheme[SchemeNorm][ColBg].pixel);
 	XSelectInput(dpy, pwin, ExposureMask | ButtonPressMask);
@@ -1425,7 +1582,7 @@ previewscroll(const Arg *arg)
 	int needredraw = 1;
 	int needblit = 0;
 	int drawn = 0;
-	drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, pad, previeww, previewh, order, selected, totalw);
+	drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad, previeww, previewh, order, selected, totalw, totalh, previewmode);
 	drawn = 1;
 	needredraw = 0;
 
@@ -1442,41 +1599,178 @@ previewscroll(const Arg *arg)
 			} else if (ks == XK_Return || ks == XK_space) {
 				running = 0;
 				confirmed = 1;
-			} else if (ks == XK_h || ks == XK_Left) {
-				offset -= previeww / 8;
-				if (offset < 0)
+			} else if (ks == XK_Tab) {
+				previewmode = (previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
+				int new_previewh = (previewmode == PREVIEW_GRID) ? (m->wh - bh) : (m->wh / 4);
+				new_previewh = MAX(new_previewh, 100);
+				new_previewh = MIN(new_previewh, 2048);
+				int new_py = m->wy + ((previewmode == PREVIEW_GRID) ? 0 : (m->wh / 4));
+				int new_previeww = previeww;
+				if (previewmode == PREVIEW_GRID) {
+					new_previeww = m->ww - 2 * bh;
+					if (new_previeww < 200) new_previeww = 200;
+				}
+				int new_px = m->wx + ((previewmode == PREVIEW_GRID) ? bh : (m->ww - new_previeww) / 2);
+				XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
+				previewh = new_previewh;
+				previeww = new_previeww;
+				px = new_px;
+				py = new_py;
+				XFreePixmap(dpy, buf);
+				buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
+				if (previewmode == PREVIEW_GRID) {
+					arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
 					offset = 0;
+					offsety = 0;
+					maxoffsety = totalh > previewh ? totalh - previewh : 0;
+				} else {
+					/* 切换回滚动模式，使用保存的缩放参数重新计算位置 */
+					totalw = 0;
+					for (int i = 0; i < n; i++) {
+						Client *c = items[i].c;
+						items[i].x = (int)((float)(c->x - saved_minx) * saved_scale);
+						items[i].y = (int)((float)(c->y - saved_miny) * saved_scale);
+						if (items[i].x + items[i].w > totalw)
+							totalw = items[i].x + items[i].w;
+					}
+					totalw += pad * 2;
+					maxoffset = totalw > previeww ? totalw - previeww : 0;
+					maxoffsety = 0;
+					offsety = 0;
+					int selx = items[order[selected]].x;
+					int selw = items[order[selected]].w;
+					offset = selx + selw / 2 - previeww / 2;
+					if (offset < 0) offset = 0;
+					if (offset > maxoffset) offset = maxoffset;
+				}
 				needredraw = 1;
+			} else if (ks == XK_h || ks == XK_Left) {
+				int best_index = -1;
+				int min_distance = INT_MAX;
+				PreviewItem *current = &items[order[selected]];
+				int current_center_x = current->x + current->w / 2;
+				int current_center_y = current->y + current->h / 2;
+				for (int i = 0; i < n; i++) {
+					if (i == selected) continue;
+					PreviewItem *candidate = &items[order[i]];
+					int candidate_center_x = candidate->x + candidate->w / 2;
+					int candidate_center_y = candidate->y + candidate->h / 2;
+					if (candidate_center_x < current_center_x) {
+						int dx = current_center_x - candidate_center_x;
+						int dy = abs(current_center_y - candidate_center_y);
+						int distance = dx + dy * 2;
+						if (distance < min_distance) {
+							min_distance = distance;
+							best_index = i;
+						}
+					}
+				}
+				if (best_index != -1) {
+					selected = best_index;
+					needredraw = 1;
+				}
 			} else if (ks == XK_l || ks == XK_Right) {
-				offset += previeww / 8;
-				if (offset > maxoffset)
-					offset = maxoffset;
-				needredraw = 1;
-			} else if (ks == XK_j || ks == XK_Down) {
-				if (selected < n - 1) {
-					selected++;
+				int best_index = -1;
+				int min_distance = INT_MAX;
+				PreviewItem *current = &items[order[selected]];
+				int current_center_x = current->x + current->w / 2;
+				int current_center_y = current->y + current->h / 2;
+				for (int i = 0; i < n; i++) {
+					if (i == selected) continue;
+					PreviewItem *candidate = &items[order[i]];
+					int candidate_center_x = candidate->x + candidate->w / 2;
+					int candidate_center_y = candidate->y + candidate->h / 2;
+					if (candidate_center_x > current_center_x) {
+						int dx = candidate_center_x - current_center_x;
+						int dy = abs(current_center_y - candidate_center_y);
+						int distance = dx + dy * 2;
+						if (distance < min_distance) {
+							min_distance = distance;
+							best_index = i;
+						}
+					}
+				}
+				if (best_index != -1) {
+					selected = best_index;
 					needredraw = 1;
 				}
 			} else if (ks == XK_k || ks == XK_Up) {
-				if (selected > 0) {
-					selected--;
+				int best_index = -1;
+				int min_distance = INT_MAX;
+				PreviewItem *current = &items[order[selected]];
+				int current_center_x = current->x + current->w / 2;
+				int current_center_y = current->y + current->h / 2;
+				for (int i = 0; i < n; i++) {
+					if (i == selected) continue;
+					PreviewItem *candidate = &items[order[i]];
+					int candidate_center_x = candidate->x + candidate->w / 2;
+					int candidate_center_y = candidate->y + candidate->h / 2;
+					if (candidate_center_y < current_center_y) {
+						int dy = current_center_y - candidate_center_y;
+						int dx = abs(current_center_x - candidate_center_x);
+						int distance = dy + dx * 2;
+						if (distance < min_distance) {
+							min_distance = distance;
+							best_index = i;
+						}
+					}
+				}
+				if (best_index != -1) {
+					selected = best_index;
+					needredraw = 1;
+				}
+			} else if (ks == XK_j || ks == XK_Down) {
+				int best_index = -1;
+				int min_distance = INT_MAX;
+				PreviewItem *current = &items[order[selected]];
+				int current_center_x = current->x + current->w / 2;
+				int current_center_y = current->y + current->h / 2;
+				for (int i = 0; i < n; i++) {
+					if (i == selected) continue;
+					PreviewItem *candidate = &items[order[i]];
+					int candidate_center_x = candidate->x + candidate->w / 2;
+					int candidate_center_y = candidate->y + candidate->h / 2;
+					if (candidate_center_y > current_center_y) {
+						int dy = candidate_center_y - current_center_y;
+						int dx = abs(current_center_x - candidate_center_x);
+						int distance = dy + dx * 2;
+						if (distance < min_distance) {
+							min_distance = distance;
+							best_index = i;
+						}
+					}
+				}
+				if (best_index != -1) {
+					selected = best_index;
 					needredraw = 1;
 				}
 			}
 		} else if (ev.type == ButtonPress) {
 			if (ev.xbutton.button == Button4) {
-				offset -= previeww / 8;
-				if (offset < 0)
-					offset = 0;
+				if (previewmode == PREVIEW_SCROLL) {
+					offset -= previeww / 8;
+					if (offset < 0)
+						offset = 0;
+				} else {
+					offsety -= previewh / 8;
+					if (offsety < 0)
+						offsety = 0;
+				}
 				needredraw = 1;
 			} else if (ev.xbutton.button == Button5) {
-				offset += previeww / 8;
-				if (offset > maxoffset)
-					offset = maxoffset;
+				if (previewmode == PREVIEW_SCROLL) {
+					offset += previeww / 8;
+					if (offset > maxoffset)
+						offset = maxoffset;
+				} else {
+					offsety += previewh / 8;
+					if (offsety > maxoffsety)
+						offsety = maxoffsety;
+				}
 				needredraw = 1;
 			} else if (ev.xbutton.button == Button1 && ev.xbutton.window == pwin) {
 				int cx = ev.xbutton.x + offset - pad;
-				int cy = ev.xbutton.y - pad;
+				int cy = ev.xbutton.y + offsety - pad;
 				int hit = -1;
 				unsigned int bestarea = UINT_MAX;
 				for (int i = scount - 1; i >= 0; i--) {
@@ -1530,7 +1824,7 @@ previewscroll(const Arg *arg)
 		}
 
 		if (needredraw) {
-			drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, pad, previeww, previewh, order, selected, totalw);
+			drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad, previeww, previewh, order, selected, totalw, totalh, previewmode);
 			drawn = 1;
 			needredraw = 0;
 		} else if (needblit && drawn) {
@@ -3016,6 +3310,9 @@ setup(void)
 	}
 	initshape();
 	initcompositor();
+
+	/* init preview mode from config */
+	previewmode = previewmode_default;
 	
 	updategeom();
 	/* init atoms */

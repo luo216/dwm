@@ -18,6 +18,9 @@
 /* autostart */
 static const char *autostartscript = "~/.config/dwm/autostart.sh";
 
+/* preview mode */
+static const int previewmode_default = 0; /* 0 for scroll mode, 1 for grid mode */
+
 /* appearance */
 static const unsigned int gappx       = 4;        /* gaps between windows */
 static const int cornerradius   = 8;   /* round corner radius */
