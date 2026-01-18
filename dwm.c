@@ -1226,6 +1226,20 @@ arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previe
 			break;
 	rows = (cols && (cols - 1) * cols >= n) ? cols - 1 : cols;
 
+	/* 检查宽度约束，确保每行能放入画布 */
+	while (cols > 1) {
+		int estimated_row_width = 0;
+		for (int i = 0; i < cols && i < n; i++) {
+			int sw = items[i].scaled ? items[i].scaled->width : 0;
+			estimated_row_width += sw;
+		}
+		estimated_row_width += (cols - 1) * pad;
+		if (estimated_row_width <= previeww)
+			break;
+		cols--;
+		rows = (n + cols - 1) / cols;
+	}
+
 	int idx = 0;
 	int cy = 0;
 	int maxh = 0;
@@ -1262,6 +1276,15 @@ arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previe
 
 	if (totalh) *totalh = cy - pad;
 	if (totalw) *totalw = maxw;
+
+	/* 垂直居中 */
+	int total_content_height = cy - pad;
+	if (total_content_height < previewh) {
+		int vertical_offset = (previewh - total_content_height) / 2;
+		for (int i = 0; i < n; i++) {
+			items[i].y += vertical_offset;
+		}
+	}
 }
 
 static void
@@ -1535,8 +1558,22 @@ previewscroll(const Arg *arg)
 		arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
 		maxoffset = 0;
 		offset = 0;
-		offsety = 0;
+
+		/* 自动滚动到选中项（与水平模式相同的逻辑） */
+		if (selected >= 0 && selected < n) {
+			PreviewItem *sel = &items[order[selected]];
+			int sely = sel->y;
+			int selh = sel->h;
+			offsety = sely + selh / 2 - previewh / 2;
+		} else {
+			offsety = 0;
+		}
+
 		maxoffsety = totalh > previewh ? totalh - previewh : 0;
+
+		/* 限制 offsety 范围 */
+		if (offsety < 0) offsety = 0;
+		if (offsety > maxoffsety) offsety = maxoffsety;
 	} else {
 		maxoffsety = 0;
 		int selx = items[order[selected]].x;
@@ -1668,6 +1705,14 @@ previewscroll(const Arg *arg)
 				if (best_index != -1) {
 					selected = best_index;
 					needredraw = 1;
+					if (previewmode == PREVIEW_GRID) {
+						PreviewItem *sel = &items[order[selected]];
+						int sely = sel->y;
+						int selh = sel->h;
+						offsety = sely + selh / 2 - previewh / 2;
+						if (offsety < 0) offsety = 0;
+						if (offsety > maxoffsety) offsety = maxoffsety;
+					}
 				}
 			} else if (ks == XK_l || ks == XK_Right) {
 				int best_index = -1;
@@ -1693,6 +1738,14 @@ previewscroll(const Arg *arg)
 				if (best_index != -1) {
 					selected = best_index;
 					needredraw = 1;
+					if (previewmode == PREVIEW_GRID) {
+						PreviewItem *sel = &items[order[selected]];
+						int sely = sel->y;
+						int selh = sel->h;
+						offsety = sely + selh / 2 - previewh / 2;
+						if (offsety < 0) offsety = 0;
+						if (offsety > maxoffsety) offsety = maxoffsety;
+					}
 				}
 			} else if (ks == XK_k || ks == XK_Up) {
 				int best_index = -1;
@@ -1718,6 +1771,14 @@ previewscroll(const Arg *arg)
 				if (best_index != -1) {
 					selected = best_index;
 					needredraw = 1;
+					if (previewmode == PREVIEW_GRID) {
+						PreviewItem *sel = &items[order[selected]];
+						int sely = sel->y;
+						int selh = sel->h;
+						offsety = sely + selh / 2 - previewh / 2;
+						if (offsety < 0) offsety = 0;
+						if (offsety > maxoffsety) offsety = maxoffsety;
+					}
 				}
 			} else if (ks == XK_j || ks == XK_Down) {
 				int best_index = -1;
@@ -1743,6 +1804,14 @@ previewscroll(const Arg *arg)
 				if (best_index != -1) {
 					selected = best_index;
 					needredraw = 1;
+					if (previewmode == PREVIEW_GRID) {
+						PreviewItem *sel = &items[order[selected]];
+						int sely = sel->y;
+						int selh = sel->h;
+						offsety = sely + selh / 2 - previewh / 2;
+						if (offsety < 0) offsety = 0;
+						if (offsety > maxoffsety) offsety = maxoffsety;
+					}
 				}
 			}
 		} else if (ev.type == ButtonPress) {
