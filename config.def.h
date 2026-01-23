@@ -70,6 +70,12 @@ static const Rule rules[] = {
 	{ "Firefox",  NULL,       NULL,       8,            0,           -1 },
 };
 
+/* corner radius rules - per-window corner radius configuration */
+static const CornerRule cornerrules[] = {
+	/* class      instance    title       override_redirect    radius */
+	{ NULL,       NULL,       "rofi",     1,                   24 },
+};
+
 /* layout(s) */
 static const int resizehints    = 1;    /* 1 means respect size hints in tiled resizals */
 static const int lockfullscreen = 1;    /* 1 will force focus on the fullscreen window */

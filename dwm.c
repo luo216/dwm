@@ -199,6 +199,14 @@ typedef struct {
 	int monitor;
 } Rule;
 
+typedef struct {
+	const char *class;
+	const char *instance;
+	const char *title;
+	int override_redirect; /* -1: any, 0: normal, 1: override-redirect */
+	int radius;
+} CornerRule;
+
 typedef struct Systray   Systray;
 struct Systray {
 	Window win;
@@ -536,6 +544,7 @@ applyrules(Client *c)
 				c->mon = m;
 		}
 	}
+
 	if (ch.res_class)
 		XFree(ch.res_class);
 	if (ch.res_name)
@@ -3629,6 +3638,51 @@ setwindowrounded(Window win, int w, int h, int r)
 	return 1;
 }
 
+static int
+getcornerradius(Window win, XWindowAttributes *wa)
+{
+	const char *class = NULL, *instance = NULL, *title = NULL;
+	unsigned int i;
+	const CornerRule *r;
+	XClassHint ch = { NULL, NULL };
+
+	/* 默认使用全局圆角半径 */
+	int radius = cornerradius;
+
+	/* 获取窗口类和实例名 */
+	if (XGetClassHint(dpy, win, &ch)) {
+		class = ch.res_class ? ch.res_class : broken;
+		instance = ch.res_name ? ch.res_name : broken;
+	}
+
+	/* 获取窗口标题 */
+	char *winname = NULL;
+	if (XFetchName(dpy, win, &winname) && winname)
+		title = winname;
+
+	/* 匹配圆角规则 */
+	for (i = 0; i < LENGTH(cornerrules); i++) {
+		r = &cornerrules[i];
+		if ((r->override_redirect == -1 || r->override_redirect == wa->override_redirect)
+		&& (!r->title || (title && strstr(title, r->title)))
+		&& (!r->class || (class && strstr(class, r->class)))
+		&& (!r->instance || (instance && strstr(instance, r->instance))))
+		{
+			radius = r->radius;
+			break;
+		}
+	}
+
+	if (ch.res_class)
+		XFree(ch.res_class);
+	if (ch.res_name)
+		XFree(ch.res_name);
+	if (winname)
+		XFree(winname);
+
+	return radius;
+}
+
 static void
 applyroundedcorners(Window win)
 {
@@ -3641,7 +3695,9 @@ applyroundedcorners(Window win)
 
 	int outerw = wa.width + 2 * wa.border_width;
 	int outerh = wa.height + 2 * wa.border_width;
-	setwindowrounded(win, outerw, outerh, cornerradius);
+	int radius = getcornerradius(win, &wa);
+
+	setwindowrounded(win, outerw, outerh, radius);
 }
 
 static void
@@ -3656,7 +3712,9 @@ setroundedfromattrs(Window win, XWindowAttributes *wa)
 
 	int outerw = wa->width + 2 * wa->border_width;
 	int outerh = wa->height + 2 * wa->border_width;
-	setwindowrounded(win, outerw, outerh, cornerradius);
+	int radius = getcornerradius(win, wa);
+
+	setwindowrounded(win, outerw, outerh, radius);
 }
 
 void
