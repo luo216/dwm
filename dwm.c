@@ -1081,6 +1081,10 @@ create_placeholder_image(unsigned int w, unsigned int h)
 		return NULL;
 
 	img->data = ecalloc(1, h * img->bytes_per_line);
+	if (!img->data) {
+		XDestroyImage(img);
+		return NULL;
+	}
 
 	/* simple vertical gradient */
 	for (unsigned int y = 0; y < h; y++) {
@@ -1102,15 +1106,38 @@ getwindowximage(Client *c)
 		return NULL;
 
 	XRenderPictFormat *format = XRenderFindVisualFormat(dpy, attr.visual);
+	if (!format)
+		return NULL;
 	int hasalpha = (format && format->type == PictTypeDirect && format->direct.alphaMask);
 
 	XRenderPictureAttributes pa = { .subwindow_mode = IncludeInferiors };
 	Picture picture = XRenderCreatePicture(dpy, c->win, format, CPSubwindowMode, &pa);
 	int framew = c->w;
 	int frameh = c->h;
+	if (framew <= 0 || frameh <= 0)
+		return NULL;
 	Pixmap pixmap = XCreatePixmap(dpy, root, framew, frameh, 32);
+	if (!pixmap) {
+		if (picture)
+			XRenderFreePicture(dpy, picture);
+		return NULL;
+	}
 	XRenderPictFormat *fmt32 = XRenderFindStandardFormat(dpy, PictStandardARGB32);
+	if (!fmt32) {
+		if (picture)
+			XRenderFreePicture(dpy, picture);
+		XFreePixmap(dpy, pixmap);
+		return NULL;
+	}
 	Picture pm = XRenderCreatePicture(dpy, pixmap, fmt32, 0, NULL);
+	if (!picture || !pm) {
+		if (picture)
+			XRenderFreePicture(dpy, picture);
+		if (pm)
+			XRenderFreePicture(dpy, pm);
+		XFreePixmap(dpy, pixmap);
+		return NULL;
+	}
 
 	XRenderColor clear = { .red = 0, .green = 0, .blue = 0, .alpha = 0 };
 	XRenderFillRectangle(dpy, PictOpSrc, pm, &clear, 0, 0, framew, frameh);
@@ -1118,12 +1145,12 @@ getwindowximage(Client *c)
 		0, 0, 0, 0, 0, 0, framew, frameh);
 
 	XImage *img = XGetImage(dpy, pixmap, 0, 0, framew, frameh, AllPlanes, ZPixmap);
-	if (fmt32) {
+	if (img) {
 		img->red_mask = fmt32->direct.redMask << fmt32->direct.red;
 		img->green_mask = fmt32->direct.greenMask << fmt32->direct.green;
 		img->blue_mask = fmt32->direct.blueMask << fmt32->direct.blue;
+		img->depth = DefaultDepth(dpy, screen);
 	}
-	img->depth = DefaultDepth(dpy, screen);
 
 	XRenderFreePicture(dpy, picture);
 	XRenderFreePicture(dpy, pm);
@@ -1594,23 +1621,46 @@ previewscroll(const Arg *arg)
 			offset = maxoffset;
 	}
 
-	Window overlay = XCreateSimpleWindow(dpy, root, 0, 0, sw, sh, 0,
-		scheme[SchemeSel][ColBg].pixel, scheme[SchemeSel][ColBg].pixel);
-	XSelectInput(dpy, overlay, KeyPressMask | ButtonPressMask | ExposureMask);
+	XSetWindowAttributes owa = {
+		.override_redirect = True,
+		.background_pixel = scheme[SchemeSel][ColBg].pixel,
+		.border_pixel = 0,
+		.event_mask = KeyPressMask | ButtonPressMask | ExposureMask,
+	};
+	Window overlay = None;
+	Window pwin = None;
+	GC gc = NULL;
+	Pixmap buf = None;
+
+	overlay = XCreateWindow(dpy, root, 0, 0, sw, sh, 0,
+		DefaultDepth(dpy, screen), CopyFromParent, DefaultVisual(dpy, screen),
+		CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask, &owa);
+	if (!overlay)
+		goto preview_cleanup;
 	XMapRaised(dpy, overlay);
 
 	int px = m->wx + ((previewmode == PREVIEW_GRID) ? bh : (m->ww - previeww) / 2);
 	int py = m->wy + ((previewmode == PREVIEW_GRID) ? 0 : (m->wh / 4));
-	Window pwin = XCreateSimpleWindow(dpy, overlay, px, py, previeww, previewh, 1,
-		scheme[SchemeSel][ColBorder].pixel, scheme[SchemeNorm][ColBg].pixel);
-	XSelectInput(dpy, pwin, ExposureMask | ButtonPressMask);
+	XSetWindowAttributes pwa = {
+		.override_redirect = True,
+		.background_pixel = scheme[SchemeNorm][ColBg].pixel,
+		.border_pixel = scheme[SchemeSel][ColBorder].pixel,
+		.event_mask = ExposureMask | ButtonPressMask,
+	};
+	pwin = XCreateWindow(dpy, overlay, px, py, previeww, previewh, 1,
+		DefaultDepth(dpy, screen), CopyFromParent, DefaultVisual(dpy, screen),
+		CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask, &pwa);
+	if (!pwin)
+		goto preview_cleanup;
 	XMapRaised(dpy, pwin);
 
 	XGrabKeyboard(dpy, overlay, True, GrabModeAsync, GrabModeAsync, CurrentTime);
 	XGrabPointer(dpy, overlay, True, ButtonPressMask, GrabModeAsync, GrabModeAsync,
 		None, cursor[CurNormal]->cursor, CurrentTime);
 
-	GC gc = XCreateGC(dpy, pwin, 0, NULL);
+	gc = XCreateGC(dpy, pwin, 0, NULL);
+	if (!gc)
+		goto preview_cleanup;
 
 	int scount = 0;
 	for (c = m->stack; c; c = c->snext)
@@ -1624,7 +1674,9 @@ previewscroll(const Arg *arg)
 
 	int running = 1, confirmed = 0;
 	int lastselected = selected;
-	Pixmap buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
+	buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
+	if (!buf)
+		goto preview_cleanup;
 	int needredraw = 1;
 	int needblit = 0;
 	int drawn = 0;
@@ -1910,12 +1962,17 @@ previewscroll(const Arg *arg)
 		}
 	}
 
-	XUngrabKeyboard(dpy, CurrentTime);
-	XUngrabPointer(dpy, CurrentTime);
-	XFreeGC(dpy, gc);
-	XFreePixmap(dpy, buf);
-	XDestroyWindow(dpy, pwin);
-	XDestroyWindow(dpy, overlay);
+preview_cleanup:
+		XUngrabKeyboard(dpy, CurrentTime);
+		XUngrabPointer(dpy, CurrentTime);
+		if (gc)
+			XFreeGC(dpy, gc);
+		if (buf)
+			XFreePixmap(dpy, buf);
+		if (pwin)
+			XDestroyWindow(dpy, pwin);
+		if (overlay)
+			XDestroyWindow(dpy, overlay);
 
 	if (confirmed && selected >= 0 && selected < n) {
 		Client *target = items[order[selected]].c;
@@ -2693,17 +2750,24 @@ manage(Window w, XWindowAttributes *wa)
 	c->ignoreunmap = 0;
 
 	setclientstate(c, NormalState);
-	if (c->mon == selmon)
+	int visible = ISVISIBLE(c);
+	if (visible && c->mon == selmon)
 		unfocus(selmon->sel, 0);
-	c->mon->sel = c;
+	if (visible)
+		c->mon->sel = c;
 	arrange(c->mon);
 	if (c->isfloating && c->mon && c->mon->scrollindex)
 		reorderbyx(c->mon->scrollindex);
 	XMapWindow(dpy, c->win);
 	applyroundedcorners(c->win);
-  ensureclientvisible(c, c->w, 50);
-  focus(c);
-  restack(selmon);
+	if (visible && c->mon == selmon && !c->isfullscreen)
+		ensureclientvisible(c, c->w, 50);
+	if (visible && c->mon == selmon) {
+		focus(c);
+		restack(selmon);
+	} else {
+		drawbar(c->mon);
+	}
 }
 
 void
@@ -2880,11 +2944,11 @@ propertynotify(XEvent *e)
 			drawbars();
 			break;
 		}
-		if (ev->atom == XA_WM_NAME || ev->atom == netatom[NetWMName]) {
-			updatetitle(c);
-			if (c == c->mon->sel)
-				drawbar(c->mon);
-		}
+			if (ev->atom == XA_WM_NAME || ev->atom == netatom[NetWMName]) {
+				updatetitle(c);
+				if (c == c->mon->sel && ISVISIBLE(c))
+					drawbar(c->mon);
+			}
 		if (ev->atom == netatom[NetWMWindowType])
 			updatewindowtype(c);
 	}
