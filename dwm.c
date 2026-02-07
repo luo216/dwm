@@ -1231,6 +1231,21 @@ centerpreviewselectedy(PreviewItem *items, int *order, int selected, int preview
 }
 
 static void
+centerpreviewselectedx(PreviewItem *items, int *order, int selected, int previeww, int maxoffset, int *offset)
+{
+	if (selected < 0)
+		return;
+
+	PreviewItem *sel = &items[order[selected]];
+	int next = sel->x + sel->w / 2 - previeww / 2;
+	if (next < 0)
+		next = 0;
+	if (next > maxoffset)
+		next = maxoffset;
+	*offset = next;
+}
+
+static void
 applypreviewselection(int best_index, int *selected, int *needredraw, int previewmode,
                       PreviewItem *items, int *order, int previewh, int maxoffsety, int *offsety)
 {
@@ -1687,13 +1702,7 @@ previewscroll(const Arg *arg)
 		if (offsety > maxoffsety) offsety = maxoffsety;
 	} else {
 		maxoffsety = 0;
-		int selx = items[order[selected]].x;
-		int selw = items[order[selected]].w;
-		offset = selx + selw / 2 - previeww / 2;
-		if (offset < 0)
-			offset = 0;
-		if (offset > maxoffset)
-			offset = maxoffset;
+		centerpreviewselectedx(items, order, selected, previeww, maxoffset, &offset);
 	}
 
 	XSetWindowAttributes owa = {
@@ -1808,16 +1817,12 @@ previewscroll(const Arg *arg)
 						if (items[i].x + items[i].w > totalw)
 							totalw = items[i].x + items[i].w;
 					}
-					totalw += pad * 2;
-					maxoffset = totalw > previeww ? totalw - previeww : 0;
-					maxoffsety = 0;
-					offsety = 0;
-					int selx = items[order[selected]].x;
-					int selw = items[order[selected]].w;
-					offset = selx + selw / 2 - previeww / 2;
-					if (offset < 0) offset = 0;
-					if (offset > maxoffset) offset = maxoffset;
-				}
+						totalw += pad * 2;
+						maxoffset = totalw > previeww ? totalw - previeww : 0;
+						maxoffsety = 0;
+						offsety = 0;
+						centerpreviewselectedx(items, order, selected, previeww, maxoffset, &offset);
+					}
 				needredraw = 1;
 			} else if (ks == XK_h || ks == XK_Left) {
 				int best_index = findpreviewneighbor(items, order, n, selected, -1, 0);
