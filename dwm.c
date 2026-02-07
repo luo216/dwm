@@ -1213,6 +1213,8 @@ static void
 drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **stacklist, int scount,
 	int offset, int offsety, int pad, int previeww, int previewh, int *order, int selected,
 	int totalw, int totalh, int mode);
+static void
+arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw);
 
 static int
 thumbindex(PreviewItem *items, int n, Client *c)
@@ -1473,6 +1475,40 @@ handlepreviewbuttonpress(XButtonEvent *ev, Window pwin, int previewmode, int pre
 		*selected = hitorder;
 		*needredraw = 1;
 	}
+}
+
+static int
+togglepreviewmode(Monitor *m, Window pwin, Pixmap *buf, int *previewmode, int *previeww, int *previewh,
+                  PreviewItem *items, int n, int pad, int *order, int selected,
+                  int saved_minx, int saved_miny, float saved_scale,
+                  int *totalw, int *totalh, int *maxoffset, int *maxoffsety, int *offset, int *offsety)
+{
+	*previewmode = (*previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
+	int new_previeww = 0;
+	int new_previewh = 0;
+	int new_px = 0;
+	int new_py = 0;
+	computepreviewwindowgeom(m, *previewmode, *previeww, &new_previeww, &new_previewh, &new_px, &new_py);
+	XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
+	*previewh = new_previewh;
+	*previeww = new_previeww;
+	XFreePixmap(dpy, *buf);
+	*buf = XCreatePixmap(dpy, pwin, *previeww, *previewh, DefaultDepth(dpy, screen));
+	if (!*buf)
+		return 0;
+
+	if (*previewmode == PREVIEW_GRID) {
+		arrangePreviewsGrid(items, n, gappx, *previeww, *previewh, totalh, totalw);
+		*offset = 0;
+		*offsety = 0;
+		*maxoffsety = *totalh > *previewh ? *totalh - *previewh : 0;
+	} else {
+		rebuildpreviewscrolllayout(items, n, pad, saved_minx, saved_miny, saved_scale,
+		                          *previeww, order, selected,
+		                          totalw, maxoffset, maxoffsety, offsety, offset);
+	}
+
+	return 1;
 }
 
 static Client **
@@ -1972,29 +2008,11 @@ previewscroll(const Arg *arg)
 			} else if (ks == XK_Return || ks == XK_space) {
 				setpreviewexit(1, &running, &confirmed);
 			} else if (ks == XK_Tab) {
-				previewmode = (previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
-				int new_previeww = 0;
-				int new_previewh = 0;
-				int new_px = 0;
-				int new_py = 0;
-				computepreviewwindowgeom(m, previewmode, previeww, &new_previeww, &new_previewh, &new_px, &new_py);
-				XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
-				previewh = new_previewh;
-				previeww = new_previeww;
-				XFreePixmap(dpy, buf);
-				buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
-				if (!buf)
+				if (!togglepreviewmode(m, pwin, &buf, &previewmode, &previeww, &previewh,
+				                      items, n, pad, order, selected,
+				                      saved_minx, saved_miny, saved_scale,
+				                      &totalw, &totalh, &maxoffset, &maxoffsety, &offset, &offsety))
 					goto preview_cleanup;
-				if (previewmode == PREVIEW_GRID) {
-					arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
-					offset = 0;
-					offsety = 0;
-					maxoffsety = totalh > previewh ? totalh - previewh : 0;
-				} else {
-					rebuildpreviewscrolllayout(items, n, pad, saved_minx, saved_miny, saved_scale,
-					                          previeww, order, selected,
-					                          &totalw, &maxoffset, &maxoffsety, &offsety, &offset);
-				}
 				needredraw = 1;
 			} else {
 				int dirx = 0, diry = 0;
