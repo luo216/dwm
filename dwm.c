@@ -409,7 +409,7 @@ static int drawmore(int x, Block *block, unsigned int timer);
 static int getstatuswidth(void);
 static int readullfromfile(const char *path, unsigned long long *value);
 static int readwordfromfile(const char *path, char *buf, size_t bufsz);
-static void formatspeed(float value, char *buf, size_t bufsz);
+static void formatspeed(double value, char *buf, size_t bufsz);
 static void spawnclickcmd(const char *const cmd[]);
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
@@ -460,7 +460,7 @@ static int thermalzonenum = 0;
 static int interfaceindex = 0;
 static CoreBlock storagecores;
 static CpuBlock storagecpu;
-static float storagenet[2] = {0.0f, 0.0f};
+static double storagenet[2] = {0.0, 0.0};
 static Block Blocks[] = {
     [Notify] = {0, NULL, drawnotify, clicknotify},
     [Battery] = {0, NULL, drawbattery, NULL},
@@ -5047,7 +5047,7 @@ readwordfromfile(const char *path, char *buf, size_t bufsz)
 }
 
 static void
-formatspeed(float value, char *buf, size_t bufsz)
+formatspeed(double value, char *buf, size_t bufsz)
 {
   if (value < 1000) {
     snprintf(buf, bufsz, "%.2f B/s", value);
@@ -5510,11 +5510,11 @@ drawnet(int x, Block *block, unsigned int timer)
     block->bw = null_width;
     return x;
   }
-  float txi = (float)txbytes;
-  float rxi = (float)rxbytes;
-  float txi_tmp = txi;
-  float rxi_tmp = rxi;
-  float *f_arr = block->storage;
+  double txi = (double)txbytes;
+  double rxi = (double)rxbytes;
+  double txi_tmp = txi;
+  double rxi_tmp = rxi;
+  double *f_arr = block->storage;
 
   txi = txi - f_arr[0];
   rxi = rxi - f_arr[1];
