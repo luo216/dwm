@@ -5028,6 +5028,8 @@ spawnclickcmd(const char *const cmd[])
 static int
 readullfromfile(const char *path, unsigned long long *value)
 {
+  if (!path || !value)
+    return 0;
   FILE *fp = fopen(path, "r");
   if (!fp)
     return 0;
