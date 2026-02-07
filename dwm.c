@@ -1356,6 +1356,13 @@ keeppreviewselectedvisible(PreviewItem *items, int *order, int selected, int pre
 }
 
 static void
+setpreviewexit(int confirmed_value, int *running, int *confirmed)
+{
+	*running = 0;
+	*confirmed = confirmed_value;
+}
+
+static void
 arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
 {
 	if (n == 1) {
@@ -1818,15 +1825,13 @@ previewscroll(const Arg *arg)
 		XNextEvent(dpy, &ev);
 		needblit = 0;
 
-		if (ev.type == KeyPress) {
-			KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev.xkey.keycode, 0);
-			if (ks == XK_Escape) {
-				running = 0;
-				confirmed = 0;
-			} else if (ks == XK_Return || ks == XK_space) {
-				running = 0;
-				confirmed = 1;
-			} else if (ks == XK_Tab) {
+			if (ev.type == KeyPress) {
+				KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev.xkey.keycode, 0);
+				if (ks == XK_Escape) {
+					setpreviewexit(0, &running, &confirmed);
+				} else if (ks == XK_Return || ks == XK_space) {
+					setpreviewexit(1, &running, &confirmed);
+				} else if (ks == XK_Tab) {
 				previewmode = (previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
 				int new_previewh = (previewmode == PREVIEW_GRID) ? (m->wh - bh) : (m->wh / 4);
 				new_previewh = MAX(new_previewh, 100);
@@ -1901,11 +1906,10 @@ previewscroll(const Arg *arg)
 						int hitorder = findorderindex(order, n, hit);
 						if (hitorder >= 0) {
 							if (hitorder == selected) {
-								confirmed = 1;
-							running = 0;
-						} else {
-							selected = hitorder;
-							needredraw = 1;
+								setpreviewexit(1, &running, &confirmed);
+							} else {
+								selected = hitorder;
+								needredraw = 1;
 						}
 					}
 				}
