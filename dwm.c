@@ -5409,18 +5409,14 @@ drawtemp(int x, Block *block, unsigned int timer)
         snprintf(temp_addr, sizeof(temp_addr), "/sys/class/thermal/thermal_zone%d/temp",
                  thermalzoneindex);
         FILE *fp = fopen(temp_addr, "r");
-        if (fp == NULL) {
-          block->bw = 0;
-          return x;
-        }
-        int tmp;
-        if (fscanf(fp, "%d", &tmp) != 1) {
+        if (fp != NULL) {
+          int tmp;
+          if (fscanf(fp, "%d", &tmp) == 1) {
+            tmp = tmp / 1000;
+            snprintf(temp, sizeof(temp), "%d°C", tmp);
+          }
           fclose(fp);
-          return x;  // Keep previous value on error
         }
-        fclose(fp);
-        tmp = tmp / 1000;
-        snprintf(temp, sizeof(temp), "%d°C", tmp);
       }
 
   block->bw = TEXTWSTATUS(temp);
