@@ -1599,7 +1599,7 @@ previewscroll(const Arg *arg)
 
 	int totalh = previewh;
 	int maxoffset = totalw > previeww ? totalw - previeww : 0;
-	int maxoffsety;
+	int maxoffsety = 0;
 	int offset = 0;
 	int offsety = 0;
 
@@ -1607,6 +1607,7 @@ previewscroll(const Arg *arg)
 		arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
 		maxoffset = 0;
 		offset = 0;
+		maxoffsety = totalh > previewh ? totalh - previewh : 0;
 
 		/* 自动滚动到选中项（与水平模式相同的逻辑） */
 		if (selected >= 0 && selected < n) {
@@ -1614,8 +1615,6 @@ previewscroll(const Arg *arg)
 		} else {
 			offsety = 0;
 		}
-
-		maxoffsety = totalh > previewh ? totalh - previewh : 0;
 
 		if (offsety < 0) offsety = 0;
 		if (offsety > maxoffsety) offsety = maxoffsety;
@@ -5294,7 +5293,7 @@ drawcpu(int x, Block *block, unsigned int timer)
 int
 drawtemp(int x, Block *block, unsigned int timer)
 {
-  static char temp[18] = "--\xC2\xB0C";
+  static char temp[18] = "--°C";
 
   if (timer % 5 == 0) {
         char temp_addr[40];
@@ -5312,7 +5311,7 @@ drawtemp(int x, Block *block, unsigned int timer)
         }
         fclose(fp);
         tmp = tmp / 1000;
-        snprintf(temp, sizeof(temp), "%d\xC2\xB0C", tmp);
+        snprintf(temp, sizeof(temp), "%d°C", tmp);
       }
 
   block->bw = TEXTWSTATUS(temp);
