@@ -1117,8 +1117,11 @@ getwindowximage(Client *c)
 	Picture picture = XRenderCreatePicture(dpy, c->win, format, CPSubwindowMode, &pa);
 	int framew = c->w;
 	int frameh = c->h;
-	if (framew <= 0 || frameh <= 0)
+	if (framew <= 0 || frameh <= 0) {
+		if (picture)
+			XRenderFreePicture(dpy, picture);
 		return NULL;
+	}
 	Pixmap pixmap = XCreatePixmap(dpy, root, framew, frameh, 32);
 	if (!pixmap) {
 		if (picture)
@@ -2702,8 +2705,8 @@ getstate(Window w)
 	if (XGetWindowProperty(dpy, w, wmatom[WMState], 0L, 2L, False, wmatom[WMState],
 		&real, &format, &n, &extra, (unsigned char **)&p) != Success)
 		return -1;
-	if (n != 0)
-		result = *p;
+	if (n != 0 && format == 32)
+		result = *(long *)p;
 	XFree(p);
 	return result;
 }
