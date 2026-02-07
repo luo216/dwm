@@ -418,11 +418,7 @@ static void *drawstatusbar(void *arg);
 static void cleanstatuspthread(void);
 static void updatestatuscache(void);
 static void freestatuscache(void);
-static void handleStatus1(const Arg *arg);
-static void handleStatus2(const Arg *arg);
-static void handleStatus3(const Arg *arg);
-static void handleStatus4(const Arg *arg);
-static void handleStatus5(const Arg *arg);
+static void handlestatusclick(const Arg *arg, int button);
 static void sendnotify(const char *msg, const char *urgency, int timeout);
 static Client *wintoclient(Window w);
 static Monitor *wintomon(Window w);
@@ -450,9 +446,10 @@ static unsigned int numlockmask = 0;
 
 /* status bar global variables */
 static pthread_t drawstatusthread;
+static int status_thread_started = 0;
+static pthread_mutex_t statuscache_mutex = PTHREAD_MUTEX_INITIALIZER;
 static Node Nodes[NODE_NUM];
 static int numCores;
-static int corescwidth;
 static int thermalzoneindex = 0;
 static int thermalzonenum = 0;
 static int interfaceindex = 0;
@@ -1631,6 +1628,8 @@ previewscroll(const Arg *arg)
 	Window pwin = None;
 	GC gc = NULL;
 	Pixmap buf = None;
+	Client **stacklist = NULL;
+	int confirmed = 0;
 
 	overlay = XCreateWindow(dpy, root, 0, 0, sw, sh, 0,
 		DefaultDepth(dpy, screen), CopyFromParent, DefaultVisual(dpy, screen),
@@ -1666,13 +1665,13 @@ previewscroll(const Arg *arg)
 	for (c = m->stack; c; c = c->snext)
 		if (ISVISIBLE(c))
 			scount++;
-	Client **stacklist = ecalloc(scount, sizeof(Client *));
+	stacklist = ecalloc(scount, sizeof(Client *));
 	int si = 0;
 	for (c = m->stack; c; c = c->snext)
 		if (ISVISIBLE(c))
 			stacklist[si++] = c;
 
-	int running = 1, confirmed = 0;
+	int running = 1;
 	int lastselected = selected;
 	buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
 	if (!buf)
@@ -2029,6 +2028,8 @@ cleanup(void)
 	size_t i;
 
 	view(&a);
+	cleanstatuspthread();
+	freestatuscache();
 	selmon->lt[selmon->sellt] = &foo;
 	for (m = mons; m; m = m->next)
 		while (m->stack)
@@ -2053,12 +2054,6 @@ cleanup(void)
 	XDestroyWindow(dpy, wmcheckwin);
 	drw_free(drw);
 	drw_free(statusdrw);
-	
-	/* 清理状态栏缓存 */
-	freestatuscache();
-	
-	/* 清理状态栏线程 */
-	cleanstatuspthread();
 
 	XSync(dpy, False);
 	XSetInputFocus(dpy, PointerRoot, RevertToPointerRoot, CurrentTime);
@@ -2453,11 +2448,13 @@ expose(XEvent *e)
 		if (m == selmon) {
 			updatesystray();
 			/* Copy cache to bar if available */
+			pthread_mutex_lock(&statuscache_mutex);
 			if (cachevalid && statuscache != None) {
 				XCopyArea(dpy, statuscache, selmon->barwin, statusdrw->gc, 
 						  0, 0, cachew, bh,
 						  selmon->ww - cachew, 0);
 			}
+			pthread_mutex_unlock(&statuscache_mutex);
 		}
 	}
 }
@@ -3450,6 +3447,7 @@ setup(void)
 	if (pthread_create(&drawstatusthread, NULL, drawstatusbar, NULL) != 0) {
 		die("failed to create status thread");
 	}
+	status_thread_started = 1;
 	initshape();
 	initcompositor();
 
@@ -5624,22 +5622,23 @@ gettempnums(void)
 void
 initstatusbar(void)
 {
-  numCores = sysconf(_SC_NPROCESSORS_ONLN);
-  corescwidth = NODE_NUM / numCores;
+  long online = sysconf(_SC_NPROCESSORS_ONLN);
+  numCores = (online > 0) ? (int)online : 1;
   
   for (int i = 0; i < NODE_NUM; i++) {
-    Nodes[i].next = &Nodes[i + 1];
-    Nodes[i].prev = &Nodes[i - 1];
-    Nodes[i].data = (Cpuload *)malloc(sizeof(Cpuload));
+    Nodes[i].next = &Nodes[(i + 1) % NODE_NUM];
+    Nodes[i].prev = &Nodes[(i + NODE_NUM - 1) % NODE_NUM];
+    Nodes[i].data = calloc(1, sizeof(Cpuload));
+    if (!Nodes[i].data)
+      die("fatal: could not malloc() %u bytes\n", (unsigned int)sizeof(Cpuload));
   }
-  Nodes[NODE_NUM - 1].next = &Nodes[0];
-  Nodes[0].prev = &Nodes[NODE_NUM - 1];
   storagecpu.pointer = &Nodes[0];
-  storagecpu.prev = (Cpuload *)malloc(sizeof(Cpuload));
-  storagecpu.curr = (Cpuload *)malloc(sizeof(Cpuload));
-
-  storagecores.curr = (Cpuload *)malloc(sizeof(Cpuload) * numCores);
-  storagecores.prev = (Cpuload *)malloc(sizeof(Cpuload) * numCores);
+  storagecpu.prev = calloc(1, sizeof(Cpuload));
+  storagecpu.curr = calloc(1, sizeof(Cpuload));
+  storagecores.curr = calloc((size_t)numCores, sizeof(Cpuload));
+  storagecores.prev = calloc((size_t)numCores, sizeof(Cpuload));
+  if (!storagecpu.prev || !storagecpu.curr || !storagecores.curr || !storagecores.prev)
+    die("fatal: could not allocate status bar cpu buffers\n");
 
   thermalzonenum = gettempnums();
 }
@@ -5647,9 +5646,11 @@ initstatusbar(void)
 void
 cleanstatuspthread(void)
 {
-  /* Cancel thread */
-  pthread_cancel(drawstatusthread);
-  pthread_join(drawstatusthread, NULL);
+  if (status_thread_started) {
+    running = 0;
+    pthread_join(drawstatusthread, NULL);
+    status_thread_started = 0;
+  }
 
   /* Free memory */
   if (storagecores.curr) {
@@ -5685,18 +5686,26 @@ updatestatuscache(void)
   if (!selmon)
     return;
 
+  pthread_mutex_lock(&statuscache_mutex);
+
   /* Update global dimensions */
   systrayw = getsystraywidth();
   systandstat = getstatuswidth() + systrayw;
 
   /* Recreate cache if size changed */
   if (statuscache == None || cachew != systandstat || cacheh != bh) {
-    freestatuscache();
+    if (statuscache != None) {
+      XFreePixmap(dpy, statuscache);
+      statuscache = None;
+    }
+    cachevalid = 0;
     cachew = systandstat;
     cacheh = bh;
     statuscache = XCreatePixmap(dpy, root, cachew, cacheh, DefaultDepth(dpy, screen));
-    if (statuscache == None)
+    if (statuscache == None) {
+      pthread_mutex_unlock(&statuscache_mutex);
       return;
+    }
   }
 
   /* Draw status to cache */
@@ -5711,16 +5720,19 @@ updatestatuscache(void)
   drw_map(statusdrw, statuscache, 0, 0, cachew, bh);
   cachevalid = 1;
   time(&lastupdate);
+  pthread_mutex_unlock(&statuscache_mutex);
 }
 
 void
 freestatuscache(void)
 {
+  pthread_mutex_lock(&statuscache_mutex);
   if (statuscache != None) {
     XFreePixmap(dpy, statuscache);
     statuscache = None;
   }
   cachevalid = 0;
+  pthread_mutex_unlock(&statuscache_mutex);
 }
 
 void *
@@ -5729,22 +5741,27 @@ drawstatusbar(void *arg)
   (void)arg;
   time_t now;
 
-  while (1) {
+  while (running) {
     if (selmon) {
+      int needs_update = 0;
       time(&now);
-      
+      pthread_mutex_lock(&statuscache_mutex);
+      needs_update = (!cachevalid || (now - lastupdate) >= 1);
+      pthread_mutex_unlock(&statuscache_mutex);
+
       /* Only update cache if needed (invalid or 1s passed) */
-      if (!cachevalid || (now - lastupdate) >= 1) {
+      if (needs_update) {
         updatestatuscache();
-        lastupdate = now;
       }
       
       /* Copy cache to barwin if available */
+      pthread_mutex_lock(&statuscache_mutex);
       if (cachevalid && statuscache != None) {
         XCopyArea(dpy, statuscache, selmon->barwin, statusdrw->gc, 
                   0, 0, cachew, bh,
                   selmon->ww - cachew, 0);
       }
+      pthread_mutex_unlock(&statuscache_mutex);
     }
 
     sleep(1);
@@ -5753,48 +5770,41 @@ drawstatusbar(void *arg)
 }
 
 void
+handlestatusclick(const Arg *arg, int button)
+{
+  Arg a = {.i = button};
+  if (Blocks[arg->i].click)
+    Blocks[arg->i].click(&a);
+}
+
+void
 handleStatus1(const Arg *arg)
 {
-  Arg a = {.i = 1};
-  if (Blocks[arg->i].click) {
-    Blocks[arg->i].click(&a);
-  }
+  handlestatusclick(arg, 1);
 }
 
 void
 handleStatus2(const Arg *arg)
 {
-  Arg a = {.i = 2};
-  if (Blocks[arg->i].click) {
-    Blocks[arg->i].click(&a);
-  }
+  handlestatusclick(arg, 2);
 }
 
 void
 handleStatus3(const Arg *arg)
 {
-  Arg a = {.i = 3};
-  if (Blocks[arg->i].click) {
-    Blocks[arg->i].click(&a);
-  }
+  handlestatusclick(arg, 3);
 }
 
 void
 handleStatus4(const Arg *arg)
 {
-  Arg a = {.i = 4};
-  if (Blocks[arg->i].click) {
-    Blocks[arg->i].click(&a);
-  }
+  handlestatusclick(arg, 4);
 }
 
 void
 handleStatus5(const Arg *arg)
 {
-  Arg a = {.i = 5};
-  if (Blocks[arg->i].click) {
-    Blocks[arg->i].click(&a);
-  }
+  handlestatusclick(arg, 5);
 }
 
 int
@@ -5806,6 +5816,8 @@ main(int argc, char *argv[])
 		die("usage: dwm [-v]");
 	if (!setlocale(LC_CTYPE, "") || !XSupportsLocale())
 		fputs("warning: no locale support\n", stderr);
+	if (!XInitThreads())
+		die("dwm: XInitThreads failed");
 	if (!(dpy = XOpenDisplay(NULL)))
 		die("dwm: cannot open display");
 	checkotherwm();
