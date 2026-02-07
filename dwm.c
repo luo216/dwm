@@ -5570,19 +5570,12 @@ drawbattery(int x, Block *block, unsigned int timer)
     char capacitypatch[] = "/sys/class/power_supply/BAT0/capacity";
     char statuspatch[] = "/sys/class/power_supply/BAT0/status";
 
-    // read capacity and status
-    if (!readwordfromfile(capacitypatch, capacity, sizeof(capacity))) {
-      block->bw = 0;
-      return x;
+    // Read capacity and status; keep previous values on failures.
+    if (readwordfromfile(capacitypatch, capacity, sizeof(capacity)) &&
+        readwordfromfile(statuspatch, status, sizeof(status))) {
+      snprintf(bat_perc, sizeof(bat_perc), "%s", capacity);
+      snprintf(bat_status, sizeof(bat_status), "%s", status);
     }
-    if (!readwordfromfile(statuspatch, status, sizeof(status))) {
-      block->bw = 0;
-      return x;
-    }
-
-    snprintf(bat_perc, sizeof(bat_perc), "%s", capacity);
-    snprintf(bat_status, sizeof(bat_status), "%s", status);
-    
   }
 
   int int_cap = atoi(bat_perc);
