@@ -1230,6 +1230,19 @@ centerpreviewselectedy(PreviewItem *items, int *order, int selected, int preview
 	*offsety = next;
 }
 
+static void
+applypreviewselection(int best_index, int *selected, int *needredraw, int previewmode,
+                      PreviewItem *items, int *order, int previewh, int maxoffsety, int *offsety)
+{
+	if (best_index < 0)
+		return;
+
+	*selected = best_index;
+	*needredraw = 1;
+	if (previewmode == PREVIEW_GRID)
+		centerpreviewselectedy(items, order, *selected, previewh, maxoffsety, offsety);
+}
+
 static int
 findpreviewneighbor(PreviewItem *items, int *order, int n, int selected, int dirx, int diry)
 {
@@ -1789,36 +1802,20 @@ previewscroll(const Arg *arg)
 				needredraw = 1;
 			} else if (ks == XK_h || ks == XK_Left) {
 				int best_index = findpreviewneighbor(items, order, n, selected, -1, 0);
-					if (best_index != -1) {
-						selected = best_index;
-						needredraw = 1;
-						if (previewmode == PREVIEW_GRID)
-							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
-					}
+				applypreviewselection(best_index, &selected, &needredraw, previewmode,
+				                    items, order, previewh, maxoffsety, &offsety);
 			} else if (ks == XK_l || ks == XK_Right) {
 				int best_index = findpreviewneighbor(items, order, n, selected, 1, 0);
-					if (best_index != -1) {
-						selected = best_index;
-						needredraw = 1;
-						if (previewmode == PREVIEW_GRID)
-							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
-					}
+				applypreviewselection(best_index, &selected, &needredraw, previewmode,
+				                    items, order, previewh, maxoffsety, &offsety);
 			} else if (ks == XK_k || ks == XK_Up) {
 				int best_index = findpreviewneighbor(items, order, n, selected, 0, -1);
-					if (best_index != -1) {
-						selected = best_index;
-						needredraw = 1;
-						if (previewmode == PREVIEW_GRID)
-							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
-					}
+				applypreviewselection(best_index, &selected, &needredraw, previewmode,
+				                    items, order, previewh, maxoffsety, &offsety);
 			} else if (ks == XK_j || ks == XK_Down) {
 				int best_index = findpreviewneighbor(items, order, n, selected, 0, 1);
-					if (best_index != -1) {
-						selected = best_index;
-						needredraw = 1;
-						if (previewmode == PREVIEW_GRID)
-							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
-					}
+				applypreviewselection(best_index, &selected, &needredraw, previewmode,
+				                    items, order, previewh, maxoffsety, &offsety);
 			}
 		} else if (ev.type == ButtonPress) {
 			if (ev.xbutton.button == Button4) {
