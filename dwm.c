@@ -1346,6 +1346,15 @@ findorderindex(int *order, int n, int value)
 }
 
 static int
+findselectedpreviewindex(PreviewItem *items, int *order, int n, Client *selected_client)
+{
+	for (int i = 0; i < n; i++)
+		if (items[order[i]].c == selected_client)
+			return i;
+	return -1;
+}
+
+static int
 findpreviewhit(PreviewItem *items, int n, Client **stacklist, int scount, int cx, int cy)
 {
 	int hit = -1;
@@ -1936,12 +1945,7 @@ previewscroll(const Arg *arg)
 	for (int i = 0; i < n; i++)
 		order[i] = i;
 
-	int selected = -1;
-	for (int i = 0; i < n; i++)
-		if (items[order[i]].c == selmon->sel) {
-			selected = i;
-			break;
-		}
+	int selected = findselectedpreviewindex(items, order, n, selmon->sel);
 	if (selected == -1)
 		selected = n / 2;
 
