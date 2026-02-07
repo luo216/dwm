@@ -3599,11 +3599,16 @@ setup(void)
 	initstatusbar();
 	
 	/* 启动状态栏线程 */
+	pthread_mutex_lock(&statuscache_mutex);
+	status_thread_running = 1;
+	pthread_mutex_unlock(&statuscache_mutex);
 	if (pthread_create(&drawstatusthread, NULL, drawstatusbar, NULL) != 0) {
+		pthread_mutex_lock(&statuscache_mutex);
+		status_thread_running = 0;
+		pthread_mutex_unlock(&statuscache_mutex);
 		die("failed to create status thread");
 	}
 	status_thread_started = 1;
-	status_thread_running = 1;
 	initshape();
 	initcompositor();
 
