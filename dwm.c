@@ -1209,6 +1209,11 @@ typedef struct {
 	int x, y, w, h;
 } PreviewItem;
 
+static void
+drawpreview(Window win, Pixmap buf, GC gc, PreviewItem *items, int n, Client **stacklist, int scount,
+	int offset, int offsety, int pad, int previeww, int previewh, int *order, int selected,
+	int totalw, int totalh, int mode);
+
 static int
 thumbindex(PreviewItem *items, int n, Client *c)
 {
@@ -1889,8 +1894,8 @@ previewscroll(const Arg *arg)
 	if (!gc)
 		goto preview_cleanup;
 
-		int scount = 0;
-		stacklist = buildvisiblepreviewstack(m, &scount);
+	int scount = 0;
+	stacklist = buildvisiblepreviewstack(m, &scount);
 
 	int running = 1;
 	int lastselected = selected;
@@ -1909,66 +1914,66 @@ previewscroll(const Arg *arg)
 		XNextEvent(dpy, &ev);
 		needblit = 0;
 
-			if (ev.type == KeyPress) {
-				KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev.xkey.keycode, 0);
-				if (ks == XK_Escape) {
-					setpreviewexit(0, &running, &confirmed);
-				} else if (ks == XK_Return || ks == XK_space) {
-					setpreviewexit(1, &running, &confirmed);
-				} else if (ks == XK_Tab) {
-					previewmode = (previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
-					int new_previeww = 0;
-					int new_previewh = 0;
-					int new_px = 0;
-					int new_py = 0;
-					computepreviewwindowgeom(m, previewmode, previeww, &new_previeww, &new_previewh, &new_px, &new_py);
-					XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
-					previewh = new_previewh;
-					previeww = new_previeww;
+		if (ev.type == KeyPress) {
+			KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev.xkey.keycode, 0);
+			if (ks == XK_Escape) {
+				setpreviewexit(0, &running, &confirmed);
+			} else if (ks == XK_Return || ks == XK_space) {
+				setpreviewexit(1, &running, &confirmed);
+			} else if (ks == XK_Tab) {
+				previewmode = (previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
+				int new_previeww = 0;
+				int new_previewh = 0;
+				int new_px = 0;
+				int new_py = 0;
+				computepreviewwindowgeom(m, previewmode, previeww, &new_previeww, &new_previewh, &new_px, &new_py);
+				XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
+				previewh = new_previewh;
+				previeww = new_previeww;
 				px = new_px;
-					py = new_py;
-					XFreePixmap(dpy, buf);
-					buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
-					if (!buf)
-						goto preview_cleanup;
-					if (previewmode == PREVIEW_GRID) {
-						arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
-						offset = 0;
-						offsety = 0;
-						maxoffsety = totalh > previewh ? totalh - previewh : 0;
-					} else {
-						rebuildpreviewscrolllayout(items, n, pad, saved_minx, saved_miny, saved_scale,
-						                          previeww, order, selected,
-						                          &totalw, &maxoffset, &maxoffsety, &offsety, &offset);
-					}
-				needredraw = 1;
+				py = new_py;
+				XFreePixmap(dpy, buf);
+				buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
+				if (!buf)
+					goto preview_cleanup;
+				if (previewmode == PREVIEW_GRID) {
+					arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
+					offset = 0;
+					offsety = 0;
+					maxoffsety = totalh > previewh ? totalh - previewh : 0;
 				} else {
-					int dirx = 0, diry = 0;
-					if (previewkeydirection(ks, &dirx, &diry)) {
-						int best_index = findpreviewneighbor(items, order, n, selected, dirx, diry);
-						applypreviewselection(best_index, &selected, &needredraw, previewmode,
-						                    items, order, previewh, maxoffsety, &offsety);
-					}
+					rebuildpreviewscrolllayout(items, n, pad, saved_minx, saved_miny, saved_scale,
+					                          previeww, order, selected,
+					                          &totalw, &maxoffset, &maxoffsety, &offsety, &offset);
 				}
-			} else if (ev.type == ButtonPress) {
+				needredraw = 1;
+			} else {
+				int dirx = 0, diry = 0;
+				if (previewkeydirection(ks, &dirx, &diry)) {
+					int best_index = findpreviewneighbor(items, order, n, selected, dirx, diry);
+					applypreviewselection(best_index, &selected, &needredraw, previewmode,
+					                    items, order, previewh, maxoffsety, &offsety);
+				}
+			}
+		} else if (ev.type == ButtonPress) {
 			if (ev.xbutton.button == Button4) {
 				scrollpreviewoffset(previewmode, -1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
 				needredraw = 1;
 			} else if (ev.xbutton.button == Button5) {
 				scrollpreviewoffset(previewmode, 1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
 				needredraw = 1;
-				} else if (ev.xbutton.button == Button1 && ev.xbutton.window == pwin) {
-					int cx = ev.xbutton.x + offset - pad;
-					int cy = ev.xbutton.y + offsety - pad;
-					int hit = findpreviewhit(items, n, stacklist, scount, cx, cy);
-					if (hit >= 0) {
-						int hitorder = findorderindex(order, n, hit);
-						if (hitorder >= 0) {
-							if (hitorder == selected) {
-								setpreviewexit(1, &running, &confirmed);
-							} else {
-								selected = hitorder;
-								needredraw = 1;
+			} else if (ev.xbutton.button == Button1 && ev.xbutton.window == pwin) {
+				int cx = ev.xbutton.x + offset - pad;
+				int cy = ev.xbutton.y + offsety - pad;
+				int hit = findpreviewhit(items, n, stacklist, scount, cx, cy);
+				if (hit >= 0) {
+					int hitorder = findorderindex(order, n, hit);
+					if (hitorder >= 0) {
+						if (hitorder == selected) {
+							setpreviewexit(1, &running, &confirmed);
+						} else {
+							selected = hitorder;
+							needredraw = 1;
 						}
 					}
 				}
@@ -1977,18 +1982,18 @@ previewscroll(const Arg *arg)
 			needblit = 1;
 		}
 
-			/* keep newly selected item visible */
-			if (selected != lastselected) {
-				keeppreviewselectedvisible(items, order, selected, previeww, pad, maxoffset, &offset);
-				lastselected = selected;
-				needredraw = 1;
-			}
-
-			redrawpreviewifneeded(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad,
-			                     previeww, previewh, order, selected, totalw, totalh, previewmode,
-			                     &drawn, &needredraw);
-			blitpreviewifneeded(pwin, buf, gc, previeww, previewh, drawn, needblit);
+		/* keep newly selected item visible */
+		if (selected != lastselected) {
+			keeppreviewselectedvisible(items, order, selected, previeww, pad, maxoffset, &offset);
+			lastselected = selected;
+			needredraw = 1;
 		}
+
+		redrawpreviewifneeded(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad,
+		                     previeww, previewh, order, selected, totalw, totalh, previewmode,
+		                     &drawn, &needredraw);
+		blitpreviewifneeded(pwin, buf, gc, previeww, previewh, drawn, needblit);
+	}
 
 preview_cleanup:
 		XUngrabKeyboard(dpy, CurrentTime);
