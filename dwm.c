@@ -1459,6 +1459,21 @@ buildvisiblepreviewstack(Monitor *m, int *scount)
 }
 
 static void
+freepreviewitems(PreviewItem *items, int n)
+{
+	for (int i = 0; i < n; i++) {
+		if (items[i].scaled) {
+			XDestroyImage(items[i].scaled);
+			items[i].scaled = NULL;
+		}
+		if (items[i].img) {
+			XDestroyImage(items[i].img);
+			items[i].img = NULL;
+		}
+	}
+}
+
+static void
 arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
 {
 	if (n == 1) {
@@ -2013,17 +2028,7 @@ preview_cleanup:
 	(void)selbefore;
 
 	/* 安全清理资源 */
-	for (int i = 0; i < n; i++) {
-		/* 检查指针是否有效，避免双重释放 */
-		if (items[i].scaled) {
-			XDestroyImage(items[i].scaled);
-			items[i].scaled = NULL;
-		}
-		if (items[i].img) {
-			XDestroyImage(items[i].img);
-			items[i].img = NULL;
-		}
-	}
+	freepreviewitems(items, n);
 	
 	/* 清理数组前先清空指针 */
 	if (stacklist) {
