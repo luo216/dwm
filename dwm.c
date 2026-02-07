@@ -1345,6 +1345,17 @@ findpreviewhit(PreviewItem *items, int n, Client **stacklist, int scount, int cx
 }
 
 static void
+keeppreviewselectedvisible(PreviewItem *items, int *order, int selected, int previeww, int pad, int maxoffset, int *offset)
+{
+	int sx = items[order[selected]].x;
+	if (sx - *offset < pad)
+		*offset = sx - pad;
+	if (items[order[selected]].x + items[order[selected]].w - *offset > previeww - pad)
+		*offset = items[order[selected]].x + items[order[selected]].w - (previeww - pad);
+	clampint(offset, 0, maxoffset);
+}
+
+static void
 arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
 {
 	if (n == 1) {
@@ -1903,14 +1914,9 @@ previewscroll(const Arg *arg)
 			needblit = 1;
 		}
 
-		/* keep newly selected item visible */
-		if (selected != lastselected) {
-			int sx = items[order[selected]].x;
-				if (sx - offset < pad)
-					offset = sx - pad;
-				if (items[order[selected]].x + items[order[selected]].w - offset > previeww - pad)
-					offset = items[order[selected]].x + items[order[selected]].w - (previeww - pad);
-				clampint(&offset, 0, maxoffset);
+			/* keep newly selected item visible */
+			if (selected != lastselected) {
+				keeppreviewselectedvisible(items, order, selected, previeww, pad, maxoffset, &offset);
 				lastselected = selected;
 				needredraw = 1;
 			}
