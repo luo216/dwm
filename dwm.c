@@ -289,7 +289,7 @@ static Atom getatomprop(Client *c, Atom prop);
 static int getatompropvalue(Client *c, Atom prop, Atom *value);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
-static unsigned int getsystraywidth();
+static unsigned int getsystraywidth(void);
 static int gettextprop(Window w, Atom atom, char *text, unsigned int size);
 static void grabbuttons(Client *c, int focused);
 static void grabkeys(void);
@@ -2667,7 +2667,7 @@ getatompropvalue(Client *c, Atom prop, Atom *value)
 }
 
 unsigned int
-getsystraywidth()
+getsystraywidth(void)
 {
 	unsigned int w = 0;
 	Client *i;
@@ -5291,7 +5291,7 @@ drawstatusclock(int x, Block *block, unsigned int timer)
   }
   int hour = tm->tm_hour;
   int minute = tm->tm_min;
-  char *meridiem = (hour < 12) ? "AM" : "PM";
+  const char *meridiem = (hour < 12) ? "AM" : "PM";
   char clocktext[20];
 
   if (hour == 0) {
