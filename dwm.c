@@ -2563,9 +2563,11 @@ gettextprop(Window w, Atom atom, char *text, unsigned int size)
 		size_t len = MIN((size_t)name.nitems, (size_t)size - 1);
 		memcpy(text, name.value, len);
 		text[len] = '\0';
-	} else if (XmbTextPropertyToTextList(dpy, &name, &list, &n) >= Success && n > 0 && *list) {
-		snprintf(text, size, "%s", *list);
-		XFreeStringList(list);
+	} else if (XmbTextPropertyToTextList(dpy, &name, &list, &n) >= Success) {
+		if (n > 0 && list && *list)
+			snprintf(text, size, "%s", *list);
+		if (list)
+			XFreeStringList(list);
 	}
 	text[size - 1] = '\0';
 	XFree(name.value);
