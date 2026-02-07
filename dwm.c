@@ -1376,6 +1376,19 @@ rebuildpreviewscrolllayout(PreviewItem *items, int n, int pad, int saved_minx, i
 }
 
 static void
+computepreviewwindowgeom(Monitor *m, int previewmode, int scroll_previeww, int *previeww, int *previewh, int *px, int *py)
+{
+	*previewh = (previewmode == PREVIEW_GRID) ? (m->wh - bh) : (m->wh / 4);
+	*previewh = MAX(*previewh, 100);
+	*previewh = MIN(*previewh, 2048);
+	*previeww = (previewmode == PREVIEW_GRID) ? (m->ww - 2 * bh) : scroll_previeww;
+	if (*previeww < 200)
+		*previeww = 200;
+	*px = m->wx + ((previewmode == PREVIEW_GRID) ? bh : (m->ww - *previeww) / 2);
+	*py = m->wy + ((previewmode == PREVIEW_GRID) ? 0 : (m->wh / 4));
+}
+
+static void
 setpreviewexit(int confirmed_value, int *running, int *confirmed)
 {
 	*running = 0;
@@ -1795,8 +1808,8 @@ previewscroll(const Arg *arg)
 		goto preview_cleanup;
 	XMapRaised(dpy, overlay);
 
-	int px = m->wx + ((previewmode == PREVIEW_GRID) ? bh : (m->ww - previeww) / 2);
-	int py = m->wy + ((previewmode == PREVIEW_GRID) ? 0 : (m->wh / 4));
+	int px = 0, py = 0;
+	computepreviewwindowgeom(m, previewmode, previeww, &previeww, &previewh, &px, &py);
 	XSetWindowAttributes pwa = {
 		.override_redirect = True,
 		.background_pixel = scheme[SchemeNorm][ColBg].pixel,
@@ -1852,20 +1865,15 @@ previewscroll(const Arg *arg)
 				} else if (ks == XK_Return || ks == XK_space) {
 					setpreviewexit(1, &running, &confirmed);
 				} else if (ks == XK_Tab) {
-				previewmode = (previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
-				int new_previewh = (previewmode == PREVIEW_GRID) ? (m->wh - bh) : (m->wh / 4);
-				new_previewh = MAX(new_previewh, 100);
-				new_previewh = MIN(new_previewh, 2048);
-				int new_py = m->wy + ((previewmode == PREVIEW_GRID) ? 0 : (m->wh / 4));
-				int new_previeww = previeww;
-				if (previewmode == PREVIEW_GRID) {
-					new_previeww = m->ww - 2 * bh;
-					if (new_previeww < 200) new_previeww = 200;
-				}
-				int new_px = m->wx + ((previewmode == PREVIEW_GRID) ? bh : (m->ww - new_previeww) / 2);
-				XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
-				previewh = new_previewh;
-				previeww = new_previeww;
+					previewmode = (previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
+					int new_previeww = 0;
+					int new_previewh = 0;
+					int new_px = 0;
+					int new_py = 0;
+					computepreviewwindowgeom(m, previewmode, previeww, &new_previeww, &new_previewh, &new_px, &new_py);
+					XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
+					previewh = new_previewh;
+					previeww = new_previeww;
 				px = new_px;
 					py = new_py;
 					XFreePixmap(dpy, buf);
