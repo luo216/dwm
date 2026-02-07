@@ -1871,15 +1871,15 @@ previewscroll(const Arg *arg)
 		goto preview_cleanup;
 	XMapRaised(dpy, overlay);
 
-	int px = 0, py = 0;
-	computepreviewwindowgeom(m, previewmode, previeww, &previeww, &previewh, &px, &py);
+	int init_px = 0, init_py = 0;
+	computepreviewwindowgeom(m, previewmode, previeww, &previeww, &previewh, &init_px, &init_py);
 	XSetWindowAttributes pwa = {
 		.override_redirect = True,
 		.background_pixel = scheme[SchemeNorm][ColBg].pixel,
 		.border_pixel = scheme[SchemeSel][ColBorder].pixel,
 		.event_mask = ExposureMask | ButtonPressMask,
 	};
-	pwin = XCreateWindow(dpy, overlay, px, py, previeww, previewh, 1,
+	pwin = XCreateWindow(dpy, overlay, init_px, init_py, previeww, previewh, 1,
 		DefaultDepth(dpy, screen), CopyFromParent, DefaultVisual(dpy, screen),
 		CWOverrideRedirect | CWBackPixel | CWBorderPixel | CWEventMask, &pwa);
 	if (!pwin)
@@ -1930,8 +1930,6 @@ previewscroll(const Arg *arg)
 				XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
 				previewh = new_previewh;
 				previeww = new_previeww;
-				px = new_px;
-				py = new_py;
 				XFreePixmap(dpy, buf);
 				buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
 				if (!buf)
