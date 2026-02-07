@@ -5522,6 +5522,10 @@ drawnet(int x, Block *block, unsigned int timer)
 
   txi = txi - f_arr[0];
   rxi = rxi - f_arr[1];
+  if (txi < 0)
+    txi = 0;
+  if (rxi < 0)
+    rxi = 0;
 
   f_arr[0] = txi_tmp;
   f_arr[1] = rxi_tmp;
