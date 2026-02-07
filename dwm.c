@@ -5583,8 +5583,7 @@ gettempnums(void)
   while ((entry = readdir(dir)) != NULL) {
     if (strncmp(entry->d_name, "thermal_zone", 12) == 0) {
       int number = -1;
-      sscanf(entry->d_name, "thermal_zone%d", &number);
-      if (number > max_number) {
+      if (sscanf(entry->d_name, "thermal_zone%d", &number) == 1 && number > max_number) {
         max_number = number;
       }
     }
