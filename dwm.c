@@ -408,6 +408,7 @@ static int drawmem(int x, Block *block, unsigned int timer);
 static int drawmore(int x, Block *block, unsigned int timer);
 static int getstatuswidth(void);
 static int readullfromfile(const char *path, unsigned long long *value);
+static int readwordfromfile(const char *path, char *buf, size_t bufsz);
 static void spawnclickcmd(const char *const cmd[]);
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
@@ -4949,6 +4950,21 @@ readullfromfile(const char *path, unsigned long long *value)
   return 1;
 }
 
+static int
+readwordfromfile(const char *path, char *buf, size_t bufsz)
+{
+  FILE *fp = fopen(path, "r");
+  if (!fp)
+    return 0;
+  if (!fgets(buf, bufsz, fp)) {
+    fclose(fp);
+    return 0;
+  }
+  fclose(fp);
+  buf[strcspn(buf, "\r\n")] = '\0';
+  return buf[0] != '\0';
+}
+
 void
 clicktemp(const Arg *arg)
 {
@@ -5459,28 +5475,15 @@ drawbattery(int x, Block *block, unsigned int timer)
     char statuspatch[] = "/sys/class/power_supply/BAT0/status";
 
     // read capacity and status
-    FILE *fp = fopen(capacitypatch, "r");
-    if (fp == NULL) {
+    if (!readwordfromfile(capacitypatch, capacity, sizeof(capacity))) {
       block->bw = 0;
       return x;
     }
-    if (fscanf(fp, "%3s", capacity) != 1) {
-      fclose(fp);
-      
-      return x;  // Keep previous values on error
-    }
-    fclose(fp);
-    fp = fopen(statuspatch, "r");
-    if (fp == NULL) {
+    if (!readwordfromfile(statuspatch, status, sizeof(status))) {
       block->bw = 0;
       return x;
     }
-    if (fscanf(fp, "%19s", status) != 1) {
-      fclose(fp);
-      
-      return x;  // Keep previous values on error
-    }
-    fclose(fp);
+
     snprintf(bat_perc, sizeof(bat_perc), "%s", capacity);
     snprintf(bat_status, sizeof(bat_status), "%s", status);
     
