@@ -1311,6 +1311,39 @@ findpreviewneighbor(PreviewItem *items, int *order, int n, int selected, int dir
 	return best_index;
 }
 
+static int
+findorderindex(int *order, int n, int value)
+{
+	for (int i = 0; i < n; i++)
+		if (order[i] == value)
+			return i;
+	return -1;
+}
+
+static int
+findpreviewhit(PreviewItem *items, int n, Client **stacklist, int scount, int cx, int cy)
+{
+	int hit = -1;
+	unsigned int bestarea = UINT_MAX;
+
+	for (int i = scount - 1; i >= 0; i--) {
+		int tidx = thumbindex(items, n, stacklist[i]);
+		if (tidx < 0)
+			continue;
+		if (cx < items[tidx].x || cx > items[tidx].x + items[tidx].w ||
+		    cy < items[tidx].y || cy > items[tidx].y + items[tidx].h)
+			continue;
+
+		unsigned int area = (unsigned int)items[tidx].w * (unsigned int)items[tidx].h;
+		if (area < bestarea) {
+			bestarea = area;
+			hit = tidx;
+		}
+	}
+
+	return hit;
+}
+
 static void
 arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
 {
@@ -1842,41 +1875,22 @@ previewscroll(const Arg *arg)
 				applypreviewselection(best_index, &selected, &needredraw, previewmode,
 				                    items, order, previewh, maxoffsety, &offsety);
 			}
-		} else if (ev.type == ButtonPress) {
+			} else if (ev.type == ButtonPress) {
 			if (ev.xbutton.button == Button4) {
 				scrollpreviewoffset(previewmode, -1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
 				needredraw = 1;
 			} else if (ev.xbutton.button == Button5) {
 				scrollpreviewoffset(previewmode, 1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
 				needredraw = 1;
-			} else if (ev.xbutton.button == Button1 && ev.xbutton.window == pwin) {
-				int cx = ev.xbutton.x + offset - pad;
-				int cy = ev.xbutton.y + offsety - pad;
-				int hit = -1;
-				unsigned int bestarea = UINT_MAX;
-				for (int i = scount - 1; i >= 0; i--) {
-					int tidx = thumbindex(items, n, stacklist[i]);
-					if (tidx < 0)
-						continue;
-					if (cx >= items[tidx].x && cx <= items[tidx].x + items[tidx].w &&
-						cy >= items[tidx].y && cy <= items[tidx].y + items[tidx].h) {
-						unsigned int area = (unsigned int)items[tidx].w * (unsigned int)items[tidx].h;
-						if (area < bestarea) {
-							bestarea = area;
-							hit = tidx;
-						}
-					}
-				}
-				if (hit >= 0) {
-					int hitorder = -1;
-					for (int i = 0; i < n; i++)
-						if (order[i] == hit) {
-							hitorder = i;
-							break;
-						}
-					if (hitorder >= 0) {
-						if (hitorder == selected) {
-							confirmed = 1;
+				} else if (ev.xbutton.button == Button1 && ev.xbutton.window == pwin) {
+					int cx = ev.xbutton.x + offset - pad;
+					int cy = ev.xbutton.y + offsety - pad;
+					int hit = findpreviewhit(items, n, stacklist, scount, cx, cy);
+					if (hit >= 0) {
+						int hitorder = findorderindex(order, n, hit);
+						if (hitorder >= 0) {
+							if (hitorder == selected) {
+								confirmed = 1;
 							running = 0;
 						} else {
 							selected = hitorder;
