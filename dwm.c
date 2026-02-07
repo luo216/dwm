@@ -5143,6 +5143,7 @@ drawmore(int x, Block *block, unsigned int timer)
 int
 drawcores(int x, Block *block, unsigned int timer)
 {
+  (void)timer;
   FILE *fp;
   CoreBlock *storage = block->storage;
   fp = fopen("/proc/stat", "r");
@@ -5235,6 +5236,7 @@ drawcores(int x, Block *block, unsigned int timer)
 int
 drawcpu(int x, Block *block, unsigned int timer)
 {
+  (void)timer;
   FILE *fp;
   CpuBlock *storage = block->storage;
   fp = fopen("/proc/stat", "r");
@@ -5431,6 +5433,7 @@ drawmem(int x, Block *block, unsigned int timer)
 int
 drawnet(int x, Block *block, unsigned int timer)
 {
+  (void)timer;
   char rx[20], tx[20];
   char txpath[50];
   char rxpath[50];
