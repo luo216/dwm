@@ -448,6 +448,7 @@ static unsigned int numlockmask = 0;
 /* status bar global variables */
 static pthread_t drawstatusthread;
 static int status_thread_started = 0;
+static int status_thread_running = 0;
 static pthread_mutex_t statuscache_mutex = PTHREAD_MUTEX_INITIALIZER;
 static Node Nodes[NODE_NUM];
 static int numCores;
@@ -3397,6 +3398,7 @@ setup(void)
 		die("failed to create status thread");
 	}
 	status_thread_started = 1;
+	status_thread_running = 1;
 	initshape();
 	initcompositor();
 
@@ -5590,7 +5592,9 @@ void
 cleanstatuspthread(void)
 {
   if (status_thread_started) {
-    running = 0;
+    pthread_mutex_lock(&statuscache_mutex);
+    status_thread_running = 0;
+    pthread_mutex_unlock(&statuscache_mutex);
     pthread_join(drawstatusthread, NULL);
     status_thread_started = 0;
   }
@@ -5684,7 +5688,14 @@ drawstatusbar(void *arg)
   (void)arg;
   time_t now;
 
-  while (running) {
+  while (1) {
+    int keep_running = 0;
+    pthread_mutex_lock(&statuscache_mutex);
+    keep_running = status_thread_running;
+    pthread_mutex_unlock(&statuscache_mutex);
+    if (!keep_running)
+      break;
+
     if (selmon) {
       int needs_update = 0;
       time(&now);
