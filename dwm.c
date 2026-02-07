@@ -5027,6 +5027,7 @@ clicknotify(const Arg *arg)
 int
 drawstatusclock(int x, Block *block, unsigned int timer)
 {
+  (void)timer;
   time_t currentTime = time(NULL);
   struct tm *tm = localtime(&currentTime);
   if (!tm) {
@@ -5054,6 +5055,7 @@ drawstatusclock(int x, Block *block, unsigned int timer)
 int
 drawnotify(int x, Block *block, unsigned int timer)
 {
+  (void)timer;
   char tag[] = " ";
   block->bw = TEXTWSTATUS(tag);
   x -= block->bw;
@@ -5064,6 +5066,7 @@ drawnotify(int x, Block *block, unsigned int timer)
 int
 drawmore(int x, Block *block, unsigned int timer)
 {
+  (void)timer;
   char tag[] = "󰍻 ";
   block->bw = TEXTWSTATUS(tag);
   x -= block->bw;
