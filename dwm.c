@@ -1795,10 +1795,12 @@ previewscroll(const Arg *arg)
 				previewh = new_previewh;
 				previeww = new_previeww;
 				px = new_px;
-				py = new_py;
-				XFreePixmap(dpy, buf);
-				buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
-				if (previewmode == PREVIEW_GRID) {
+					py = new_py;
+					XFreePixmap(dpy, buf);
+					buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
+					if (!buf)
+						goto preview_cleanup;
+					if (previewmode == PREVIEW_GRID) {
 					arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
 					offset = 0;
 					offsety = 0;
