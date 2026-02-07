@@ -5417,7 +5417,7 @@ drawtemp(int x, Block *block, unsigned int timer)
 int
 drawmem(int x, Block *block, unsigned int timer)
 {
-    static long mem_total = 0, mem_free = 0, mem_active = 0, mem_inactive = 0, mem_cached = 0;
+    static long mem_total = 0, mem_free = 0, mem_active = 0, mem_inactive = 0;
 
     if (timer % 2 == 0) { // Update every 2 seconds
         char line[256];
@@ -5432,7 +5432,6 @@ drawmem(int x, Block *block, unsigned int timer)
             if (sscanf(line, "MemFree: %ld kB", &mem_free) == 1) continue;
             if (sscanf(line, "Active: %ld kB", &mem_active) == 1) continue;
             if (sscanf(line, "Inactive: %ld kB", &mem_inactive) == 1) continue;
-            if (sscanf(line, "Cached: %ld kB", &mem_cached) == 1) continue;
         }
         fclose(fp);
     }
