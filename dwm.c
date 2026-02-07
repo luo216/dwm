@@ -5599,6 +5599,8 @@ initstatusbar(void)
 {
   long online = sysconf(_SC_NPROCESSORS_ONLN);
   numCores = (online > 0) ? (int)online : 1;
+  if (numCores > NODE_NUM)
+    numCores = NODE_NUM;
   
   for (int i = 0; i < NODE_NUM; i++) {
     Nodes[i].next = &Nodes[(i + 1) % NODE_NUM];
