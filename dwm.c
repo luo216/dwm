@@ -407,6 +407,7 @@ static int drawtemp(int x, Block *block, unsigned int timer);
 static int drawmem(int x, Block *block, unsigned int timer);
 static int drawmore(int x, Block *block, unsigned int timer);
 static int getstatuswidth(void);
+static void spawnclickcmd(const char *const cmd[]);
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
 static void handleStatus3(const Arg *arg);
@@ -4976,6 +4977,13 @@ getstatuswidth(void)
   return width ? width : 1;  /* Ensure minimum width of 1 */
 }
 
+static void
+spawnclickcmd(const char *const cmd[])
+{
+  const Arg v = {.v = cmd};
+  spawn(&v);
+}
+
 void
 clicktemp(const Arg *arg)
 {
@@ -4994,19 +5002,15 @@ clicktemp(const Arg *arg)
 void
 clickmore(const Arg *arg)
 {
-  if (arg->i == 1) {
-    const Arg v = {.v = script_menu};
-    spawn(&v);
-  }
+  if (arg->i == 1)
+    spawnclickcmd(script_menu);
 }
 
 void
 clickmem(const Arg *arg)
 {
-  if (arg->i == 1) {
-    const Arg v = {.v = sys_monitor};
-    spawn(&v);
-  }
+  if (arg->i == 1)
+    spawnclickcmd(sys_monitor);
 }
 
 void
@@ -5028,20 +5032,15 @@ void
 clickcpu(const Arg *arg)
 {
   if (arg->i == 1) {
-    const Arg v = {.v = dec_volume};
-    spawn(&v);
+    spawnclickcmd(dec_volume);
   } else if (arg->i == 2) {
-    const Arg v = {.v = tog_volume};
-    spawn(&v);
+    spawnclickcmd(tog_volume);
   } else if (arg->i == 3) {
-    const Arg v = {.v = inc_volume};
-    spawn(&v);
+    spawnclickcmd(inc_volume);
   } else if (arg->i == 4) {
-    const Arg v = {.v = inc_volume_1};
-    spawn(&v);
+    spawnclickcmd(inc_volume_1);
   } else if (arg->i == 5) {
-    const Arg v = {.v = dec_volume_1};
-    spawn(&v);
+    spawnclickcmd(dec_volume_1);
   }
 }
 
@@ -5049,17 +5048,13 @@ void
 clickcores(const Arg *arg)
 {
   if (arg->i == 1) {
-    const Arg v = {.v = dec_light};
-    spawn(&v);
+    spawnclickcmd(dec_light);
   } else if (arg->i == 3) {
-    const Arg v = {.v = inc_light};
-    spawn(&v);
+    spawnclickcmd(inc_light);
   } else if (arg->i == 4) {
-    const Arg v = {.v = inc_light_1};
-    spawn(&v);
+    spawnclickcmd(inc_light_1);
   } else if (arg->i == 5) {
-    const Arg v = {.v = dec_light_1};
-    spawn(&v);
+    spawnclickcmd(dec_light_1);
   }
 }
 
@@ -5067,19 +5062,15 @@ void
 clicknotify(const Arg *arg)
 {
   if (arg->i == 1) {
-    const Arg v = {.v = history_pop};
     for (int i = 0; i < 5; i++) {
-      spawn(&v);
+      spawnclickcmd(history_pop);
     }
   } else if (arg->i == 3) {
-    const Arg v = {.v = history_clear};
-    spawn(&v);
+    spawnclickcmd(history_clear);
   } else if (arg->i == 4) {
-    const Arg v = {.v = history_pop};
-    spawn(&v);
+    spawnclickcmd(history_pop);
   } else if (arg->i == 5) {
-    const Arg v = {.v = history_close};
-    spawn(&v);
+    spawnclickcmd(history_close);
   }
 }
 
