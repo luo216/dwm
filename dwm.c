@@ -1424,6 +1424,8 @@ buildvisiblepreviewstack(Monitor *m, int *scount)
 	for (c = m->stack; c; c = c->snext)
 		if (ISVISIBLE(c))
 			(*scount)++;
+	if (*scount == 0)
+		return NULL;
 
 	Client **stacklist = ecalloc(*scount, sizeof(Client *));
 	int si = 0;
