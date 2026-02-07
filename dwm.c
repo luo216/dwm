@@ -5488,6 +5488,10 @@ drawbattery(int x, Block *block, unsigned int timer)
   }
 
   int int_cap = atoi(bat_perc);
+  if (int_cap < 0)
+    int_cap = 0;
+  if (int_cap > 100)
+    int_cap = 100;
 
   char battery_text[8];
   snprintf(battery_text, sizeof(battery_text), "%s%%", bat_perc);
