@@ -5723,6 +5723,8 @@ drawstatusbar(void *arg)
 void
 handlestatusclick(const Arg *arg, int button)
 {
+  if (!arg || arg->i < 0 || arg->i >= LENGTH(Blocks))
+    return;
   Arg a = {.i = button};
   if (Blocks[arg->i].click)
     Blocks[arg->i].click(&a);
