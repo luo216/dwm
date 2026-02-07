@@ -1356,6 +1356,26 @@ keeppreviewselectedvisible(PreviewItem *items, int *order, int selected, int pre
 }
 
 static void
+rebuildpreviewscrolllayout(PreviewItem *items, int n, int pad, int saved_minx, int saved_miny, float saved_scale,
+                           int previeww, int *order, int selected,
+                           int *totalw, int *maxoffset, int *maxoffsety, int *offsety, int *offset)
+{
+	*totalw = 0;
+	for (int i = 0; i < n; i++) {
+		Client *c = items[i].c;
+		items[i].x = (int)((float)(c->x - saved_minx) * saved_scale);
+		items[i].y = (int)((float)(c->y - saved_miny) * saved_scale);
+		if (items[i].x + items[i].w > *totalw)
+			*totalw = items[i].x + items[i].w;
+	}
+	*totalw += pad * 2;
+	*maxoffset = *totalw > previeww ? *totalw - previeww : 0;
+	*maxoffsety = 0;
+	*offsety = 0;
+	centerpreviewselectedx(items, order, selected, previeww, *maxoffset, offset);
+}
+
+static void
 setpreviewexit(int confirmed_value, int *running, int *confirmed)
 {
 	*running = 0;
@@ -1853,25 +1873,14 @@ previewscroll(const Arg *arg)
 					if (!buf)
 						goto preview_cleanup;
 					if (previewmode == PREVIEW_GRID) {
-					arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
-					offset = 0;
-					offsety = 0;
-					maxoffsety = totalh > previewh ? totalh - previewh : 0;
-				} else {
-					/* 切换回滚动模式，使用保存的缩放参数重新计算位置 */
-					totalw = 0;
-					for (int i = 0; i < n; i++) {
-						Client *c = items[i].c;
-						items[i].x = (int)((float)(c->x - saved_minx) * saved_scale);
-						items[i].y = (int)((float)(c->y - saved_miny) * saved_scale);
-						if (items[i].x + items[i].w > totalw)
-							totalw = items[i].x + items[i].w;
-					}
-						totalw += pad * 2;
-						maxoffset = totalw > previeww ? totalw - previeww : 0;
-						maxoffsety = 0;
+						arrangePreviewsGrid(items, n, gappx, previeww, previewh, &totalh, &totalw);
+						offset = 0;
 						offsety = 0;
-						centerpreviewselectedx(items, order, selected, previeww, maxoffset, &offset);
+						maxoffsety = totalh > previewh ? totalh - previewh : 0;
+					} else {
+						rebuildpreviewscrolllayout(items, n, pad, saved_minx, saved_miny, saved_scale,
+						                          previeww, order, selected,
+						                          &totalw, &maxoffset, &maxoffsety, &offsety, &offset);
 					}
 				needredraw = 1;
 			} else if (ks == XK_h || ks == XK_Left) {
