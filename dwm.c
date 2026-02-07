@@ -358,6 +358,8 @@ static void updatebarpos(Monitor *m);
 static void updatebars(void);
 static void updateclientlist(void);
 static int updategeom(void);
+static MonitorArea *buildmonitorareas(int *targetcount);
+static void movelastmonclients(Monitor *src, Monitor *dst, int *dirty);
 static void updatenumlockmask(void);
 static void updatesizehints(Client *c);
 static void updatestatus(void);
@@ -4425,55 +4427,9 @@ updategeom(void)
 {
 	int dirty = 0;
 	int existing = 0;
-	int targetcount = 0;
 	Monitor *m;
-	Client *c;
-	MonitorArea *areas = NULL;
-
-#ifdef XINERAMA
-	if (XineramaIsActive(dpy)) {
-		int i, j, nn;
-		XineramaScreenInfo *info = XineramaQueryScreens(dpy, &nn);
-		XineramaScreenInfo *unique = ecalloc(nn, sizeof(XineramaScreenInfo));
-
-		for (i = 0, j = 0; i < nn; i++)
-			if (isuniquegeom(unique, j, &info[i]))
-				memcpy(&unique[j++], &info[i], sizeof(XineramaScreenInfo));
-		XFree(info);
-
-		/* 如果原始显示器数量大于唯一显示器数量，说明有重叠 */
-		if (nn > j) {
-			/* 合并所有重叠的显示器为一个大的屏幕区域 */
-			free(unique);
-			targetcount = 1;
-			areas = ecalloc(1, sizeof(MonitorArea));
-			areas[0].x = 0;
-			areas[0].y = 0;
-			areas[0].w = sw;
-			areas[0].h = sh;
-		} else {
-			targetcount = j;
-			areas = ecalloc(targetcount, sizeof(MonitorArea));
-			for (i = 0; i < targetcount; i++) {
-				areas[i].x = unique[i].x_org;
-				areas[i].y = unique[i].y_org;
-				areas[i].w = unique[i].width;
-				areas[i].h = unique[i].height;
-			}
-			free(unique);
-		}
-	}
-#endif /* XINERAMA */
-
-	if (!areas || targetcount == 0) {
-		free(areas);
-		targetcount = 1;
-		areas = ecalloc(1, sizeof(MonitorArea));
-		areas[0].x = 0;
-		areas[0].y = 0;
-		areas[0].w = sw;
-		areas[0].h = sh;
-	}
+	int targetcount = 0;
+	MonitorArea *areas = buildmonitorareas(&targetcount);
 
 	for (existing = 0, m = mons; m; m = m->next, existing++);
 
@@ -4511,32 +4467,7 @@ updategeom(void)
 		if (!last)
 			break;
 
-		for (int t = 0; t < LENGTH(tags); t++) {
-			while ((c = last->scrolls[t].head)) {
-				dirty = 1;
-				last->scrolls[t].head = c->next;
-				detachstack(c);
-				
-				/* 保存旧的 scroll x 坐标用于调整 floatx */
-				int old_scrollx = (last->scrollindex) ? last->scrollindex->x : 0;
-				
-				c->mon = mons;
-				
-				/* 对于 floating 窗口，调整 floatx 以适应新的 monitor */
-				if (c->isfloating && mons->scrollindex) {
-					int new_scrollx = mons->scrollindex->x;
-					/* 调整 floatx：减去旧 scroll x，加上新 scroll x */
-					c->floatx = c->floatx - old_scrollx + new_scrollx;
-				}
-				
-				/* 重父化窗口到新的container */
-				c->ignoreunmap = 2;
-				XReparentWindow(dpy, c->win, mons->container, 
-				                c->x - mons->wx, c->y - mons->wy);
-				attach(c);
-				attachstack(c);
-			}
-		}
+		movelastmonclients(last, mons, &dirty);
 
 		if (last == selmon)
 			selmon = mons;
@@ -4553,6 +4484,91 @@ updategeom(void)
 		selmon = wintomon(root);
 	}
 	return dirty;
+}
+
+static MonitorArea *
+buildmonitorareas(int *targetcount)
+{
+	MonitorArea *areas = NULL;
+	*targetcount = 0;
+
+#ifdef XINERAMA
+	if (XineramaIsActive(dpy)) {
+		int i, j, nn;
+		XineramaScreenInfo *info = XineramaQueryScreens(dpy, &nn);
+
+		if (info && nn > 0) {
+			XineramaScreenInfo *unique = ecalloc((size_t)nn, sizeof(XineramaScreenInfo));
+			for (i = 0, j = 0; i < nn; i++)
+				if (isuniquegeom(unique, j, &info[i]))
+					memcpy(&unique[j++], &info[i], sizeof(XineramaScreenInfo));
+			XFree(info);
+
+			/* overlapping outputs: keep a single full-screen monitor area */
+			if (nn > j) {
+				free(unique);
+				*targetcount = 1;
+				areas = ecalloc(1, sizeof(MonitorArea));
+				areas[0].x = 0;
+				areas[0].y = 0;
+				areas[0].w = sw;
+				areas[0].h = sh;
+			} else {
+				*targetcount = j;
+				areas = ecalloc((size_t)(*targetcount), sizeof(MonitorArea));
+				for (i = 0; i < *targetcount; i++) {
+					areas[i].x = unique[i].x_org;
+					areas[i].y = unique[i].y_org;
+					areas[i].w = unique[i].width;
+					areas[i].h = unique[i].height;
+				}
+				free(unique);
+			}
+		}
+	}
+#endif /* XINERAMA */
+
+	if (!areas || *targetcount == 0) {
+		free(areas);
+		*targetcount = 1;
+		areas = ecalloc(1, sizeof(MonitorArea));
+		areas[0].x = 0;
+		areas[0].y = 0;
+		areas[0].w = sw;
+		areas[0].h = sh;
+	}
+	return areas;
+}
+
+static void
+movelastmonclients(Monitor *src, Monitor *dst, int *dirty)
+{
+	Client *c;
+
+	if (!src || !dst)
+		return;
+
+	for (int t = 0; t < LENGTH(tags); t++) {
+		while ((c = src->scrolls[t].head)) {
+			int old_scrollx = src->scrollindex ? src->scrollindex->x : 0;
+
+			*dirty = 1;
+			src->scrolls[t].head = c->next;
+			detachstack(c);
+			c->mon = dst;
+
+			if (c->isfloating && dst->scrollindex) {
+				int new_scrollx = dst->scrollindex->x;
+				c->floatx = c->floatx - old_scrollx + new_scrollx;
+			}
+
+			c->ignoreunmap = 2;
+			XReparentWindow(dpy, c->win, dst->container,
+			                c->x - dst->wx, c->y - dst->wy);
+			attach(c);
+			attachstack(c);
+		}
+	}
 }
 
 void
