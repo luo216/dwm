@@ -1312,6 +1312,24 @@ findpreviewneighbor(PreviewItem *items, int *order, int n, int selected, int dir
 }
 
 static int
+previewkeydirection(KeySym ks, int *dirx, int *diry)
+{
+	*dirx = 0;
+	*diry = 0;
+	if (ks == XK_h || ks == XK_Left)
+		*dirx = -1;
+	else if (ks == XK_l || ks == XK_Right)
+		*dirx = 1;
+	else if (ks == XK_k || ks == XK_Up)
+		*diry = -1;
+	else if (ks == XK_j || ks == XK_Down)
+		*diry = 1;
+	else
+		return 0;
+	return 1;
+}
+
+static int
 findorderindex(int *order, int n, int value)
 {
 	for (int i = 0; i < n; i++)
@@ -1924,23 +1942,14 @@ previewscroll(const Arg *arg)
 						                          &totalw, &maxoffset, &maxoffsety, &offsety, &offset);
 					}
 				needredraw = 1;
-			} else if (ks == XK_h || ks == XK_Left) {
-				int best_index = findpreviewneighbor(items, order, n, selected, -1, 0);
-				applypreviewselection(best_index, &selected, &needredraw, previewmode,
-				                    items, order, previewh, maxoffsety, &offsety);
-			} else if (ks == XK_l || ks == XK_Right) {
-				int best_index = findpreviewneighbor(items, order, n, selected, 1, 0);
-				applypreviewselection(best_index, &selected, &needredraw, previewmode,
-				                    items, order, previewh, maxoffsety, &offsety);
-			} else if (ks == XK_k || ks == XK_Up) {
-				int best_index = findpreviewneighbor(items, order, n, selected, 0, -1);
-				applypreviewselection(best_index, &selected, &needredraw, previewmode,
-				                    items, order, previewh, maxoffsety, &offsety);
-			} else if (ks == XK_j || ks == XK_Down) {
-				int best_index = findpreviewneighbor(items, order, n, selected, 0, 1);
-				applypreviewselection(best_index, &selected, &needredraw, previewmode,
-				                    items, order, previewh, maxoffsety, &offsety);
-			}
+				} else {
+					int dirx = 0, diry = 0;
+					if (previewkeydirection(ks, &dirx, &diry)) {
+						int best_index = findpreviewneighbor(items, order, n, selected, dirx, diry);
+						applypreviewselection(best_index, &selected, &needredraw, previewmode,
+						                    items, order, previewh, maxoffsety, &offsety);
+					}
+				}
 			} else if (ev.type == ButtonPress) {
 			if (ev.xbutton.button == Button4) {
 				scrollpreviewoffset(previewmode, -1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
