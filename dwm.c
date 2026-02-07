@@ -1229,6 +1229,40 @@ centerpreviewselectedy(PreviewItem *items, int *order, int selected, int preview
 	*offsety = next;
 }
 
+static int
+findpreviewneighbor(PreviewItem *items, int *order, int n, int selected, int dirx, int diry)
+{
+	int best_index = -1;
+	int min_distance = INT_MAX;
+	PreviewItem *current = &items[order[selected]];
+	int current_center_x = current->x + current->w / 2;
+	int current_center_y = current->y + current->h / 2;
+
+	for (int i = 0; i < n; i++) {
+		if (i == selected)
+			continue;
+		PreviewItem *candidate = &items[order[i]];
+		int candidate_center_x = candidate->x + candidate->w / 2;
+		int candidate_center_y = candidate->y + candidate->h / 2;
+		int dx = candidate_center_x - current_center_x;
+		int dy = candidate_center_y - current_center_y;
+
+		if ((dirx < 0 && dx >= 0) || (dirx > 0 && dx <= 0) ||
+		    (diry < 0 && dy >= 0) || (diry > 0 && dy <= 0))
+			continue;
+
+		int distance = (dirx != 0)
+		             ? (abs(dx) + abs(dy) * 2)
+		             : (abs(dy) + abs(dx) * 2);
+		if (distance < min_distance) {
+			min_distance = distance;
+			best_index = i;
+		}
+	}
+
+	return best_index;
+}
+
 static void
 arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
 {
@@ -1753,26 +1787,7 @@ previewscroll(const Arg *arg)
 				}
 				needredraw = 1;
 			} else if (ks == XK_h || ks == XK_Left) {
-				int best_index = -1;
-				int min_distance = INT_MAX;
-				PreviewItem *current = &items[order[selected]];
-				int current_center_x = current->x + current->w / 2;
-				int current_center_y = current->y + current->h / 2;
-				for (int i = 0; i < n; i++) {
-					if (i == selected) continue;
-					PreviewItem *candidate = &items[order[i]];
-					int candidate_center_x = candidate->x + candidate->w / 2;
-					int candidate_center_y = candidate->y + candidate->h / 2;
-					if (candidate_center_x < current_center_x) {
-						int dx = current_center_x - candidate_center_x;
-						int dy = abs(current_center_y - candidate_center_y);
-						int distance = dx + dy * 2;
-						if (distance < min_distance) {
-							min_distance = distance;
-							best_index = i;
-						}
-					}
-				}
+				int best_index = findpreviewneighbor(items, order, n, selected, -1, 0);
 					if (best_index != -1) {
 						selected = best_index;
 						needredraw = 1;
@@ -1780,26 +1795,7 @@ previewscroll(const Arg *arg)
 							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
 					}
 			} else if (ks == XK_l || ks == XK_Right) {
-				int best_index = -1;
-				int min_distance = INT_MAX;
-				PreviewItem *current = &items[order[selected]];
-				int current_center_x = current->x + current->w / 2;
-				int current_center_y = current->y + current->h / 2;
-				for (int i = 0; i < n; i++) {
-					if (i == selected) continue;
-					PreviewItem *candidate = &items[order[i]];
-					int candidate_center_x = candidate->x + candidate->w / 2;
-					int candidate_center_y = candidate->y + candidate->h / 2;
-					if (candidate_center_x > current_center_x) {
-						int dx = candidate_center_x - current_center_x;
-						int dy = abs(current_center_y - candidate_center_y);
-						int distance = dx + dy * 2;
-						if (distance < min_distance) {
-							min_distance = distance;
-							best_index = i;
-						}
-					}
-				}
+				int best_index = findpreviewneighbor(items, order, n, selected, 1, 0);
 					if (best_index != -1) {
 						selected = best_index;
 						needredraw = 1;
@@ -1807,26 +1803,7 @@ previewscroll(const Arg *arg)
 							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
 					}
 			} else if (ks == XK_k || ks == XK_Up) {
-				int best_index = -1;
-				int min_distance = INT_MAX;
-				PreviewItem *current = &items[order[selected]];
-				int current_center_x = current->x + current->w / 2;
-				int current_center_y = current->y + current->h / 2;
-				for (int i = 0; i < n; i++) {
-					if (i == selected) continue;
-					PreviewItem *candidate = &items[order[i]];
-					int candidate_center_x = candidate->x + candidate->w / 2;
-					int candidate_center_y = candidate->y + candidate->h / 2;
-					if (candidate_center_y < current_center_y) {
-						int dy = current_center_y - candidate_center_y;
-						int dx = abs(current_center_x - candidate_center_x);
-						int distance = dy + dx * 2;
-						if (distance < min_distance) {
-							min_distance = distance;
-							best_index = i;
-						}
-					}
-				}
+				int best_index = findpreviewneighbor(items, order, n, selected, 0, -1);
 					if (best_index != -1) {
 						selected = best_index;
 						needredraw = 1;
@@ -1834,26 +1811,7 @@ previewscroll(const Arg *arg)
 							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
 					}
 			} else if (ks == XK_j || ks == XK_Down) {
-				int best_index = -1;
-				int min_distance = INT_MAX;
-				PreviewItem *current = &items[order[selected]];
-				int current_center_x = current->x + current->w / 2;
-				int current_center_y = current->y + current->h / 2;
-				for (int i = 0; i < n; i++) {
-					if (i == selected) continue;
-					PreviewItem *candidate = &items[order[i]];
-					int candidate_center_x = candidate->x + candidate->w / 2;
-					int candidate_center_y = candidate->y + candidate->h / 2;
-					if (candidate_center_y > current_center_y) {
-						int dy = candidate_center_y - current_center_y;
-						int dx = abs(current_center_x - candidate_center_x);
-						int distance = dy + dx * 2;
-						if (distance < min_distance) {
-							min_distance = distance;
-							best_index = i;
-						}
-					}
-				}
+				int best_index = findpreviewneighbor(items, order, n, selected, 0, 1);
 					if (best_index != -1) {
 						selected = best_index;
 						needredraw = 1;
