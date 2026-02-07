@@ -5076,6 +5076,10 @@ void
 clicktemp(const Arg *arg)
 {
   if (arg->i == 1) {
+    if (thermalzonenum < 0) {
+      sendnotify("No thermal zones found", "low", 2000);
+      return;
+    }
     if (thermalzoneindex < thermalzonenum) {
       thermalzoneindex++;
     } else {
