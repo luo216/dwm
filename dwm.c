@@ -1243,6 +1243,25 @@ applypreviewselection(int best_index, int *selected, int *needredraw, int previe
 		centerpreviewselectedy(items, order, *selected, previewh, maxoffsety, offsety);
 }
 
+static void
+scrollpreviewoffset(int previewmode, int delta, int previeww, int previewh,
+                    int maxoffset, int maxoffsety, int *offset, int *offsety)
+{
+	if (previewmode == PREVIEW_SCROLL) {
+		*offset += delta * (previeww / 8);
+		if (*offset < 0)
+			*offset = 0;
+		if (*offset > maxoffset)
+			*offset = maxoffset;
+	} else {
+		*offsety += delta * (previewh / 8);
+		if (*offsety < 0)
+			*offsety = 0;
+		if (*offsety > maxoffsety)
+			*offsety = maxoffsety;
+	}
+}
+
 static int
 findpreviewneighbor(PreviewItem *items, int *order, int n, int selected, int dirx, int diry)
 {
@@ -1819,26 +1838,10 @@ previewscroll(const Arg *arg)
 			}
 		} else if (ev.type == ButtonPress) {
 			if (ev.xbutton.button == Button4) {
-				if (previewmode == PREVIEW_SCROLL) {
-					offset -= previeww / 8;
-					if (offset < 0)
-						offset = 0;
-				} else {
-					offsety -= previewh / 8;
-					if (offsety < 0)
-						offsety = 0;
-				}
+				scrollpreviewoffset(previewmode, -1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
 				needredraw = 1;
 			} else if (ev.xbutton.button == Button5) {
-				if (previewmode == PREVIEW_SCROLL) {
-					offset += previeww / 8;
-					if (offset > maxoffset)
-						offset = maxoffset;
-				} else {
-					offsety += previewh / 8;
-					if (offsety > maxoffsety)
-						offsety = maxoffsety;
-				}
+				scrollpreviewoffset(previewmode, 1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
 				needredraw = 1;
 			} else if (ev.xbutton.button == Button1 && ev.xbutton.window == pwin) {
 				int cx = ev.xbutton.x + offset - pad;
