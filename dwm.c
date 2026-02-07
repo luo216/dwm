@@ -1215,6 +1215,21 @@ thumbindex(PreviewItem *items, int n, Client *c)
 }
 
 static void
+centerpreviewselectedy(PreviewItem *items, int *order, int selected, int previewh, int maxoffsety, int *offsety)
+{
+	if (selected < 0)
+		return;
+
+	PreviewItem *sel = &items[order[selected]];
+	int next = sel->y + sel->h / 2 - previewh / 2;
+	if (next < 0)
+		next = 0;
+	if (next > maxoffsety)
+		next = maxoffsety;
+	*offsety = next;
+}
+
+static void
 arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
 {
 	if (n == 1) {
@@ -1595,17 +1610,13 @@ previewscroll(const Arg *arg)
 
 		/* 自动滚动到选中项（与水平模式相同的逻辑） */
 		if (selected >= 0 && selected < n) {
-			PreviewItem *sel = &items[order[selected]];
-			int sely = sel->y;
-			int selh = sel->h;
-			offsety = sely + selh / 2 - previewh / 2;
+			centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
 		} else {
 			offsety = 0;
 		}
 
 		maxoffsety = totalh > previewh ? totalh - previewh : 0;
 
-		/* 限制 offsety 范围 */
 		if (offsety < 0) offsety = 0;
 		if (offsety > maxoffsety) offsety = maxoffsety;
 	} else {
@@ -1763,18 +1774,12 @@ previewscroll(const Arg *arg)
 						}
 					}
 				}
-				if (best_index != -1) {
-					selected = best_index;
-					needredraw = 1;
-					if (previewmode == PREVIEW_GRID) {
-						PreviewItem *sel = &items[order[selected]];
-						int sely = sel->y;
-						int selh = sel->h;
-						offsety = sely + selh / 2 - previewh / 2;
-						if (offsety < 0) offsety = 0;
-						if (offsety > maxoffsety) offsety = maxoffsety;
+					if (best_index != -1) {
+						selected = best_index;
+						needredraw = 1;
+						if (previewmode == PREVIEW_GRID)
+							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
 					}
-				}
 			} else if (ks == XK_l || ks == XK_Right) {
 				int best_index = -1;
 				int min_distance = INT_MAX;
@@ -1796,18 +1801,12 @@ previewscroll(const Arg *arg)
 						}
 					}
 				}
-				if (best_index != -1) {
-					selected = best_index;
-					needredraw = 1;
-					if (previewmode == PREVIEW_GRID) {
-						PreviewItem *sel = &items[order[selected]];
-						int sely = sel->y;
-						int selh = sel->h;
-						offsety = sely + selh / 2 - previewh / 2;
-						if (offsety < 0) offsety = 0;
-						if (offsety > maxoffsety) offsety = maxoffsety;
+					if (best_index != -1) {
+						selected = best_index;
+						needredraw = 1;
+						if (previewmode == PREVIEW_GRID)
+							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
 					}
-				}
 			} else if (ks == XK_k || ks == XK_Up) {
 				int best_index = -1;
 				int min_distance = INT_MAX;
@@ -1829,18 +1828,12 @@ previewscroll(const Arg *arg)
 						}
 					}
 				}
-				if (best_index != -1) {
-					selected = best_index;
-					needredraw = 1;
-					if (previewmode == PREVIEW_GRID) {
-						PreviewItem *sel = &items[order[selected]];
-						int sely = sel->y;
-						int selh = sel->h;
-						offsety = sely + selh / 2 - previewh / 2;
-						if (offsety < 0) offsety = 0;
-						if (offsety > maxoffsety) offsety = maxoffsety;
+					if (best_index != -1) {
+						selected = best_index;
+						needredraw = 1;
+						if (previewmode == PREVIEW_GRID)
+							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
 					}
-				}
 			} else if (ks == XK_j || ks == XK_Down) {
 				int best_index = -1;
 				int min_distance = INT_MAX;
@@ -1862,18 +1855,12 @@ previewscroll(const Arg *arg)
 						}
 					}
 				}
-				if (best_index != -1) {
-					selected = best_index;
-					needredraw = 1;
-					if (previewmode == PREVIEW_GRID) {
-						PreviewItem *sel = &items[order[selected]];
-						int sely = sel->y;
-						int selh = sel->h;
-						offsety = sely + selh / 2 - previewh / 2;
-						if (offsety < 0) offsety = 0;
-						if (offsety > maxoffsety) offsety = maxoffsety;
+					if (best_index != -1) {
+						selected = best_index;
+						needredraw = 1;
+						if (previewmode == PREVIEW_GRID)
+							centerpreviewselectedy(items, order, selected, previewh, maxoffsety, &offsety);
 					}
-				}
 			}
 		} else if (ev.type == ButtonPress) {
 			if (ev.xbutton.button == Button4) {
