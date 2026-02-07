@@ -460,7 +460,7 @@ static int thermalzonenum = 0;
 static int interfaceindex = 0;
 static CoreBlock storagecores;
 static CpuBlock storagecpu;
-static int storagenet[2] = {0, 0};
+static float storagenet[2] = {0.0f, 0.0f};
 static Block Blocks[] = {
     [Notify] = {0, NULL, drawnotify, clicknotify},
     [Battery] = {0, NULL, drawbattery, NULL},
