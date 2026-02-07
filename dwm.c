@@ -1216,6 +1216,15 @@ thumbindex(PreviewItem *items, int n, Client *c)
 }
 
 static void
+clampint(int *value, int minv, int maxv)
+{
+	if (*value < minv)
+		*value = minv;
+	if (*value > maxv)
+		*value = maxv;
+}
+
+static void
 centerpreviewselectedy(PreviewItem *items, int *order, int selected, int previewh, int maxoffsety, int *offsety)
 {
 	if (selected < 0)
@@ -1223,11 +1232,8 @@ centerpreviewselectedy(PreviewItem *items, int *order, int selected, int preview
 
 	PreviewItem *sel = &items[order[selected]];
 	int next = sel->y + sel->h / 2 - previewh / 2;
-	if (next < 0)
-		next = 0;
-	if (next > maxoffsety)
-		next = maxoffsety;
 	*offsety = next;
+	clampint(offsety, 0, maxoffsety);
 }
 
 static void
@@ -1238,11 +1244,8 @@ centerpreviewselectedx(PreviewItem *items, int *order, int selected, int preview
 
 	PreviewItem *sel = &items[order[selected]];
 	int next = sel->x + sel->w / 2 - previeww / 2;
-	if (next < 0)
-		next = 0;
-	if (next > maxoffset)
-		next = maxoffset;
 	*offset = next;
+	clampint(offset, 0, maxoffset);
 }
 
 static void
@@ -1264,16 +1267,10 @@ scrollpreviewoffset(int previewmode, int delta, int previeww, int previewh,
 {
 	if (previewmode == PREVIEW_SCROLL) {
 		*offset += delta * (previeww / 8);
-		if (*offset < 0)
-			*offset = 0;
-		if (*offset > maxoffset)
-			*offset = maxoffset;
+		clampint(offset, 0, maxoffset);
 	} else {
 		*offsety += delta * (previewh / 8);
-		if (*offsety < 0)
-			*offsety = 0;
-		if (*offsety > maxoffsety)
-			*offsety = maxoffsety;
+		clampint(offsety, 0, maxoffsety);
 	}
 }
 
@@ -1698,8 +1695,7 @@ previewscroll(const Arg *arg)
 			offsety = 0;
 		}
 
-		if (offsety < 0) offsety = 0;
-		if (offsety > maxoffsety) offsety = maxoffsety;
+		clampint(&offsety, 0, maxoffsety);
 	} else {
 		maxoffsety = 0;
 		centerpreviewselectedx(items, order, selected, previeww, maxoffset, &offset);
@@ -1891,17 +1887,14 @@ previewscroll(const Arg *arg)
 		/* keep newly selected item visible */
 		if (selected != lastselected) {
 			int sx = items[order[selected]].x;
-			if (sx - offset < pad)
-				offset = sx - pad;
-			if (items[order[selected]].x + items[order[selected]].w - offset > previeww - pad)
-				offset = items[order[selected]].x + items[order[selected]].w - (previeww - pad);
-			if (offset < 0)
-				offset = 0;
-			if (offset > maxoffset)
-				offset = maxoffset;
-			lastselected = selected;
-			needredraw = 1;
-		}
+				if (sx - offset < pad)
+					offset = sx - pad;
+				if (items[order[selected]].x + items[order[selected]].w - offset > previeww - pad)
+					offset = items[order[selected]].x + items[order[selected]].w - (previeww - pad);
+				clampint(&offset, 0, maxoffset);
+				lastselected = selected;
+				needredraw = 1;
+			}
 
 		if (needredraw) {
 			drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad, previeww, previewh, order, selected, totalw, totalh, previewmode);
