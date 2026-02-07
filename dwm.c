@@ -1461,6 +1461,21 @@ blitpreviewifneeded(Window pwin, Pixmap buf, GC gc, int previeww, int previewh, 
 }
 
 static void
+releasepreviewui(Window overlay, Window pwin, GC gc, Pixmap buf)
+{
+	XUngrabKeyboard(dpy, CurrentTime);
+	XUngrabPointer(dpy, CurrentTime);
+	if (gc)
+		XFreeGC(dpy, gc);
+	if (buf)
+		XFreePixmap(dpy, buf);
+	if (pwin)
+		XDestroyWindow(dpy, pwin);
+	if (overlay)
+		XDestroyWindow(dpy, overlay);
+}
+
+static void
 handlepreviewbuttonpress(XButtonEvent *ev, Window pwin, int previewmode, int previeww, int previewh,
                          int maxoffset, int maxoffsety, int pad,
                          PreviewItem *items, int n, Client **stacklist, int scount, int *order,
@@ -2099,16 +2114,7 @@ previewscroll(const Arg *arg)
 	}
 
 preview_cleanup:
-		XUngrabKeyboard(dpy, CurrentTime);
-		XUngrabPointer(dpy, CurrentTime);
-		if (gc)
-			XFreeGC(dpy, gc);
-		if (buf)
-			XFreePixmap(dpy, buf);
-		if (pwin)
-			XDestroyWindow(dpy, pwin);
-		if (overlay)
-			XDestroyWindow(dpy, overlay);
+		releasepreviewui(overlay, pwin, gc, buf);
 
 	if (confirmed && selected >= 0 && selected < n) {
 		Client *target = items[order[selected]].c;
