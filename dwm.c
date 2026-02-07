@@ -4986,7 +4986,7 @@ clicktemp(const Arg *arg)
       thermalzoneindex = 0;
     }
     char thermal_str[30];
-    sprintf(thermal_str, "Thermal Zone: %d", thermalzoneindex);
+    snprintf(thermal_str, sizeof(thermal_str), "Thermal Zone: %d", thermalzoneindex);
     sendnotify(thermal_str, "normal", 3000);
   }
 }
@@ -5018,8 +5018,8 @@ clicknet(const Arg *arg)
     } else {
       interfaceindex = 0;
     }
-    char thermal_str[30];
-    sprintf(thermal_str, "Interface: %s", interface_name[interfaceindex]);
+    char thermal_str[64];
+    snprintf(thermal_str, sizeof(thermal_str), "Interface: %s", interface_name[interfaceindex]);
     sendnotify(thermal_str, "normal", 3000);
   }
 }
@@ -5088,6 +5088,10 @@ drawstatusclock(int x, Block *block, unsigned int timer)
 {
   time_t currentTime = time(NULL);
   struct tm *tm = localtime(&currentTime);
+  if (!tm) {
+    block->bw = 0;
+    return x;
+  }
   int hour = tm->tm_hour;
   int minute = tm->tm_min;
   char *meridiem = (hour < 12) ? "AM" : "PM";
@@ -5099,7 +5103,7 @@ drawstatusclock(int x, Block *block, unsigned int timer)
     hour -= 12;
   }
 
-  sprintf(stext, "%02d:%02d-%s", hour, minute, meridiem);
+  snprintf(stext, sizeof(stext), "%02d:%02d-%s", hour, minute, meridiem);
   block->bw = TEXTWSTATUS(stext);
   x -= block->bw;
   drw_text(statusdrw, x, 0, block->bw, bh, lrpad, stext, 0);
@@ -5310,12 +5314,12 @@ drawcpu(int x, Block *block, unsigned int timer)
 int
 drawtemp(int x, Block *block, unsigned int timer)
 {
-  static char temp[18];
+  static char temp[18] = "--\xC2\xB0C";
 
   if (timer % 5 == 0) {
         char temp_addr[40];
-        sprintf(temp_addr, "/sys/class/thermal/thermal_zone%d/temp",
-                thermalzoneindex);
+        snprintf(temp_addr, sizeof(temp_addr), "/sys/class/thermal/thermal_zone%d/temp",
+                 thermalzoneindex);
         FILE *fp = fopen(temp_addr, "r");
         if (fp == NULL) {
           block->bw = 0;
@@ -5328,7 +5332,7 @@ drawtemp(int x, Block *block, unsigned int timer)
         }
         fclose(fp);
         tmp = tmp / 1000;
-        sprintf(temp, "%d°C", tmp);
+        snprintf(temp, sizeof(temp), "%d\xC2\xB0C", tmp);
       }
 
   block->bw = TEXTWSTATUS(temp);
@@ -5421,10 +5425,10 @@ drawnet(int x, Block *block, unsigned int timer)
   char txpath[50];
   char rxpath[50];
   int null_width = 15;
-  sprintf(txpath, "/sys/class/net/%s/statistics/tx_bytes",
-          interface_name[interfaceindex]);
-  sprintf(rxpath, "/sys/class/net/%s/statistics/rx_bytes",
-          interface_name[interfaceindex]);
+  snprintf(txpath, sizeof(txpath), "/sys/class/net/%s/statistics/tx_bytes",
+           interface_name[interfaceindex]);
+  snprintf(rxpath, sizeof(rxpath), "/sys/class/net/%s/statistics/rx_bytes",
+           interface_name[interfaceindex]);
 
   FILE *fp = fopen(txpath, "r");
   if (fp == NULL) {
@@ -5466,23 +5470,23 @@ drawnet(int x, Block *block, unsigned int timer)
   f_arr[1] = rxi_tmp;
 
   if (txi < 1000) {
-    sprintf(tx, "%.2f B/s", txi);
+    snprintf(tx, sizeof(tx), "%.2f B/s", txi);
   } else if (txi < 1000 * 1000) {
-    sprintf(tx, "%.2f KB/s", txi / 1000);
+    snprintf(tx, sizeof(tx), "%.2f KB/s", txi / 1000);
   } else if (txi < 1000 * 1000 * 1000) {
-    sprintf(tx, "%.2f MB/s", txi / 1000 / 1000);
+    snprintf(tx, sizeof(tx), "%.2f MB/s", txi / 1000 / 1000);
   } else {
-    sprintf(tx, "%.2f GB/s", txi / 1000 / 1000 / 1000);
+    snprintf(tx, sizeof(tx), "%.2f GB/s", txi / 1000 / 1000 / 1000);
   }
 
   if (rxi < 1000) {
-    sprintf(rx, "%.2f B/s", rxi);
+    snprintf(rx, sizeof(rx), "%.2f B/s", rxi);
   } else if (rxi < 1000 * 1000) {
-    sprintf(rx, "%.2f KB/s", rxi / 1000);
+    snprintf(rx, sizeof(rx), "%.2f KB/s", rxi / 1000);
   } else if (rxi < 1000 * 1000 * 1000) {
-    sprintf(rx, "%.2f MB/s", rxi / 1000 / 1000);
+    snprintf(rx, sizeof(rx), "%.2f MB/s", rxi / 1000 / 1000);
   } else {
-    sprintf(rx, "%.2f GB/s", rxi / 1000 / 1000 / 1000);
+    snprintf(rx, sizeof(rx), "%.2f GB/s", rxi / 1000 / 1000 / 1000);
   }
 
   setstatussmallfont();
@@ -5538,8 +5542,8 @@ drawbattery(int x, Block *block, unsigned int timer)
       return x;  // Keep previous values on error
     }
     fclose(fp);
-    strcpy(bat_perc, capacity);
-    strcpy(bat_status, status);
+    snprintf(bat_perc, sizeof(bat_perc), "%s", capacity);
+    snprintf(bat_status, sizeof(bat_status), "%s", status);
     
   }
 
