@@ -3171,10 +3171,10 @@ removesystrayicon(Client *i)
 {
 	Client **ii;
 
-	if (!showsystray || !i)
+	if (!showsystray || !systray || !i)
 		return;
 	for (ii = &systray->icons; *ii && *ii != i; ii = &(*ii)->next);
-	if (ii)
+	if (*ii == i)
 		*ii = i->next;
 	free(i);
 }
@@ -4657,7 +4657,7 @@ updatesystrayiconstate(Client *i, XPropertyEvent *ev)
 	int code = 0;
 	Atom flags_atom = None;
 
-	if (!showsystray || !i || ev->atom != xatom[XembedInfo] ||
+	if (!showsystray || !systray || !i || ev->atom != xatom[XembedInfo] ||
 			!getatompropvalue(i, xatom[XembedInfo], &flags_atom))
 		return;
 	flags = (long)flags_atom;
@@ -4848,7 +4848,7 @@ Client *
 wintosystrayicon(Window w) {
 	Client *i = NULL;
 
-	if (!showsystray || !w)
+	if (!showsystray || !systray || !w)
 		return i;
 	for (i = systray->icons; i && i->win != w; i = i->next) ;
 	return i;
