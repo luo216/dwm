@@ -407,6 +407,7 @@ static int drawtemp(int x, Block *block, unsigned int timer);
 static int drawmem(int x, Block *block, unsigned int timer);
 static int drawmore(int x, Block *block, unsigned int timer);
 static int getstatuswidth(void);
+static int readullfromfile(const char *path, unsigned long long *value);
 static void spawnclickcmd(const char *const cmd[]);
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
@@ -4934,6 +4935,20 @@ spawnclickcmd(const char *const cmd[])
   spawn(&v);
 }
 
+static int
+readullfromfile(const char *path, unsigned long long *value)
+{
+  FILE *fp = fopen(path, "r");
+  if (!fp)
+    return 0;
+  if (fscanf(fp, "%llu", value) != 1) {
+    fclose(fp);
+    return 0;
+  }
+  fclose(fp);
+  return 1;
+}
+
 void
 clicktemp(const Arg *arg)
 {
@@ -5374,35 +5389,15 @@ drawnet(int x, Block *block, unsigned int timer)
   snprintf(rxpath, sizeof(rxpath), "/sys/class/net/%s/statistics/rx_bytes",
            interface_name[interfaceindex]);
 
-  FILE *fp = fopen(txpath, "r");
-  if (fp == NULL) {
+  unsigned long long txbytes = 0;
+  unsigned long long rxbytes = 0;
+  if (!readullfromfile(txpath, &txbytes) || !readullfromfile(rxpath, &rxbytes)) {
     x -= null_width;
     block->bw = null_width;
     return x;
   }
-  if (fscanf(fp, "%19s", tx) != 1) {
-    fclose(fp);
-    x -= null_width;
-    block->bw = null_width;
-    return x;
-  }
-  fclose(fp);
-  fp = fopen(rxpath, "r");
-  if (fp == NULL) {
-    x -= null_width;
-    block->bw = null_width;
-    return x;
-  }
-  if (fscanf(fp, "%19s", rx) != 1) {
-    fclose(fp);
-    x -= null_width;
-    block->bw = null_width;
-    return x;
-  }
-  fclose(fp);
-
-  float txi = atof(tx);
-  float rxi = atof(rx);
+  float txi = (float)txbytes;
+  float rxi = (float)rxbytes;
   float txi_tmp = txi;
   float rxi_tmp = rxi;
   float *f_arr = block->storage;
