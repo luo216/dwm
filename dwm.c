@@ -5179,7 +5179,7 @@ drawstatusclock(int x, Block *block, unsigned int timer)
   int hour = tm->tm_hour;
   int minute = tm->tm_min;
   char *meridiem = (hour < 12) ? "AM" : "PM";
-  char stext[20];
+  char clocktext[20];
 
   if (hour == 0) {
     hour = 12;
@@ -5187,10 +5187,10 @@ drawstatusclock(int x, Block *block, unsigned int timer)
     hour -= 12;
   }
 
-  snprintf(stext, sizeof(stext), "%02d:%02d-%s", hour, minute, meridiem);
-  block->bw = TEXTWSTATUS(stext);
+  snprintf(clocktext, sizeof(clocktext), "%02d:%02d-%s", hour, minute, meridiem);
+  block->bw = TEXTWSTATUS(clocktext);
   x -= block->bw;
-  drw_text(statusdrw, x, 0, block->bw, bh, lrpad, stext, 0);
+  drw_text(statusdrw, x, 0, block->bw, bh, lrpad, clocktext, 0);
   return x;
 }
 
