@@ -1555,6 +1555,33 @@ handlepreviewkeypress(KeySym ks, Monitor *m, Window pwin, Pixmap *buf,
 	return 1;
 }
 
+static int
+dispatchpreviewevent(XEvent *ev, Monitor *m, Window pwin, Pixmap *buf,
+                     int *previewmode, int *previeww, int *previewh,
+                     PreviewItem *items, int n, int pad, Client **stacklist, int scount, int *order, int *selected,
+                     int saved_minx, int saved_miny, float saved_scale,
+                     int *totalw, int *totalh, int *maxoffset, int *maxoffsety,
+                     int *offset, int *offsety, int *running, int *confirmed, int *needredraw, int *needblit)
+{
+	if (ev->type == KeyPress) {
+		KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev->xkey.keycode, 0);
+		return handlepreviewkeypress(ks, m, pwin, buf, previewmode, previeww, previewh,
+		                            items, n, pad, order, selected,
+		                            saved_minx, saved_miny, saved_scale,
+		                            totalw, totalh, maxoffset, maxoffsety, offset, offsety,
+		                            running, confirmed, needredraw);
+	}
+	if (ev->type == ButtonPress) {
+		handlepreviewbuttonpress(&ev->xbutton, pwin, *previewmode, *previeww, *previewh, *maxoffset, *maxoffsety, pad,
+		                        items, n, stacklist, scount, order,
+		                        offset, offsety, selected, running, confirmed, needredraw);
+		return 1;
+	}
+	if (ev->type == Expose && ev->xexpose.window == pwin)
+		*needblit = 1;
+	return 1;
+}
+
 static Client **
 buildvisiblepreviewstack(Monitor *m, int *scount)
 {
@@ -2040,21 +2067,12 @@ previewscroll(const Arg *arg)
 		XNextEvent(dpy, &ev);
 		needblit = 0;
 
-		if (ev.type == KeyPress) {
-			KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev.xkey.keycode, 0);
-			if (!handlepreviewkeypress(ks, m, pwin, &buf, &previewmode, &previeww, &previewh,
-			                          items, n, pad, order, &selected,
-			                          saved_minx, saved_miny, saved_scale,
-			                          &totalw, &totalh, &maxoffset, &maxoffsety, &offset, &offsety,
-			                          &running, &confirmed, &needredraw))
-				goto preview_cleanup;
-		} else if (ev.type == ButtonPress) {
-			handlepreviewbuttonpress(&ev.xbutton, pwin, previewmode, previeww, previewh, maxoffset, maxoffsety, pad,
-			                        items, n, stacklist, scount, order,
-			                        &offset, &offsety, &selected, &running, &confirmed, &needredraw);
-		} else if (ev.type == Expose && ev.xexpose.window == pwin) {
-			needblit = 1;
-		}
+		if (!dispatchpreviewevent(&ev, m, pwin, &buf, &previewmode, &previeww, &previewh,
+		                         items, n, pad, stacklist, scount, order, &selected,
+		                         saved_minx, saved_miny, saved_scale,
+		                         &totalw, &totalh, &maxoffset, &maxoffsety,
+		                         &offset, &offsety, &running, &confirmed, &needredraw, &needblit))
+			goto preview_cleanup;
 
 		/* keep newly selected item visible */
 		if (selected != lastselected) {
