@@ -286,6 +286,7 @@ static void focusonclick(const Arg *arg);
 static void focusstep(const Arg *arg);
 static void focusstepvisible(const Arg *arg);
 static Atom getatomprop(Client *c, Atom prop);
+static int getatompropvalue(Client *c, Atom prop, Atom *value);
 static int getrootptr(int *x, int *y);
 static long getstate(Window w);
 static unsigned int getsystraywidth();
@@ -2630,25 +2631,39 @@ focusin(XEvent *e)
 Atom
 getatomprop(Client *c, Atom prop)
 {
-	int di;
-	unsigned long dl;
-	unsigned char *p = NULL;
-	Atom da, atom = None;
-
-	/* FIXME getatomprop should return the number of items and a pointer to
-	 * the stored data instead of this workaround */
-	Atom req = XA_ATOM;
-	if (prop == xatom[XembedInfo])
-		req = xatom[XembedInfo];
-
-	if (XGetWindowProperty(dpy, c->win, prop, 0L, sizeof atom, False, req,
-		&da, &di, &dl, &dl, &p) == Success && p) {
-		atom = *(Atom *)p;
-		if (da == xatom[XembedInfo] && dl == 2)
-			atom = ((Atom *)p)[1];
-		XFree(p);
-	}
+	Atom atom = None;
+	if (!getatompropvalue(c, prop, &atom))
+		return None;
 	return atom;
+}
+
+int
+getatompropvalue(Client *c, Atom prop, Atom *value)
+{
+	int format;
+	unsigned long nitems, bytes_after;
+	unsigned char *p = NULL;
+	Atom actual_type;
+	Atom req = (prop == xatom[XembedInfo]) ? xatom[XembedInfo] : XA_ATOM;
+	unsigned long long_length = (prop == xatom[XembedInfo]) ? 2 : 1;
+
+	if (!c || !value)
+		return 0;
+	*value = None;
+
+	if (XGetWindowProperty(dpy, c->win, prop, 0L, long_length, False, req,
+	                       &actual_type, &format, &nitems, &bytes_after, &p) != Success || !p)
+		return 0;
+
+	if (format == 32 && nitems > 0) {
+		Atom *atoms = (Atom *)p;
+		*value = atoms[0];
+		if (prop == xatom[XembedInfo] && nitems >= 2)
+			*value = atoms[1];
+	}
+
+	XFree(p);
+	return 1;
 }
 
 unsigned int
@@ -4627,10 +4642,12 @@ updatesystrayiconstate(Client *i, XPropertyEvent *ev)
 {
 	long flags;
 	int code = 0;
+	Atom flags_atom = None;
 
 	if (!showsystray || !i || ev->atom != xatom[XembedInfo] ||
-			!(flags = getatomprop(i, xatom[XembedInfo])))
+			!getatompropvalue(i, xatom[XembedInfo], &flags_atom))
 		return;
+	flags = (long)flags_atom;
 
 	if (flags & XEMBED_MAPPED && i->tagindex == -1) {
 		i->tagindex = 0;
