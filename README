@@ -24,7 +24,7 @@ required):
 
 You can also spin up a Xephyr test session if `Xephyr` is installed:
 
-    make test
+    dwm-test
 
 Nix Development
 ---------------
@@ -36,7 +36,7 @@ environment:
 To compile and run tests in the Nix environment:
 
     nix develop -c make clean install
-    nix develop -c make test  # Start Xephyr virtual display for testing
+    nix develop -c dwm-test  # Start Xephyr virtual display for testing
 
 Running
 -------

@@ -42,13 +42,4 @@ uninstall:
 	rm -f ${DESTDIR}${PREFIX}/bin/dwm\
 		${DESTDIR}${MANPREFIX}/man1/dwm.1
 
-test: all
-	@if [ -f ./test_dwm.sh ]; then \
-		echo "Starting DWM test environment..."; \
-		./test_dwm.sh; \
-	else \
-		echo "Error: test_dwm.sh not found in current directory"; \
-		exit 1; \
-	fi
-
-.PHONY: all clean dist install uninstall test
+.PHONY: all clean dist install uninstall
