@@ -1439,6 +1439,42 @@ blitpreviewifneeded(Window pwin, Pixmap buf, GC gc, int previeww, int previewh, 
 		XCopyArea(dpy, buf, pwin, gc, 0, 0, previeww, previewh, 0, 0);
 }
 
+static void
+handlepreviewbuttonpress(XButtonEvent *ev, Window pwin, int previewmode, int previeww, int previewh,
+                         int maxoffset, int maxoffsety, int pad,
+                         PreviewItem *items, int n, Client **stacklist, int scount, int *order,
+                         int *offset, int *offsety, int *selected, int *running, int *confirmed, int *needredraw)
+{
+	if (ev->button == Button4) {
+		scrollpreviewoffset(previewmode, -1, previeww, previewh, maxoffset, maxoffsety, offset, offsety);
+		*needredraw = 1;
+		return;
+	}
+	if (ev->button == Button5) {
+		scrollpreviewoffset(previewmode, 1, previeww, previewh, maxoffset, maxoffsety, offset, offsety);
+		*needredraw = 1;
+		return;
+	}
+	if (ev->button != Button1 || ev->window != pwin)
+		return;
+
+	int cx = ev->x + *offset - pad;
+	int cy = ev->y + *offsety - pad;
+	int hit = findpreviewhit(items, n, stacklist, scount, cx, cy);
+	if (hit < 0)
+		return;
+
+	int hitorder = findorderindex(order, n, hit);
+	if (hitorder < 0)
+		return;
+	if (hitorder == *selected) {
+		setpreviewexit(1, running, confirmed);
+	} else {
+		*selected = hitorder;
+		*needredraw = 1;
+	}
+}
+
 static Client **
 buildvisiblepreviewstack(Monitor *m, int *scount)
 {
@@ -1969,28 +2005,9 @@ previewscroll(const Arg *arg)
 				}
 			}
 		} else if (ev.type == ButtonPress) {
-			if (ev.xbutton.button == Button4) {
-				scrollpreviewoffset(previewmode, -1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
-				needredraw = 1;
-			} else if (ev.xbutton.button == Button5) {
-				scrollpreviewoffset(previewmode, 1, previeww, previewh, maxoffset, maxoffsety, &offset, &offsety);
-				needredraw = 1;
-			} else if (ev.xbutton.button == Button1 && ev.xbutton.window == pwin) {
-				int cx = ev.xbutton.x + offset - pad;
-				int cy = ev.xbutton.y + offsety - pad;
-				int hit = findpreviewhit(items, n, stacklist, scount, cx, cy);
-				if (hit >= 0) {
-					int hitorder = findorderindex(order, n, hit);
-					if (hitorder >= 0) {
-						if (hitorder == selected) {
-							setpreviewexit(1, &running, &confirmed);
-						} else {
-							selected = hitorder;
-							needredraw = 1;
-						}
-					}
-				}
-			}
+			handlepreviewbuttonpress(&ev.xbutton, pwin, previewmode, previeww, previewh, maxoffset, maxoffsety, pad,
+			                        items, n, stacklist, scount, order,
+			                        &offset, &offsety, &selected, &running, &confirmed, &needredraw);
 		} else if (ev.type == Expose && ev.xexpose.window == pwin) {
 			needblit = 1;
 		}
