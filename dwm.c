@@ -2659,12 +2659,15 @@ getatompropvalue(Client *c, Atom prop, Atom *value)
 	                       &actual_type, &format, &nitems, &bytes_after, &p) != Success || !p)
 		return 0;
 
-	if (format == 32 && nitems > 0) {
-		Atom *atoms = (Atom *)p;
-		*value = atoms[0];
-		if (prop == xatom[XembedInfo] && nitems >= 2)
-			*value = atoms[1];
+	if (actual_type != req || format != 32 || nitems == 0) {
+		XFree(p);
+		return 0;
 	}
+
+	Atom *atoms = (Atom *)p;
+	*value = atoms[0];
+	if (prop == xatom[XembedInfo] && nitems >= 2)
+		*value = atoms[1];
 
 	XFree(p);
 	return 1;
