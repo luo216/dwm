@@ -409,6 +409,7 @@ static int drawmore(int x, Block *block, unsigned int timer);
 static int getstatuswidth(void);
 static int readullfromfile(const char *path, unsigned long long *value);
 static int readwordfromfile(const char *path, char *buf, size_t bufsz);
+static void formatspeed(float value, char *buf, size_t bufsz);
 static void spawnclickcmd(const char *const cmd[]);
 static void handleStatus1(const Arg *arg);
 static void handleStatus2(const Arg *arg);
@@ -4965,6 +4966,20 @@ readwordfromfile(const char *path, char *buf, size_t bufsz)
   return buf[0] != '\0';
 }
 
+static void
+formatspeed(float value, char *buf, size_t bufsz)
+{
+  if (value < 1000) {
+    snprintf(buf, bufsz, "%.2f B/s", value);
+  } else if (value < 1000 * 1000) {
+    snprintf(buf, bufsz, "%.2f KB/s", value / 1000);
+  } else if (value < 1000 * 1000 * 1000) {
+    snprintf(buf, bufsz, "%.2f MB/s", value / 1000 / 1000);
+  } else {
+    snprintf(buf, bufsz, "%.2f GB/s", value / 1000 / 1000 / 1000);
+  }
+}
+
 void
 clicktemp(const Arg *arg)
 {
@@ -5424,25 +5439,8 @@ drawnet(int x, Block *block, unsigned int timer)
   f_arr[0] = txi_tmp;
   f_arr[1] = rxi_tmp;
 
-  if (txi < 1000) {
-    snprintf(tx, sizeof(tx), "%.2f B/s", txi);
-  } else if (txi < 1000 * 1000) {
-    snprintf(tx, sizeof(tx), "%.2f KB/s", txi / 1000);
-  } else if (txi < 1000 * 1000 * 1000) {
-    snprintf(tx, sizeof(tx), "%.2f MB/s", txi / 1000 / 1000);
-  } else {
-    snprintf(tx, sizeof(tx), "%.2f GB/s", txi / 1000 / 1000 / 1000);
-  }
-
-  if (rxi < 1000) {
-    snprintf(rx, sizeof(rx), "%.2f B/s", rxi);
-  } else if (rxi < 1000 * 1000) {
-    snprintf(rx, sizeof(rx), "%.2f KB/s", rxi / 1000);
-  } else if (rxi < 1000 * 1000 * 1000) {
-    snprintf(rx, sizeof(rx), "%.2f MB/s", rxi / 1000 / 1000);
-  } else {
-    snprintf(rx, sizeof(rx), "%.2f GB/s", rxi / 1000 / 1000 / 1000);
-  }
+  formatspeed(txi, tx, sizeof(tx));
+  formatspeed(rxi, rx, sizeof(rx));
 
   setstatussmallfont();
   unsigned int font_w, font_h;
