@@ -1379,14 +1379,24 @@ findpreviewhit(PreviewItem *items, int n, Client **stacklist, int scount, int cx
 }
 
 static void
-keeppreviewselectedvisible(PreviewItem *items, int *order, int selected, int previeww, int pad, int maxoffset, int *offset)
+keeppreviewselectedvisible(PreviewItem *items, int *order, int selected, int previewmode,
+                           int previeww, int previewh, int pad, int maxoffset, int maxoffsety, int *offset, int *offsety)
 {
-	int sx = items[order[selected]].x;
-	if (sx - *offset < pad)
-		*offset = sx - pad;
-	if (items[order[selected]].x + items[order[selected]].w - *offset > previeww - pad)
-		*offset = items[order[selected]].x + items[order[selected]].w - (previeww - pad);
-	clampint(offset, 0, maxoffset);
+	if (previewmode == PREVIEW_GRID) {
+		int sy = items[order[selected]].y;
+		if (sy - *offsety < pad)
+			*offsety = sy - pad;
+		if (items[order[selected]].y + items[order[selected]].h - *offsety > previewh - pad)
+			*offsety = items[order[selected]].y + items[order[selected]].h - (previewh - pad);
+		clampint(offsety, 0, maxoffsety);
+	} else {
+		int sx = items[order[selected]].x;
+		if (sx - *offset < pad)
+			*offset = sx - pad;
+		if (items[order[selected]].x + items[order[selected]].w - *offset > previeww - pad)
+			*offset = items[order[selected]].x + items[order[selected]].w - (previeww - pad);
+		clampint(offset, 0, maxoffset);
+	}
 }
 
 static void
@@ -2076,7 +2086,8 @@ previewscroll(const Arg *arg)
 
 		/* keep newly selected item visible */
 		if (selected != lastselected) {
-			keeppreviewselectedvisible(items, order, selected, previeww, pad, maxoffset, &offset);
+			keeppreviewselectedvisible(items, order, selected, previewmode, previeww, previewh, pad,
+			                          maxoffset, maxoffsety, &offset, &offsety);
 			lastselected = selected;
 			needredraw = 1;
 		}
