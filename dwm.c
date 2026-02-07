@@ -1416,6 +1416,23 @@ blitpreviewifneeded(Window pwin, Pixmap buf, GC gc, int previeww, int previewh, 
 		XCopyArea(dpy, buf, pwin, gc, 0, 0, previeww, previewh, 0, 0);
 }
 
+static Client **
+buildvisiblepreviewstack(Monitor *m, int *scount)
+{
+	Client *c;
+	*scount = 0;
+	for (c = m->stack; c; c = c->snext)
+		if (ISVISIBLE(c))
+			(*scount)++;
+
+	Client **stacklist = ecalloc(*scount, sizeof(Client *));
+	int si = 0;
+	for (c = m->stack; c; c = c->snext)
+		if (ISVISIBLE(c))
+			stacklist[si++] = c;
+	return stacklist;
+}
+
 static void
 arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
 {
@@ -1852,15 +1869,8 @@ previewscroll(const Arg *arg)
 	if (!gc)
 		goto preview_cleanup;
 
-	int scount = 0;
-	for (c = m->stack; c; c = c->snext)
-		if (ISVISIBLE(c))
-			scount++;
-	stacklist = ecalloc(scount, sizeof(Client *));
-	int si = 0;
-	for (c = m->stack; c; c = c->snext)
-		if (ISVISIBLE(c))
-			stacklist[si++] = c;
+		int scount = 0;
+		stacklist = buildvisiblepreviewstack(m, &scount);
 
 	int running = 1;
 	int lastselected = selected;
