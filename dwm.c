@@ -1396,6 +1396,27 @@ setpreviewexit(int confirmed_value, int *running, int *confirmed)
 }
 
 static void
+redrawpreviewifneeded(Window pwin, Pixmap buf, GC gc, PreviewItem *items, int n,
+                      Client **stacklist, int scount, int offset, int offsety, int pad,
+                      int previeww, int previewh, int *order, int selected,
+                      int totalw, int totalh, int previewmode, int *drawn, int *needredraw)
+{
+	if (!*needredraw)
+		return;
+	drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad, previeww, previewh,
+	            order, selected, totalw, totalh, previewmode);
+	*drawn = 1;
+	*needredraw = 0;
+}
+
+static void
+blitpreviewifneeded(Window pwin, Pixmap buf, GC gc, int previeww, int previewh, int drawn, int needblit)
+{
+	if (needblit && drawn)
+		XCopyArea(dpy, buf, pwin, gc, 0, 0, previeww, previewh, 0, 0);
+}
+
+static void
 arrangePreviewsGrid(PreviewItem *items, int n, int pad, int previeww, int previewh, int *totalh, int *totalw)
 {
 	if (n == 1) {
@@ -1942,14 +1963,11 @@ previewscroll(const Arg *arg)
 				needredraw = 1;
 			}
 
-		if (needredraw) {
-			drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad, previeww, previewh, order, selected, totalw, totalh, previewmode);
-			drawn = 1;
-			needredraw = 0;
-		} else if (needblit && drawn) {
-			XCopyArea(dpy, buf, pwin, gc, 0, 0, previeww, previewh, 0, 0);
+			redrawpreviewifneeded(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad,
+			                     previeww, previewh, order, selected, totalw, totalh, previewmode,
+			                     &drawn, &needredraw);
+			blitpreviewifneeded(pwin, buf, gc, previeww, previewh, drawn, needblit);
 		}
-	}
 
 preview_cleanup:
 		XUngrabKeyboard(dpy, CurrentTime);
