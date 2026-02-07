@@ -1537,10 +1537,13 @@ handlepreviewkeypress(KeySym ks, Monitor *m, Window pwin, Pixmap *buf,
 		return 1;
 	}
 	if (ks == XK_Tab) {
-		return togglepreviewmode(m, pwin, buf, previewmode, previeww, previewh,
-		                        items, n, pad, order, *selected,
-		                        saved_minx, saved_miny, saved_scale,
-		                        totalw, totalh, maxoffset, maxoffsety, offset, offsety);
+		if (!togglepreviewmode(m, pwin, buf, previewmode, previeww, previewh,
+		                      items, n, pad, order, *selected,
+		                      saved_minx, saved_miny, saved_scale,
+		                      totalw, totalh, maxoffset, maxoffsety, offset, offsety))
+			return 0;
+		*needredraw = 1;
+		return 1;
 	}
 
 	int dirx = 0, diry = 0;
