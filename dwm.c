@@ -5042,6 +5042,8 @@ readullfromfile(const char *path, unsigned long long *value)
 static int
 readwordfromfile(const char *path, char *buf, size_t bufsz)
 {
+  if (!path || !buf || bufsz == 0)
+    return 0;
   FILE *fp = fopen(path, "r");
   if (!fp)
     return 0;
