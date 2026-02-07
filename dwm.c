@@ -1511,6 +1511,38 @@ togglepreviewmode(Monitor *m, Window pwin, Pixmap *buf, int *previewmode, int *p
 	return 1;
 }
 
+static int
+handlepreviewkeypress(KeySym ks, Monitor *m, Window pwin, Pixmap *buf,
+                      int *previewmode, int *previeww, int *previewh,
+                      PreviewItem *items, int n, int pad, int *order, int *selected,
+                      int saved_minx, int saved_miny, float saved_scale,
+                      int *totalw, int *totalh, int *maxoffset, int *maxoffsety,
+                      int *offset, int *offsety, int *running, int *confirmed, int *needredraw)
+{
+	if (ks == XK_Escape) {
+		setpreviewexit(0, running, confirmed);
+		return 1;
+	}
+	if (ks == XK_Return || ks == XK_space) {
+		setpreviewexit(1, running, confirmed);
+		return 1;
+	}
+	if (ks == XK_Tab) {
+		return togglepreviewmode(m, pwin, buf, previewmode, previeww, previewh,
+		                        items, n, pad, order, *selected,
+		                        saved_minx, saved_miny, saved_scale,
+		                        totalw, totalh, maxoffset, maxoffsety, offset, offsety);
+	}
+
+	int dirx = 0, diry = 0;
+	if (previewkeydirection(ks, &dirx, &diry)) {
+		int best_index = findpreviewneighbor(items, order, n, *selected, dirx, diry);
+		applypreviewselection(best_index, selected, needredraw, *previewmode,
+		                    items, order, *previewh, *maxoffsety, offsety);
+	}
+	return 1;
+}
+
 static Client **
 buildvisiblepreviewstack(Monitor *m, int *scount)
 {
@@ -2003,25 +2035,12 @@ previewscroll(const Arg *arg)
 
 		if (ev.type == KeyPress) {
 			KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev.xkey.keycode, 0);
-			if (ks == XK_Escape) {
-				setpreviewexit(0, &running, &confirmed);
-			} else if (ks == XK_Return || ks == XK_space) {
-				setpreviewexit(1, &running, &confirmed);
-			} else if (ks == XK_Tab) {
-				if (!togglepreviewmode(m, pwin, &buf, &previewmode, &previeww, &previewh,
-				                      items, n, pad, order, selected,
-				                      saved_minx, saved_miny, saved_scale,
-				                      &totalw, &totalh, &maxoffset, &maxoffsety, &offset, &offsety))
-					goto preview_cleanup;
-				needredraw = 1;
-			} else {
-				int dirx = 0, diry = 0;
-				if (previewkeydirection(ks, &dirx, &diry)) {
-					int best_index = findpreviewneighbor(items, order, n, selected, dirx, diry);
-					applypreviewselection(best_index, &selected, &needredraw, previewmode,
-					                    items, order, previewh, maxoffsety, &offsety);
-				}
-			}
+			if (!handlepreviewkeypress(ks, m, pwin, &buf, &previewmode, &previeww, &previewh,
+			                          items, n, pad, order, &selected,
+			                          saved_minx, saved_miny, saved_scale,
+			                          &totalw, &totalh, &maxoffset, &maxoffsety, &offset, &offsety,
+			                          &running, &confirmed, &needredraw))
+				goto preview_cleanup;
 		} else if (ev.type == ButtonPress) {
 			handlepreviewbuttonpress(&ev.xbutton, pwin, previewmode, previeww, previewh, maxoffset, maxoffsety, pad,
 			                        items, n, stacklist, scount, order,
