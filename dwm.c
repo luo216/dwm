@@ -1437,9 +1437,9 @@ computepreviewwindowgeom(Monitor *m, int previewmode, int scroll_previeww, int *
 }
 
 static void
-setpreviewexit(int confirmed_value, int *running, int *confirmed)
+setpreviewexit(int confirmed_value, int *preview_running, int *confirmed)
 {
-	*running = 0;
+	*preview_running = 0;
 	*confirmed = confirmed_value;
 }
 
@@ -1447,12 +1447,12 @@ static void
 redrawpreviewifneeded(Window pwin, Pixmap buf, GC gc, PreviewItem *items, int n,
                       Client **stacklist, int scount, int offset, int offsety, int pad,
                       int previeww, int previewh, int *order, int selected,
-                      int totalw, int totalh, int previewmode, int *drawn, int *needredraw)
+                      int totalw, int totalh, int mode, int *drawn, int *needredraw)
 {
 	if (!*needredraw)
 		return;
 	drawpreview(pwin, buf, gc, items, n, stacklist, scount, offset, offsety, pad, previeww, previewh,
-	            order, selected, totalw, totalh, previewmode);
+	            order, selected, totalw, totalh, mode);
 	*drawn = 1;
 	*needredraw = 0;
 }
@@ -1480,18 +1480,18 @@ releasepreviewui(Window overlay, Window pwin, GC gc, Pixmap buf)
 }
 
 static void
-handlepreviewbuttonpress(XButtonEvent *ev, Window pwin, int previewmode, int previeww, int previewh,
+handlepreviewbuttonpress(XButtonEvent *ev, Window pwin, int mode, int previeww, int previewh,
                          int maxoffset, int maxoffsety, int pad,
                          PreviewItem *items, int n, Client **stacklist, int scount, int *order,
-                         int *offset, int *offsety, int *selected, int *running, int *confirmed, int *needredraw)
+                         int *offset, int *offsety, int *selected, int *preview_running, int *confirmed, int *needredraw)
 {
 	if (ev->button == Button4) {
-		scrollpreviewoffset(previewmode, -1, previeww, previewh, maxoffset, maxoffsety, offset, offsety);
+		scrollpreviewoffset(mode, -1, previeww, previewh, maxoffset, maxoffsety, offset, offsety);
 		*needredraw = 1;
 		return;
 	}
 	if (ev->button == Button5) {
-		scrollpreviewoffset(previewmode, 1, previeww, previewh, maxoffset, maxoffsety, offset, offsety);
+		scrollpreviewoffset(mode, 1, previeww, previewh, maxoffset, maxoffsety, offset, offsety);
 		*needredraw = 1;
 		return;
 	}
@@ -1508,7 +1508,7 @@ handlepreviewbuttonpress(XButtonEvent *ev, Window pwin, int previewmode, int pre
 	if (hitorder < 0)
 		return;
 	if (hitorder == *selected) {
-		setpreviewexit(1, running, confirmed);
+		setpreviewexit(1, preview_running, confirmed);
 	} else {
 		*selected = hitorder;
 		*needredraw = 1;
@@ -1516,17 +1516,17 @@ handlepreviewbuttonpress(XButtonEvent *ev, Window pwin, int previewmode, int pre
 }
 
 static int
-togglepreviewmode(Monitor *m, Window pwin, Pixmap *buf, int *previewmode, int *previeww, int *previewh,
+togglepreviewmode(Monitor *m, Window pwin, Pixmap *buf, int *mode, int *previeww, int *previewh,
                   PreviewItem *items, int n, int pad, int *order, int selected,
                   int saved_minx, int saved_miny, float saved_scale,
                   int *totalw, int *totalh, int *maxoffset, int *maxoffsety, int *offset, int *offsety)
 {
-	*previewmode = (*previewmode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
+	*mode = (*mode == PREVIEW_SCROLL) ? PREVIEW_GRID : PREVIEW_SCROLL;
 	int new_previeww = 0;
 	int new_previewh = 0;
 	int new_px = 0;
 	int new_py = 0;
-	computepreviewwindowgeom(m, *previewmode, *previeww, &new_previeww, &new_previewh, &new_px, &new_py);
+	computepreviewwindowgeom(m, *mode, *previeww, &new_previeww, &new_previewh, &new_px, &new_py);
 	XMoveResizeWindow(dpy, pwin, new_px, new_py, new_previeww, new_previewh);
 	*previewh = new_previewh;
 	*previeww = new_previeww;
@@ -1535,7 +1535,7 @@ togglepreviewmode(Monitor *m, Window pwin, Pixmap *buf, int *previewmode, int *p
 	if (!*buf)
 		return 0;
 
-	if (*previewmode == PREVIEW_GRID) {
+	if (*mode == PREVIEW_GRID) {
 		arrangePreviewsGrid(items, n, gappx, *previeww, *previewh, totalh, totalw);
 		*offset = 0;
 		*offsety = 0;
@@ -1551,22 +1551,22 @@ togglepreviewmode(Monitor *m, Window pwin, Pixmap *buf, int *previewmode, int *p
 
 static int
 handlepreviewkeypress(KeySym ks, Monitor *m, Window pwin, Pixmap *buf,
-                      int *previewmode, int *previeww, int *previewh,
+                      int *mode, int *previeww, int *previewh,
                       PreviewItem *items, int n, int pad, int *order, int *selected,
                       int saved_minx, int saved_miny, float saved_scale,
                       int *totalw, int *totalh, int *maxoffset, int *maxoffsety,
-                      int *offset, int *offsety, int *running, int *confirmed, int *needredraw)
+                      int *offset, int *offsety, int *preview_running, int *confirmed, int *needredraw)
 {
 	if (ks == XK_Escape) {
-		setpreviewexit(0, running, confirmed);
+		setpreviewexit(0, preview_running, confirmed);
 		return 1;
 	}
 	if (ks == XK_Return || ks == XK_space) {
-		setpreviewexit(1, running, confirmed);
+		setpreviewexit(1, preview_running, confirmed);
 		return 1;
 	}
 	if (ks == XK_Tab) {
-		if (!togglepreviewmode(m, pwin, buf, previewmode, previeww, previewh,
+		if (!togglepreviewmode(m, pwin, buf, mode, previeww, previewh,
 		                      items, n, pad, order, *selected,
 		                      saved_minx, saved_miny, saved_scale,
 		                      totalw, totalh, maxoffset, maxoffsety, offset, offsety))
@@ -1578,7 +1578,7 @@ handlepreviewkeypress(KeySym ks, Monitor *m, Window pwin, Pixmap *buf,
 	int dirx = 0, diry = 0;
 	if (previewkeydirection(ks, &dirx, &diry)) {
 		int best_index = findpreviewneighbor(items, order, n, *selected, dirx, diry);
-		applypreviewselection(best_index, selected, needredraw, *previewmode,
+		applypreviewselection(best_index, selected, needredraw, *mode,
 		                    items, order, *previewh, *maxoffsety, offsety);
 	}
 	return 1;
@@ -1586,24 +1586,24 @@ handlepreviewkeypress(KeySym ks, Monitor *m, Window pwin, Pixmap *buf,
 
 static int
 dispatchpreviewevent(XEvent *ev, Monitor *m, Window pwin, Pixmap *buf,
-                     int *previewmode, int *previeww, int *previewh,
+                     int *mode, int *previeww, int *previewh,
                      PreviewItem *items, int n, int pad, Client **stacklist, int scount, int *order, int *selected,
                      int saved_minx, int saved_miny, float saved_scale,
                      int *totalw, int *totalh, int *maxoffset, int *maxoffsety,
-                     int *offset, int *offsety, int *running, int *confirmed, int *needredraw, int *needblit)
+                     int *offset, int *offsety, int *preview_running, int *confirmed, int *needredraw, int *needblit)
 {
 	if (ev->type == KeyPress) {
 		KeySym ks = XKeycodeToKeysym(dpy, (KeyCode)ev->xkey.keycode, 0);
-		return handlepreviewkeypress(ks, m, pwin, buf, previewmode, previeww, previewh,
+		return handlepreviewkeypress(ks, m, pwin, buf, mode, previeww, previewh,
 		                            items, n, pad, order, selected,
 		                            saved_minx, saved_miny, saved_scale,
 		                            totalw, totalh, maxoffset, maxoffsety, offset, offsety,
-		                            running, confirmed, needredraw);
+		                            preview_running, confirmed, needredraw);
 	}
 	if (ev->type == ButtonPress) {
-		handlepreviewbuttonpress(&ev->xbutton, pwin, *previewmode, *previeww, *previewh, *maxoffset, *maxoffsety, pad,
+		handlepreviewbuttonpress(&ev->xbutton, pwin, *mode, *previeww, *previewh, *maxoffset, *maxoffsety, pad,
 		                        items, n, stacklist, scount, order,
-		                        offset, offsety, selected, running, confirmed, needredraw);
+		                        offset, offsety, selected, preview_running, confirmed, needredraw);
 		return 1;
 	}
 	if (ev->type == Expose && ev->xexpose.window == pwin)
@@ -2079,7 +2079,7 @@ previewscroll(const Arg *arg)
 	int scount = 0;
 	stacklist = buildvisiblepreviewstack(m, &scount);
 
-	int running = 1;
+	int preview_running = 1;
 	int lastselected = selected;
 	buf = XCreatePixmap(dpy, pwin, previeww, previewh, DefaultDepth(dpy, screen));
 	if (!buf)
@@ -2091,7 +2091,7 @@ previewscroll(const Arg *arg)
 	drawn = 1;
 	needredraw = 0;
 
-	while (running) {
+	while (preview_running) {
 		XEvent ev;
 		XNextEvent(dpy, &ev);
 		needblit = 0;
@@ -2100,7 +2100,7 @@ previewscroll(const Arg *arg)
 		                         items, n, pad, stacklist, scount, order, &selected,
 		                         saved_minx, saved_miny, saved_scale,
 		                         &totalw, &totalh, &maxoffset, &maxoffsety,
-		                         &offset, &offsety, &running, &confirmed, &needredraw, &needblit))
+		                         &offset, &offsety, &preview_running, &confirmed, &needredraw, &needblit))
 			goto preview_cleanup;
 
 		/* keep newly selected item visible */
