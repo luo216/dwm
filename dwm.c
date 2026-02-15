@@ -165,7 +165,6 @@ typedef struct Scroll Scroll;
 struct Scroll {
 	Client *head;
 	int x;
-	int singlefill; /* 1 表示单窗铺满，0 表示居中缩小 */
 };
 
 struct Monitor {
@@ -5001,7 +5000,8 @@ scroll(Monitor *m)
 			if (c->isfloating)
 				continue;
 
-			if (m->scrollindex->singlefill) {
+			if (c->mfact >= 0.95f) {
+				/* fill mode: window fills the screen with gaps */
 				x = m->wx + gappx;
 				w = m->ww - 2 * gappx;
 				if (w < 100)
@@ -5009,9 +5009,9 @@ scroll(Monitor *m)
 				h = m->wh - 2 * scrollstartgap;
 				y = m->wy + scrollstartgap;
 			} else {
+				/* centered mode: width controlled by mfact */
 				int topgap = 30;
 				int bottomgap = 60;
-				int minw = 100;
 
 				h = m->wh - topgap - bottomgap;
 				if (h < 100)
@@ -5019,11 +5019,9 @@ scroll(Monitor *m)
 				if (h > m->wh - 2 * scrollstartgap)
 					h = m->wh - 2 * scrollstartgap;
 
-				w = (h * 3) / 2; /* enforce 3:2 aspect */
-				if (w > m->ww - 2 * gappx)
-					w = m->ww - 2 * gappx;
-				if (w < minw)
-					w = minw;
+				w = m->ww * c->mfact;
+				if (w < 100)
+					w = 100;
 
 				y = m->wy + topgap;
 				x = m->wx + (m->ww - w) / 2;
@@ -5125,27 +5123,23 @@ scrolltogglesize(const Arg *arg)
 		return;
 	}
 
-	int n = 0;
-	Client *c;
-	for (c = selmon->scrollindex ? selmon->scrollindex->head : NULL; c; c = c->next)
-		if (!c->isfloating)
-			n++;
+	Client *c = selmon->sel;
+	if (!c || c->isfloating)
+		return;
 
-	if (n > 1 && selmon->sel && !selmon->sel->isfloating) {
-		/* Align with setmfact clamp upper bound; allow tiny rounding error */
-		const float target = 0.95f;
-		const float eps = 0.0001f;
+	const float target = 0.95f;
+	const float eps = 0.0001f;
 
-		if (selmon->sel->mfact > target - eps)
-			selmon->sel->mfact = mfactdefault;
-		else
-			selmon->sel->mfact = target;
+	if (c->mfact > target - eps) {
+		c->mfact = mfactdefault;
+		/* when switching to centered mode, also adjust window width */
+		if (c->w > mfactdefault * selmon->ww)
+			c->mfact = mfactdefault;
 	} else {
-		Scroll *s = selmon->scrollindex;
-		if (s)
-			s->singlefill = !s->singlefill;
+		c->mfact = target;
 	}
-	scroll(selmon);
+
+	arrange(selmon);
 }
 
 /* status bar functions */
