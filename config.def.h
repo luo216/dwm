@@ -78,7 +78,6 @@ static const CornerRule cornerrules[] = {
 
 /* layout(s) */
 static const int resizehints    = 1;    /* 1 means respect size hints in tiled resizals */
-static const int lockfullscreen = 1;    /* 1 will force focus on the fullscreen window */
 static const int refreshrate    = 120;  /* refresh rate (per second) for client move/resize */
 static const float mfactdefault = 0.7; /* factor of master area size [0.05..0.95] */
 static const float autofloatthreshold = 0.7; /* auto-float threshold for window height as fraction of monitor height */
@@ -118,7 +117,7 @@ static const Key keys[] = {
 	{ MODKEY|ShiftMask,             XK_k,      focusstepvisible, {.i = -1} },
 	{ MODKEY,                       XK_Return, ensureselectedvisible, {0} },
 	{ MODKEY,                       XK_space,  scrolltogglesize, {0} },
-	{ MODKEY|ShiftMask,             XK_space,  togglefloating, {0} },
+	{ MODKEY|ShiftMask,             XK_space,  togglefloating,   {0} },
 	{ MODKEY|ShiftMask,             XK_f,      togglefullscreen, {0} },
 	TAGKEYS(                        XK_1,                      0)
 	TAGKEYS(                        XK_2,                      1)

@@ -175,6 +175,7 @@ struct Monitor {
 	int wx, wy, ww, wh;   /* window area  */
 	unsigned int sellt;
 	int showbar;
+	int oldshowbar; /* 保存进入 fullscreen 前的 showbar 值 */
 	int topbar;
 	Client *sel;
 	Client *stack;
@@ -2431,6 +2432,7 @@ createmon(void)
 
 	m = ecalloc(1, sizeof(Monitor));
 	m->showbar = showbar;
+	m->oldshowbar = showbar;
 	m->topbar = topbar;
 	m->lt[0] = &layouts[0];
 	m->lt[1] = &layouts[1 % LENGTH(layouts)];
@@ -2823,11 +2825,23 @@ keypress(XEvent *e)
 
 	ev = &e->xkey;
 	keysym = XKeycodeToKeysym(dpy, (KeyCode)ev->keycode, 0);
-	for (i = 0; i < LENGTH(keys); i++)
-		if (keysym == keys[i].keysym
-		&& CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
-		&& keys[i].func)
-			keys[i].func(&(keys[i].arg));
+
+	/* If there's a fullscreen client, only allow togglefullscreen (Mod+Shift+f) */
+	for (i = 0; i < LENGTH(keys); i++) {
+		if (selmon->sel && selmon->sel->isfullscreen) {
+			if (keysym == XK_f
+			&& CLEANMASK(keys[i].mod) == (MODKEY|ShiftMask)
+			&& keys[i].func == togglefullscreen) {
+				keys[i].func(&(keys[i].arg));
+				return;
+			}
+		} else {
+			if (keysym == keys[i].keysym
+			&& CLEANMASK(keys[i].mod) == CLEANMASK(ev->state)
+			&& keys[i].func)
+				keys[i].func(&(keys[i].arg));
+		}
+	}
 }
 
 void
@@ -3536,7 +3550,13 @@ setfullscreen(Client *c, int fullscreen)
 		c->isfullscreen = 1;
 		c->oldstate = c->isfloating;
 		c->isfloating = 1;
-		
+
+		/* Hide bar when entering fullscreen */
+		c->mon->oldshowbar = c->mon->showbar;
+		c->mon->showbar = 0;
+		updatebarpos(c->mon);
+		resizebarwin(c->mon);
+
 		/* For fullscreen, make window cover entire monitor */
 		resizeclient(c, c->mon->mx, c->mon->my, c->mon->mw, c->mon->mh);
 		XRaiseWindow(dpy, c->win);
@@ -3550,6 +3570,12 @@ setfullscreen(Client *c, int fullscreen)
 		c->w = c->oldw;
 		c->h = c->oldh;
 		resizeclient(c, c->x, c->y, c->w, c->h);
+
+		/* Show bar when exiting fullscreen, restore to user's default */
+		c->mon->showbar = c->mon->oldshowbar;
+		updatebarpos(c->mon);
+		resizebarwin(c->mon);
+
 		arrange(c->mon);
 	}
 }
@@ -4322,6 +4348,14 @@ unmanage(Client *c, int destroyed)
 
 	detach(c);
 	detachstack(c);
+
+	/* If fullscreen window is destroyed, restore bar state */
+	if (c->isfullscreen) {
+		m->showbar = 1;
+		updatebarpos(m);
+		resizebarwin(m);
+	}
+
 	if (!destroyed) {
 		wc.border_width = 0;
 		XGrabServer(dpy); /* avoid race conditions */
